@@ -1,0 +1,1 @@
+-- Güral markası: Soft Antislip ve Antislip yüzey kodları (SQLite enum = TEXT, şema Prisma ile senkron)

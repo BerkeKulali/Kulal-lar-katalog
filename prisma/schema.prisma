@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Quality {
+  FIRST
+  END
+}
+
+enum Surface {
+  MAT
+  SLP
+  FLP
+  SUG
+  GLS
+  SOFT_ANTISLIP
+  ANTISLIP
+}
+
+enum OrderStatus {
+  NEW
+  CORRECTION_REQUESTED
+  REVIEWED
+  APPROVED
+  REJECTED
+}
+
+enum AdminRole {
+  SUPER
+  BRAND_MANAGER
+}
+
+model Brand {
+  id        String          @id @default(cuid())
+  name      String
+  slug      String          @unique
+  logoText  String?
+  sortOrder Int             @default(0)
+  families  ProductFamily[]
+  admins    AdminUser[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model ProductFamily {
+  id             String           @id @default(cuid())
+  brandId        String
+  brand          Brand            @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  name           String
+  slug           String
+  imageUrl       String?
+  imagePublicId  String?
+  imageUpdatedAt DateTime?
+  sortOrder      Int              @default(0)
+  isActive       Boolean          @default(true)
+  variants       ProductVariant[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([brandId, slug])
+  @@index([brandId])
+}
+
+model ProductVariant {
+  id            String        @id @default(cuid())
+  familyId      String
+  family        ProductFamily @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  size          String
+  surface       Surface
+  quality       Quality
+  code          String?
+  price         Int?
+  palletM2      Float?
+  boxM2         Float?
+  truckM2       Float?
+  imageUrl       String?
+  imagePublicId  String?
+  imageUpdatedAt DateTime?
+  isActive       Boolean       @default(true)
+  stockLines StockLine[]
+  orderLines OrderLine[]
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  @@unique([familyId, size, surface, quality])
+  @@index([familyId, size])
+}
+
+model StockLine {
+  id          String         @id @default(cuid())
+  variantId   String
+  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  label       String
+  quantityM2  Float
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([variantId])
+}
+
+model Salesperson {
+  id        String   @id @default(cuid())
+  name      String
+  isActive  Boolean  @default(true)
+  devices   Device[]
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Device {
+  id              String       @id @default(cuid())
+  token           String       @unique @default(cuid())
+  salespersonId   String?
+  salesperson     Salesperson? @relation(fields: [salespersonId], references: [id])
+  label           String?
+  registeredAt    DateTime     @default(now())
+  lastSeenAt      DateTime     @default(now())
+}
+
+model Order {
+  id                String         @id @default(cuid())
+  orderNumber       String         @unique
+  salespersonId     String?
+  salesperson       Salesperson?   @relation(fields: [salespersonId], references: [id])
+  dealerName        String
+  notes             String?
+  correctionNote    String?
+  status            OrderStatus    @default(NEW)
+  approvedByAdminId String?
+  approvedByAdmin   AdminUser?     @relation("OrderApprovedBy", fields: [approvedByAdminId], references: [id])
+  approvedAt        DateTime?
+  lines             OrderLine[]
+  adminLogs         OrderAdminLog[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([status])
+}
+
+model OrderAdminLog {
+  id          String    @id @default(cuid())
+  orderId     String
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id])
+  adminName   String
+  action      String
+  message     String?
+  createdAt   DateTime  @default(now())
+
+  @@index([orderId])
+}
+
+model OrderLine {
+  id               String         @id @default(cuid())
+  orderId          String
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId        String
+  variant          ProductVariant @relation(fields: [variantId], references: [id])
+  quantityM2       Float
+  unitPriceSnapshot Int
+  productLabel     String
+
+  @@index([orderId])
+}
+
+model AdminUser {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String
+  password  String
+  role      AdminRole @default(BRAND_MANAGER)
+  brandId   String?
+  brand     Brand?    @relation(fields: [brandId], references: [id])
+  /** JSON dizi: families, images, prices, ... — null ise role varsayılanı */
+  permissions String?
+  approvedOrders Order[]         @relation("OrderApprovedBy")
+  orderLogs      OrderAdminLog[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String?
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AppSettings {
+  id                   String   @id @default("default")
+  lastPriceListUpdate  DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
