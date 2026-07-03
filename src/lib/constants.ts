@@ -22,24 +22,28 @@ export const SURFACES = [
   "MAT",
   "SLP",
   "FLP",
-  "SUG",
+  "SGR",
   "GLS",
   "SOFT_ANTISLIP",
   "ANTISLIP",
+  "R10",
+  "R11",
 ] as const;
 
 export const SURFACE_LABELS: Record<string, string> = {
   MAT: "MAT — Mat",
-  SLP: "SLP — Yarı mat (semi lappato)",
-  FLP: "FLP — Parlak (lappato)",
-  SUG: "SUG — Sugar effect",
-  GLS: "GLS — Glossy",
+  SLP: "SLP — Semi lappato",
+  FLP: "FLP — Full lappato",
+  SGR: "SGR — Sugar",
+  GLS: "GLS — Parlak",
   SOFT_ANTISLIP: "Soft Antislip",
   ANTISLIP: "Antislip",
+  R10: "R10 — Antislip R10",
+  R11: "R11 — Antislip R11",
 };
 
 const BRAND_EXTRA_SURFACES: Record<string, readonly string[]> = {
-  gural: ["SUG", "GLS", "SOFT_ANTISLIP", "ANTISLIP"],
+  gural: ["SGR", "GLS", "SOFT_ANTISLIP", "ANTISLIP", "R10", "R11"],
 };
 
 /** Markanın kullanabileceği yüzey kodları */

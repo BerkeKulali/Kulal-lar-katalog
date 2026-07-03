@@ -7,7 +7,8 @@ import {
   syncEndPriceForFirstVariant,
   syncEndPricesForFirstVariants,
 } from "@/lib/end-price-sync";
-import { parseQuality, parseSurface, slugify } from "@/lib/utils";
+import { importPriceRows } from "@/lib/price-import";
+import { parseQuality, parseSurface } from "@/lib/utils";
 
 export async function GET() {
   const auth = await requireAdminPermission("prices");
@@ -71,112 +72,20 @@ export async function POST(request: Request) {
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
 
-  const results = {
-    updated: 0,
-    created: 0,
-    errors: [] as string[],
-  };
-
-  for (const [index, row] of rows.entries()) {
-    const rowNum = index + 2;
-    try {
-      const brandSlug = String(row.marka_slug ?? row.marka ?? "")
-        .trim()
-        .toLowerCase();
-      const familyName = String(row.aile ?? "").trim();
-      const size = normalizeSize(String(row.olcu ?? ""));
-      const surface = parseSurface(String(row.yuzey ?? ""));
-      const quality = parseQuality(String(row.kalite ?? ""));
-      const price = Number(row.fiyat);
-      const code = row.kod ? String(row.kod).trim() : null;
-
-      if (!brandSlug || !familyName || !size || !surface || !quality) {
-        throw new Error("Eksik alan");
-      }
-      if (!Number.isFinite(price)) {
-        throw new Error("Geçersiz fiyat");
-      }
-
-      const brand = await prisma.brand.findFirst({
-        where: {
-          OR: [{ slug: brandSlug }, { name: { contains: brandSlug } }],
-        },
-      });
-
-      if (!brand) throw new Error("Marka bulunamadı");
-      if (admin.brandId && admin.brandId !== brand.id) {
-        throw new Error("Bu markaya yetkiniz yok");
-      }
-
-      let family = await prisma.productFamily.findFirst({
-        where: { brandId: brand.id, name: familyName },
-      });
-
-      if (!family) {
-        if (mode === "update-only") {
-          throw new Error("Aile bulunamadı");
-        }
-        family = await prisma.productFamily.create({
-          data: {
-            brandId: brand.id,
-            name: familyName,
-            slug: slugify(familyName),
-          },
-        });
-        results.created++;
-      }
-
-      const existing = await prisma.productVariant.findFirst({
-        where: {
-          familyId: family.id,
-          size,
-          surface,
-          quality,
-        },
-      });
-
-      if (existing) {
-        await prisma.productVariant.update({
-          where: { id: existing.id },
-          data: { price, code: code ?? existing.code },
-        });
-        results.updated++;
-        if (quality === "FIRST") {
-          await syncEndPriceForFirstVariant({
-            familyId: family.id,
-            size,
-            surface,
-            price,
-          });
-        }
-      } else {
-        if (mode === "update-only") {
-          throw new Error("Variant bulunamadı");
-        }
-        await prisma.productVariant.create({
-          data: {
-            familyId: family.id,
-            size,
-            surface,
-            quality,
-            price,
-            code,
-          },
-        });
-        results.created++;
-      }
-    } catch (err) {
-      results.errors.push(
-        `Satır ${rowNum}: ${err instanceof Error ? err.message : "Hata"}`
-      );
-    }
-  }
-
-  await prisma.appSettings.upsert({
-    where: { id: "default" },
-    update: { lastPriceListUpdate: new Date() },
-    create: { id: "default", lastPriceListUpdate: new Date() },
-  });
+  const results = await importPriceRows(
+    rows.map((row) => ({
+      marka_slug: row.marka_slug as string | undefined,
+      marka: row.marka as string | undefined,
+      aile: String(row.aile ?? ""),
+      olcu: String(row.olcu ?? ""),
+      yuzey: String(row.yuzey ?? ""),
+      kalite: String(row.kalite ?? ""),
+      fiyat: Number(row.fiyat),
+      kod: row.kod ? String(row.kod) : null,
+    })),
+    mode,
+    admin
+  );
 
   return NextResponse.json(results);
 }

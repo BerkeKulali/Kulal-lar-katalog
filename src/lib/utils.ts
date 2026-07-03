@@ -78,10 +78,12 @@ export function parseSurface(
   | "MAT"
   | "SLP"
   | "FLP"
-  | "SUG"
+  | "SGR"
   | "GLS"
   | "SOFT_ANTISLIP"
   | "ANTISLIP"
+  | "R10"
+  | "R11"
   | null {
   const v = value.trim().toUpperCase();
   const key = v.replace(/[\s-]+/g, "_");
@@ -89,17 +91,25 @@ export function parseSurface(
     key === "MAT" ||
     key === "SLP" ||
     key === "FLP" ||
-    key === "SUG" ||
+    key === "SGR" ||
     key === "GLS" ||
     key === "SOFT_ANTISLIP" ||
-    key === "ANTISLIP"
+    key === "ANTISLIP" ||
+    key === "R10" ||
+    key === "R11"
   )
     return key as ReturnType<typeof parseSurface>;
   if (v.includes("SOFT") && v.includes("ANTI")) return "SOFT_ANTISLIP";
+  if (v.includes("ANTISLIP") && v.includes("R11")) return "R11";
+  if (v.includes("ANTISLIP") && v.includes("R10")) return "R10";
+  if (/\bR11\b/.test(v)) return "R11";
+  if (/\bR10\b/.test(v)) return "R10";
   if (v.includes("ANTISLIP") || v.includes("ANTI SLIP") || v.includes("ANTI-SLIP"))
     return "ANTISLIP";
-  if (v.includes("SUGAR")) return "SUG";
-  if (v.includes("GLOSS")) return "GLS";
+  if (v.includes("SUGAR") || v.includes("SGR")) return "SGR";
+  if (v.includes("PARLAK") || v.includes("GLOSS")) return "GLS";
+  if (v.includes("SEMI") && v.includes("LAPP")) return "SLP";
+  if (v.includes("FULL") && v.includes("LAPP")) return "FLP";
   if (v.includes("SEMI") || v.includes("SEMI LAPP")) return "SLP";
   if (v.includes("LAPP") || v === "FLP") return "FLP";
   if (v.includes("MAT")) return "MAT";

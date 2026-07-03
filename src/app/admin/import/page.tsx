@@ -63,6 +63,17 @@ export default function AdminImportPage() {
         </a>
       </section>
 
+      <section className="mb-10 border border-zinc-800 p-5">
+        <h2 className="mb-3 text-sm font-semibold">GÜRAL fiyat listesi (CSV)</h2>
+        <p className="mb-4 text-xs text-zinc-500">
+          GÜRAL&apos;ın gönderdiği toptan fiyat CSV dosyasını doğrudan yükleyin.
+          Sütunlar: <strong>EBAT</strong>, <strong>ÜRÜN ADI</strong>,{" "}
+          <strong>LİSTE FİYATI</strong> (veya fabrika / depo fiyatı). Ürün aileleri
+          ve varyantlar otomatik oluşturulur.
+        </p>
+        <GuralCsvImportForm />
+      </section>
+
       <section className="border border-zinc-800 p-5">
         <h2 className="mb-3 text-sm font-semibold">Fiyat listesi yükle</h2>
         <p className="mb-4 text-xs text-zinc-500">
@@ -121,6 +132,115 @@ export default function AdminImportPage() {
         <StockImportForm />
       </section>
     </AppShell>
+  );
+}
+
+function GuralCsvImportForm() {
+  const [file, setFile] = useState<File | null>(null);
+  const [mode, setMode] = useState("upsert");
+  const [priceColumn, setPriceColumn] = useState("liste");
+  const [result, setResult] = useState<{
+    parsed: number;
+    updated: number;
+    created: number;
+    skipped: number;
+    parseErrors: string[];
+    errors: string[];
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleGuralSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!file) return;
+
+    setLoading(true);
+    setResult(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("mode", mode);
+    formData.append("priceColumn", priceColumn);
+
+    const res = await fetch("/api/admin/prices/gural", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+    setLoading(false);
+
+    if (!res.ok) {
+      setResult({
+        parsed: data.parsed ?? 0,
+        updated: 0,
+        created: 0,
+        skipped: data.skipped ?? 0,
+        parseErrors: data.errors ?? data.parseErrors ?? [],
+        errors: [data.error ?? "Hata"],
+      });
+      return;
+    }
+
+    setResult({
+      parsed: data.parsed ?? 0,
+      updated: data.updated ?? 0,
+      created: data.created ?? 0,
+      skipped: data.skipped ?? 0,
+      parseErrors: data.parseErrors ?? [],
+      errors: data.errors ?? [],
+    });
+  }
+
+  return (
+    <form onSubmit={handleGuralSubmit} className="space-y-4">
+      <input
+        type="file"
+        accept=".csv,.xlsx,.xls"
+        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        className="block w-full text-sm"
+      />
+      <select
+        value={priceColumn}
+        onChange={(e) => setPriceColumn(e.target.value)}
+        className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm"
+      >
+        <option value="liste">Liste fiyatı</option>
+        <option value="fabrika">Fabrika sevk</option>
+        <option value="depo">Depo teslim</option>
+      </select>
+      <select
+        value={mode}
+        onChange={(e) => setMode(e.target.value)}
+        className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm"
+      >
+        <option value="upsert">Güncelle + yeni ekle</option>
+        <option value="update-only">Sadece güncelle</option>
+      </select>
+      <button
+        type="submit"
+        disabled={!file || loading}
+        className="w-full border border-white py-3 text-sm font-semibold hover:bg-white hover:text-black disabled:opacity-40"
+      >
+        {loading ? "Aktarılıyor..." : "GÜRAL CSV yükle"}
+      </button>
+
+      {result && (
+        <div className="mt-6 space-y-2 text-sm">
+          <p className="text-green-400">
+            {result.parsed} satır işlendi · Güncellenen: {result.updated} · Yeni:{" "}
+            {result.created}
+            {result.skipped > 0 ? ` · Atlanan: ${result.skipped}` : ""}
+          </p>
+          {[...result.parseErrors, ...result.errors].length > 0 && (
+            <ul className="max-h-48 overflow-y-auto text-xs text-red-400">
+              {[...result.parseErrors, ...result.errors].map((err) => (
+                <li key={err}>{err}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </form>
   );
 }
 

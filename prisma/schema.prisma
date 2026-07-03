@@ -16,10 +16,12 @@ enum Surface {
   MAT
   SLP
   FLP
-  SUG
+  SGR
   GLS
   SOFT_ANTISLIP
   ANTISLIP
+  R10
+  R11
 }
 
 enum OrderStatus {
