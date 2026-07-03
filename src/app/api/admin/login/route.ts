@@ -5,11 +5,32 @@ import { prisma } from "@/lib/prisma";
 const COOKIE_NAME = "kulalilar_admin";
 
 export async function POST(request: Request) {
-  const { email, password } = await request.json();
+  const body = await request.json().catch(() => null);
+  const email = String(body?.email ?? "").trim().toLowerCase();
+  const password = String(body?.password ?? "");
+
+  if (!email || !password) {
+    return NextResponse.json(
+      { error: "E-posta ve şifre gerekli" },
+      { status: 400 }
+    );
+  }
 
   const user = await prisma.adminUser.findUnique({ where: { email } });
-  if (!user || user.password !== password) {
-    return NextResponse.json({ error: "Geçersiz giriş" }, { status: 401 });
+  if (!user) {
+    return NextResponse.json(
+      {
+        error: "Bu e-posta ile kayıtlı admin kullanıcısı yok",
+        code: "USER_NOT_FOUND",
+      },
+      { status: 401 }
+    );
+  }
+  if (user.password !== password) {
+    return NextResponse.json(
+      { error: "Şifre hatalı", code: "WRONG_PASSWORD" },
+      { status: 401 }
+    );
   }
 
   const cookieStore = await cookies();

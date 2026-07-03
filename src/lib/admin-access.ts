@@ -43,8 +43,10 @@ export function enforceAdminAccess(request: NextRequest): NextResponse | null {
   const isLoginPath =
     pathname === "/admin/login" || pathname === "/api/admin/login";
   const isMePath = pathname === "/api/admin/me";
+  const adminLoggedIn = hasAdminSession(request);
 
-  if (isTabletSession(request) && !isLoginPath && !(isMePath && hasAdminSession(request))) {
+  // Tablet kurulumu varsa yalnızca giriş yapmamış ziyaretçiyi engelle.
+  if (isTabletSession(request) && !adminLoggedIn && !isLoginPath) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "Admin paneli tabletten erişilemez" },
@@ -52,7 +54,7 @@ export function enforceAdminAccess(request: NextRequest): NextResponse | null {
       );
     }
     const login = new URL("/admin/login", request.url);
-    login.searchParams.set("tablet", "1");
+    login.searchParams.set("denied", "tablet");
     return NextResponse.redirect(login);
   }
 
