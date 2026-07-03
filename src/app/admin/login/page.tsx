@@ -2,10 +2,14 @@
 
 import { AppShell } from "@/components/AppShell";
 import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const needKey = searchParams.get("needKey") === "1";
+  const tabletBlocked = searchParams.get("tablet") === "1";
+
   const [email, setEmail] = useState("admin@kulalilar.com");
   const [password, setPassword] = useState("admin123");
   const [error, setError] = useState("");
@@ -23,7 +27,12 @@ export default function AdminLoginPage() {
     });
 
     if (!res.ok) {
-      setError("Giriş başarısız");
+      const data = await res.json().catch(() => null);
+      if (res.status === 403) {
+        setError("Erişim anahtarı gerekli veya yetkisiz");
+      } else {
+        setError(data?.error ?? "Giriş başarısız — e-posta veya şifre hatalı");
+      }
       setLoading(false);
       return;
     }
@@ -35,6 +44,23 @@ export default function AdminLoginPage() {
   return (
     <AppShell variant="narrow" className="flex flex-col justify-center py-16">
       <h1 className="mb-8 text-center text-xl font-bold">Admin Girişi</h1>
+
+      {needKey && (
+        <p className="mb-4 rounded border border-amber-800/60 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+          Ofis erişim anahtarı gerekli. Vercel&apos;deki{" "}
+          <strong>ADMIN_ACCESS_KEY</strong> ile bir kez şu adresi açın:{" "}
+          <code className="text-amber-100">/admin/login?key=ANAHTARINIZ</code>
+        </p>
+      )}
+
+      {tabletBlocked && (
+        <p className="mb-4 rounded border border-zinc-700 px-3 py-2 text-xs text-zinc-400">
+          Bu tarayıcıda katalog tableti kurulumu var; admin panele girmek için{" "}
+          <strong>gizli pencere</strong> veya kurulum yapılmamış başka bir
+          tarayıcı kullanın.
+        </p>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <input
           type="email"

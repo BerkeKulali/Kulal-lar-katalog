@@ -35,14 +35,19 @@ export function enforceAdminAccess(request: NextRequest): NextResponse | null {
 
   if (!isAdminPath(pathname)) return null;
 
-  if (isTabletSession(request)) {
+  const isLoginPath =
+    pathname === "/admin/login" || pathname === "/api/admin/login";
+
+  if (isTabletSession(request) && !isLoginPath) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "Admin paneli tabletten erişilemez" },
         { status: 403 }
       );
     }
-    return NextResponse.redirect(new URL("/", request.url));
+    const login = new URL("/admin/login", request.url);
+    login.searchParams.set("tablet", "1");
+    return NextResponse.redirect(login);
   }
 
   const accessKey = process.env.ADMIN_ACCESS_KEY?.trim();
@@ -60,6 +65,12 @@ export function enforceAdminAccess(request: NextRequest): NextResponse | null {
 
   if (pathname.startsWith("/api/")) {
     return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
+  }
+
+  if (pathname === "/admin/login") {
+    const login = new URL("/admin/login", request.url);
+    login.searchParams.set("needKey", "1");
+    return NextResponse.redirect(login);
   }
 
   return NextResponse.redirect(new URL("/", request.url));
