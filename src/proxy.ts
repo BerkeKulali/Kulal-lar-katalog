@@ -22,6 +22,11 @@ export default function proxy(request: NextRequest) {
   const adminBlock = enforceAdminAccess(request);
   if (adminBlock) return adminBlock;
 
+  // Admin paneli ofis tarayıcısından açılır; tablet kurulumu gerekmez.
+  if (pathname.startsWith("/admin")) {
+    return NextResponse.next();
+  }
+
   const hasDevice = Boolean(request.cookies.get(DEVICE_TOKEN_COOKIE)?.value);
 
   if (isPublicPath(pathname)) {
