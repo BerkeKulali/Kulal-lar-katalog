@@ -59,6 +59,61 @@ export function isPublicIdConflict(err: unknown) {
   );
 }
 
+export function familyPublicIdVariants(familyName: string, familySlug: string) {
+  const variants = new Set<string>();
+  const add = (value: string) => {
+    const v = value.toLowerCase().trim();
+    if (v) variants.add(v);
+  };
+
+  add(familySlug);
+  add(familyName);
+  add(familyName.replace(/\s+/g, "-"));
+  add(familyName.replace(/\s+/g, "_"));
+  add(familyName.replace(/[^a-z0-9]+/gi, ""));
+  add(slugifyImageName(familyName));
+
+  for (const token of familyName.toLowerCase().split(/\s+/).filter(Boolean)) {
+    add(token);
+    add(slugifyImageName(token));
+  }
+
+  return [...variants];
+}
+
+export function imageMatchesFamilyPublicId(
+  publicId: string,
+  familyName: string,
+  variants: string[]
+) {
+  const id = publicId.toLowerCase();
+  if (variants.some((v) => id.includes(`/${v}/`) || id.endsWith(`/${v}`))) {
+    return true;
+  }
+
+  const tokens = familyName
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.replace(/[^a-z0-9ğüşıöç]/gi, ""))
+    .filter((t) => t.length >= 2);
+
+  if (tokens.length === 0) return false;
+  return tokens.every((token) => {
+    const slug = slugifyImageName(token);
+    return id.includes(token) || id.includes(slug);
+  });
+}
+
+export function filterImagesForFamily<T extends { public_id?: string }>(
+  resources: T[],
+  familyName: string,
+  variants: string[]
+) {
+  return resources.filter((r) =>
+    imageMatchesFamilyPublicId(String(r.public_id ?? ""), familyName, variants)
+  );
+}
+
 export async function listCatalogImages(
   prefix: string,
   options?: { maxPages?: number; maxResults?: number }

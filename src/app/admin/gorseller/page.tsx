@@ -42,7 +42,13 @@ export default function AdminImagesPage() {
   const [size, setSize] = useState("");
   const [variantId, setVariantId] = useState("");
   const [assignTarget, setAssignTarget] = useState<AssignTarget>("family");
+  const [libraryScope, setLibraryScope] = useState<"auto" | "brand">("auto");
   const [library, setLibrary] = useState<CloudItem[]>([]);
+  const [libraryMeta, setLibraryMeta] = useState<{
+    prefix: string;
+    matchMode: string;
+    familyName: string | null;
+  } | null>(null);
   const [selected, setSelected] = useState<CloudItem | null>(null);
   const [configured, setConfigured] = useState(true);
   const [cloudStatus, setCloudStatus] = useState<{
@@ -97,7 +103,7 @@ export default function AdminImagesPage() {
   const loadLibrary = useCallback(async () => {
     setLoadingLib(true);
     setError(null);
-    const params = new URLSearchParams({ limit: "48" });
+    const params = new URLSearchParams({ limit: "48", scope: libraryScope });
     if (brandSlug) params.set("brand", brandSlug);
     if (familySlug) params.set("family", familySlug);
 
@@ -107,17 +113,27 @@ export default function AdminImagesPage() {
 
     if (!res.ok) {
       setError(data.error ?? "Kütüphane yüklenemedi");
+      setLibraryMeta(null);
       return;
     }
 
     setConfigured(data.configured !== false);
     setLibrary(data.items ?? []);
-  }, [brandSlug, familySlug]);
+    setLibraryMeta({
+      prefix: data.prefix ?? "",
+      matchMode: data.matchMode ?? "folder",
+      familyName: data.familyName ?? null,
+    });
+  }, [brandSlug, familySlug, libraryScope]);
 
   useEffect(() => {
     loadMeta();
     checkCloudinary();
   }, [loadMeta, checkCloudinary]);
+
+  useEffect(() => {
+    setLibraryScope("auto");
+  }, [brandSlug, familyId]);
 
   useEffect(() => {
     loadLibrary();
@@ -424,11 +440,52 @@ export default function AdminImagesPage() {
         </section>
 
         <section className="border border-zinc-800 p-4">
-          <h2 className="mb-4 text-sm font-semibold">Kütüphane</h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold">Kütüphane</h2>
+            {familySlug && (
+              <button
+                type="button"
+                onClick={() =>
+                  setLibraryScope((s) => (s === "brand" ? "auto" : "brand"))
+                }
+                className="text-[11px] text-zinc-400 underline hover:text-white"
+              >
+                {libraryScope === "brand"
+                  ? "Aileye göre ara"
+                  : "Tüm marka görselleri"}
+              </button>
+            )}
+          </div>
+
+          {selectedFamily && (
+            <p className="mb-3 text-[11px] text-zinc-500">
+              Beklenen klasör:{" "}
+              <code className="text-zinc-300">
+                kulalilar-katalog/{brandSlug}/{selectedFamily.slug}
+              </code>
+            </p>
+          )}
+
+          {libraryMeta?.matchMode === "fuzzy" && library.length > 0 && (
+            <p className="mb-3 text-[11px] text-amber-200/90">
+              Görseller tam klasörde değil; isim benzerliğiyle marka altında
+              bulundu.
+            </p>
+          )}
+
           {loadingLib ? (
             <p className="text-sm text-zinc-500">Yükleniyor...</p>
           ) : library.length === 0 ? (
-            <p className="text-sm text-zinc-500">Henüz görsel yok.</p>
+            <div className="space-y-2 text-sm text-zinc-500">
+              <p>Bu klasörde görsel yok.</p>
+              {selectedFamily && (
+                <p className="text-xs">
+                  Cloudinary&apos;deki public_id içinde &quot;{selectedFamily.name}
+                  &quot; geçmeli veya dosyayı yukarıdan doğru aile klasörüne
+                  yükleyin.
+                </p>
+              )}
+            </div>
           ) : (
             <div className="grid max-h-[70vh] grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3">
               {library.map((item) => (
@@ -450,6 +507,9 @@ export default function AdminImagesPage() {
                   />
                   <p className="mt-1 truncate text-[10px] text-zinc-400">
                     {item.displayName}
+                  </p>
+                  <p className="truncate text-[9px] text-zinc-600">
+                    {item.publicId}
                   </p>
                 </button>
               ))}

@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
+import { prisma } from "@/lib/prisma";
 import {
   catalogFolder,
+  CATALOG_IMAGE_ROOT,
+  familyPublicIdVariants,
+  filterImagesForFamily,
   initCloudinary,
   isCloudinaryConfigured,
   isPublicIdConflict,
@@ -27,23 +31,65 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const brandSlug = searchParams.get("brand") ?? undefined;
   const familySlug = searchParams.get("family") ?? undefined;
+  const scope = searchParams.get("scope") ?? "auto";
   const maxResults = Math.min(
     Math.max(Number(searchParams.get("limit") ?? 48), 1),
     120
   );
 
-  let prefix = "kulalilar-katalog";
+  let prefix = CATALOG_IMAGE_ROOT;
   if (brandSlug) {
     prefix = catalogFolder(brandSlug, familySlug ?? undefined);
   }
 
+  let familyName = familySlug ?? "";
+  if (brandSlug && familySlug) {
+    const family = await prisma.productFamily.findFirst({
+      where: { slug: familySlug, brand: { slug: brandSlug } },
+      select: { name: true },
+    });
+    if (family?.name) familyName = family.name;
+  }
+
   try {
-    const resources = await listCatalogImages(prefix, {
+    let matchMode: "folder" | "fuzzy" | "brand" = "folder";
+    let resources = await listCatalogImages(prefix, {
       maxPages: 1,
       maxResults,
     });
+
+    if (
+      resources.length === 0 &&
+      brandSlug &&
+      familySlug &&
+      (scope === "auto" || scope === "fuzzy")
+    ) {
+      const brandPrefix = catalogFolder(brandSlug);
+      const brandResources = await listCatalogImages(brandPrefix, {
+        maxPages: 10,
+        maxResults: 200,
+      });
+      const variants = familyPublicIdVariants(familyName, familySlug);
+      resources = filterImagesForFamily(brandResources, familyName, variants);
+      matchMode = "fuzzy";
+    }
+
+    if (resources.length === 0 && brandSlug && scope === "brand") {
+      resources = await listCatalogImages(catalogFolder(brandSlug), {
+        maxPages: 10,
+        maxResults,
+      });
+      matchMode = "brand";
+    }
+
     const items = resources.map((r) => toImageItem(r));
-    return NextResponse.json({ configured: true, prefix, items });
+    return NextResponse.json({
+      configured: true,
+      prefix,
+      familyName: familyName || null,
+      matchMode,
+      items,
+    });
   } catch (e) {
     return NextResponse.json(
       { error: (e as Error).message ?? "Liste alınamadı" },
