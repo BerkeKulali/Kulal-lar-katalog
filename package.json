@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:migrate:turso": "tsx scripts/turso-migrate.ts",
+    "gural:import-csv": "tsx scripts/gural-csv-to-import.ts",
     "db:reset": "prisma migrate reset --force",
     "cloudinary:test": "tsx scripts/test-cloudinary.ts"
   },
