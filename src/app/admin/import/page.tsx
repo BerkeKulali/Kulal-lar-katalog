@@ -148,6 +148,13 @@ function GuralCsvImportForm() {
     errors: string[];
   } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<{
+    phase: string;
+    current: number;
+    total: number;
+  } | null>(null);
+
+  const BATCH_SIZE = 40;
 
   async function handleGuralSubmit(e: FormEvent) {
     e.preventDefault();
@@ -155,41 +162,103 @@ function GuralCsvImportForm() {
 
     setLoading(true);
     setResult(null);
+    setProgress({ phase: "CSV okunuyor…", current: 0, total: 0 });
 
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("mode", mode);
     formData.append("priceColumn", priceColumn);
 
-    const res = await fetch("/api/admin/prices/gural", {
-      method: "POST",
-      body: formData,
-    });
+    try {
+      const parseRes = await fetch("/api/admin/prices/gural/parse", {
+        method: "POST",
+        body: formData,
+      });
+      const parsed = await parseRes.json();
 
-    const data = await res.json();
-    setLoading(false);
+      if (!parseRes.ok) {
+        setResult({
+          parsed: 0,
+          updated: 0,
+          created: 0,
+          skipped: parsed.skipped ?? 0,
+          parseErrors: parsed.parseErrors ?? [],
+          errors: [parsed.error ?? "CSV okunamadı"],
+        });
+        return;
+      }
 
-    if (!res.ok) {
+      const rows = parsed.rows as Array<Record<string, unknown>>;
+      const total = rows.length;
+      let updated = 0;
+      let created = 0;
+      const errors = [...(parsed.parseErrors ?? [])];
+
+      setProgress({ phase: "Veritabanına yazılıyor…", current: 0, total });
+
+      for (let offset = 0; offset < total; offset += BATCH_SIZE) {
+        const batch = rows.slice(offset, offset + BATCH_SIZE);
+        const batchIndex = Math.floor(offset / BATCH_SIZE);
+        const isLast = offset + BATCH_SIZE >= total;
+
+        const batchRes = await fetch("/api/admin/prices/import-batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rows: batch,
+            mode,
+            brandSlug: "gural",
+            batchIndex,
+            rowOffset: offset,
+            finalize: isLast,
+          }),
+        });
+
+        const batchData = await batchRes.json();
+        if (!batchRes.ok) {
+          errors.push(batchData.error ?? `Parti ${batchIndex + 1} başarısız`);
+          break;
+        }
+
+        updated += batchData.updated ?? 0;
+        created += batchData.created ?? 0;
+        errors.push(...(batchData.errors ?? []));
+
+        setProgress({
+          phase: "Veritabanına yazılıyor…",
+          current: Math.min(offset + batch.length, total),
+          total,
+        });
+      }
+
       setResult({
-        parsed: data.parsed ?? 0,
+        parsed: total,
+        updated,
+        created,
+        skipped: parsed.skipped ?? 0,
+        parseErrors: parsed.parseErrors ?? [],
+        errors,
+      });
+    } catch {
+      setResult({
+        parsed: 0,
         updated: 0,
         created: 0,
-        skipped: data.skipped ?? 0,
-        parseErrors: data.errors ?? data.parseErrors ?? [],
-        errors: [data.error ?? "Hata"],
+        skipped: 0,
+        parseErrors: [],
+        errors: ["Bağlantı kesildi veya sunucu zaman aşımına uğradı. Tekrar deneyin."],
       });
-      return;
+    } finally {
+      setLoading(false);
+      setProgress(null);
     }
-
-    setResult({
-      parsed: data.parsed ?? 0,
-      updated: data.updated ?? 0,
-      created: data.created ?? 0,
-      skipped: data.skipped ?? 0,
-      parseErrors: data.parseErrors ?? [],
-      errors: data.errors ?? [],
-    });
   }
+
+  const progressPct =
+    progress && progress.total > 0
+      ? Math.round((progress.current / progress.total) * 100)
+      : progress?.phase === "CSV okunuyor…"
+        ? 8
+        : 0;
 
   return (
     <form onSubmit={handleGuralSubmit} className="space-y-4">
@@ -221,8 +290,30 @@ function GuralCsvImportForm() {
         disabled={!file || loading}
         className="w-full border border-white py-3 text-sm font-semibold hover:bg-white hover:text-black disabled:opacity-40"
       >
-        {loading ? "Aktarılıyor..." : "GÜRAL CSV yükle"}
+        {loading ? "Aktarılıyor…" : "GÜRAL CSV yükle"}
       </button>
+
+      {progress && (
+        <div className="space-y-2 rounded border border-zinc-800 p-3">
+          <div className="flex items-center justify-between text-xs text-zinc-400">
+            <span>{progress.phase}</span>
+            <span>
+              {progress.total > 0
+                ? `${progress.current} / ${progress.total} (%${progressPct})`
+                : "…"}
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded bg-zinc-800">
+            <div
+              className="h-full rounded bg-emerald-500 transition-all duration-300"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-zinc-500">
+            440 ürün birkaç partide işlenir; çubuk ilerlemiyorsa sayfayı kapatmayın.
+          </p>
+        </div>
+      )}
 
       {result && (
         <div className="mt-6 space-y-2 text-sm">

@@ -1,9 +1,6 @@
-import type { AdminUser } from "@/generated/prisma/client";
+import type { AdminUser, Quality, Surface } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeSize } from "@/lib/constants";
-import {
-  syncEndPriceForFirstVariant,
-} from "@/lib/end-price-sync";
 import { parseQuality, parseSurface, slugify } from "@/lib/utils";
 
 export type PriceImportRow = {
@@ -23,111 +20,110 @@ export type PriceImportResult = {
   errors: string[];
 };
 
+type FamilyCache = { id: string; name: string };
+type VariantCache = {
+  id: string;
+  code: string | null;
+};
+
+export type PriceImportContext = {
+  brandId: string;
+  mode: string;
+  families: Map<string, FamilyCache>;
+  variants: Map<string, VariantCache>;
+  skipEndSync: boolean;
+};
+
+function variantCacheKey(
+  familyId: string,
+  size: string,
+  surface: Surface,
+  quality: Quality
+) {
+  return `${familyId}|${size}|${surface}|${quality}`;
+}
+
+export async function createPriceImportContext(
+  brandSlug: string,
+  mode: string,
+  admin: Pick<AdminUser, "brandId">,
+  options?: { skipEndSync?: boolean }
+): Promise<PriceImportContext | null> {
+  const slug = brandSlug.trim().toLowerCase();
+  const brand = await prisma.brand.findFirst({
+    where: {
+      OR: [{ slug }, { name: { contains: slug } }],
+    },
+    select: { id: true },
+  });
+
+  if (!brand) return null;
+  if (admin.brandId && admin.brandId !== brand.id) return null;
+
+  const [families, variants] = await Promise.all([
+    prisma.productFamily.findMany({
+      where: { brandId: brand.id },
+      select: { id: true, name: true },
+    }),
+    prisma.productVariant.findMany({
+      where: { family: { brandId: brand.id } },
+      select: {
+        id: true,
+        familyId: true,
+        size: true,
+        surface: true,
+        quality: true,
+        code: true,
+      },
+    }),
+  ]);
+
+  const familyMap = new Map<string, FamilyCache>();
+  for (const family of families) {
+    familyMap.set(family.name, family);
+  }
+
+  const variantMap = new Map<string, VariantCache>();
+  for (const variant of variants) {
+    variantMap.set(
+      variantCacheKey(
+        variant.familyId,
+        variant.size,
+        variant.surface,
+        variant.quality
+      ),
+      { id: variant.id, code: variant.code }
+    );
+  }
+
+  return {
+    brandId: brand.id,
+    mode,
+    families: familyMap,
+    variants: variantMap,
+    skipEndSync: options?.skipEndSync ?? true,
+  };
+}
+
 export async function importPriceRows(
   rows: PriceImportRow[],
   mode: string,
-  admin: Pick<AdminUser, "brandId">
+  admin: Pick<AdminUser, "brandId">,
+  options?: { skipEndSync?: boolean }
 ): Promise<PriceImportResult> {
-  const results: PriceImportResult = {
-    updated: 0,
-    created: 0,
-    errors: [],
-  };
-
-  for (const [index, row] of rows.entries()) {
-    const rowNum = index + 2;
-    try {
-      const brandSlug = String(row.marka_slug ?? row.marka ?? "")
-        .trim()
-        .toLowerCase();
-      const familyName = String(row.aile ?? "").trim();
-      const size = normalizeSize(String(row.olcu ?? ""));
-      const surface = parseSurface(String(row.yuzey ?? ""));
-      const quality = parseQuality(String(row.kalite ?? ""));
-      const price = Number(row.fiyat);
-      const code = row.kod ? String(row.kod).trim() : null;
-
-      if (!brandSlug || !familyName || !size || !surface || !quality) {
-        throw new Error("Eksik alan");
-      }
-      if (!Number.isFinite(price)) {
-        throw new Error("Geçersiz fiyat");
-      }
-
-      const brand = await prisma.brand.findFirst({
-        where: {
-          OR: [{ slug: brandSlug }, { name: { contains: brandSlug } }],
-        },
-      });
-
-      if (!brand) throw new Error("Marka bulunamadı");
-      if (admin.brandId && admin.brandId !== brand.id) {
-        throw new Error("Bu markaya yetkiniz yok");
-      }
-
-      let family = await prisma.productFamily.findFirst({
-        where: { brandId: brand.id, name: familyName },
-      });
-
-      if (!family) {
-        if (mode === "update-only") {
-          throw new Error("Aile bulunamadı");
-        }
-        family = await prisma.productFamily.create({
-          data: {
-            brandId: brand.id,
-            name: familyName,
-            slug: slugify(familyName),
-          },
-        });
-        results.created++;
-      }
-
-      const existing = await prisma.productVariant.findFirst({
-        where: {
-          familyId: family.id,
-          size,
-          surface,
-          quality,
-        },
-      });
-
-      if (existing) {
-        await prisma.productVariant.update({
-          where: { id: existing.id },
-          data: { price, code: code ?? existing.code },
-        });
-        results.updated++;
-        if (quality === "FIRST") {
-          await syncEndPriceForFirstVariant({
-            familyId: family.id,
-            size,
-            surface,
-            price,
-          });
-        }
-      } else {
-        if (mode === "update-only") {
-          throw new Error("Variant bulunamadı");
-        }
-        await prisma.productVariant.create({
-          data: {
-            familyId: family.id,
-            size,
-            surface,
-            quality,
-            price,
-            code,
-          },
-        });
-        results.created++;
-      }
-    } catch (err) {
-      results.errors.push(
-        `Satır ${rowNum}: ${err instanceof Error ? err.message : "Hata"}`
-      );
-    }
+  const brandSlug = String(rows[0]?.marka_slug ?? rows[0]?.marka ?? "")
+    .trim()
+    .toLowerCase();
+  if (!brandSlug) {
+    return { updated: 0, created: 0, errors: ["Marka bulunamadı"] };
   }
+
+  const ctx = await createPriceImportContext(brandSlug, mode, admin, options);
+  if (!ctx) {
+    return { updated: 0, created: 0, errors: ["Marka bulunamadı veya yetki yok"] };
+  }
+
+  const results = await importPriceRowsWithContext(rows, ctx, 0);
 
   if (results.updated > 0 || results.created > 0) {
     await prisma.appSettings.upsert({
@@ -138,4 +134,95 @@ export async function importPriceRows(
   }
 
   return results;
+}
+
+export async function importPriceRowsWithContext(
+  rows: PriceImportRow[],
+  ctx: PriceImportContext,
+  rowOffset = 0
+): Promise<PriceImportResult> {
+  const results: PriceImportResult = {
+    updated: 0,
+    created: 0,
+    errors: [],
+  };
+
+  for (const [index, row] of rows.entries()) {
+    const rowNum = rowOffset + index + 2;
+    try {
+      const familyName = String(row.aile ?? "").trim();
+      const size = normalizeSize(String(row.olcu ?? ""));
+      const surface = parseSurface(String(row.yuzey ?? ""));
+      const quality = parseQuality(String(row.kalite ?? ""));
+      const price = Number(row.fiyat);
+      const code = row.kod ? String(row.kod).trim() : null;
+
+      if (!familyName || !size || !surface || !quality) {
+        throw new Error("Eksik alan");
+      }
+      if (!Number.isFinite(price)) {
+        throw new Error("Geçersiz fiyat");
+      }
+
+      let family = ctx.families.get(familyName);
+      if (!family) {
+        if (ctx.mode === "update-only") {
+          throw new Error("Aile bulunamadı");
+        }
+        const created = await prisma.productFamily.create({
+          data: {
+            brandId: ctx.brandId,
+            name: familyName,
+            slug: slugify(familyName),
+          },
+          select: { id: true, name: true },
+        });
+        family = created;
+        ctx.families.set(familyName, created);
+        results.created++;
+      }
+
+      const vKey = variantCacheKey(family.id, size, surface, quality);
+      const existing = ctx.variants.get(vKey);
+
+      if (existing) {
+        await prisma.productVariant.update({
+          where: { id: existing.id },
+          data: { price, code: code ?? existing.code },
+        });
+        results.updated++;
+      } else {
+        if (ctx.mode === "update-only") {
+          throw new Error("Variant bulunamadı");
+        }
+        const created = await prisma.productVariant.create({
+          data: {
+            familyId: family.id,
+            size,
+            surface,
+            quality,
+            price,
+            code,
+          },
+          select: { id: true, code: true },
+        });
+        ctx.variants.set(vKey, created);
+        results.created++;
+      }
+    } catch (err) {
+      results.errors.push(
+        `Satır ${rowNum}: ${err instanceof Error ? err.message : "Hata"}`
+      );
+    }
+  }
+
+  return results;
+}
+
+export async function touchPriceListUpdated() {
+  await prisma.appSettings.upsert({
+    where: { id: "default" },
+    update: { lastPriceListUpdate: new Date() },
+    create: { id: "default", lastPriceListUpdate: new Date() },
+  });
 }

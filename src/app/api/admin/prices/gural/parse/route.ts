@@ -5,10 +5,8 @@ import {
   parseGuralPriceCsvRows,
   type GuralPriceColumn,
 } from "@/lib/gural-import";
-import { importPriceRows } from "@/lib/price-import";
-import { prisma } from "@/lib/prisma";
 
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 function parsePriceColumn(value: string | null): GuralPriceColumn {
   const v = (value ?? "liste").trim().toLowerCase();
@@ -19,23 +17,9 @@ function parsePriceColumn(value: string | null): GuralPriceColumn {
 export async function POST(request: Request) {
   const auth = await requireAdminPermission("import");
   if (!auth.admin) return auth.response;
-  const admin = auth.admin;
-
-  if (admin.brandId) {
-    const brand = await prisma.brand.findUnique({
-      where: { id: admin.brandId },
-    });
-    if (brand?.slug !== "gural") {
-      return NextResponse.json(
-        { error: "Bu işlem yalnızca GÜRAL markası için kullanılabilir" },
-        { status: 403 }
-      );
-    }
-  }
 
   const formData = await request.formData();
   const file = formData.get("file");
-  const mode = (formData.get("mode") as string) ?? "upsert";
   const priceColumn = parsePriceColumn(formData.get("priceColumn") as string | null);
 
   if (!(file instanceof File)) {
@@ -58,23 +42,19 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: "İçe aktarılacak satır bulunamadı",
-        errors: parseErrors,
+        parseErrors,
         skipped,
-        parsed: 0,
-        updated: 0,
-        created: 0,
+        total: 0,
       },
       { status: 400 }
     );
   }
 
-  const results = await importPriceRows(rows, mode, admin, { skipEndSync: true });
-
   return NextResponse.json({
-    ...results,
-    parsed: rows.length,
-    skipped,
+    rows,
     parseErrors,
+    skipped,
+    total: rows.length,
     priceColumn,
   });
 }
