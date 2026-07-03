@@ -1,10 +1,24 @@
 import "dotenv/config";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient, Quality, Surface } from "../src/generated/prisma/client";
 
-const url = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
-const adapter = new PrismaBetterSqlite3({ url });
-const prisma = new PrismaClient({ adapter });
+function createSeedClient() {
+  const url = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
+  if (url.startsWith("libsql://") || url.startsWith("https://")) {
+    return new PrismaClient({
+      adapter: new PrismaLibSql({
+        url,
+        authToken: process.env.DATABASE_AUTH_TOKEN,
+      }),
+    });
+  }
+  return new PrismaClient({
+    adapter: new PrismaBetterSqlite3({ url }),
+  });
+}
+
+const prisma = createSeedClient();
 
 const TILE_COLORS: Record<string, string> = {
   "ARK-IVORY": "#e8e0d4",
@@ -253,6 +267,12 @@ async function seedBrandFamilies(
 }
 
 async function main() {
+  const url = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
+  const target = url.startsWith("libsql://") || url.startsWith("https://")
+    ? "Turso (uzak)"
+    : `Yerel SQLite (${url})`;
+  console.log(`Seed hedefi: ${target}`);
+
   await prisma.orderLine.deleteMany();
   await prisma.order.deleteMany();
   await prisma.stockLine.deleteMany();
