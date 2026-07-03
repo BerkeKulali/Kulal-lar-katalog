@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
 
 export const ADMIN_GATE_COOKIE = "kulalilar-admin-gate";
+const ADMIN_SESSION_COOKIE = "kulalilar_admin";
 const ADMIN_GATE_MAX_AGE = 60 * 60 * 24 * 30;
 
 export function isAdminPath(pathname: string) {
@@ -11,6 +12,10 @@ export function isAdminPath(pathname: string) {
 
 export function isTabletSession(request: NextRequest) {
   return Boolean(request.cookies.get(DEVICE_TOKEN_COOKIE)?.value);
+}
+
+function hasAdminSession(request: NextRequest) {
+  return Boolean(request.cookies.get(ADMIN_SESSION_COOKIE)?.value);
 }
 
 function gateCookieOptions() {
@@ -37,8 +42,9 @@ export function enforceAdminAccess(request: NextRequest): NextResponse | null {
 
   const isLoginPath =
     pathname === "/admin/login" || pathname === "/api/admin/login";
+  const isMePath = pathname === "/api/admin/me";
 
-  if (isTabletSession(request) && !isLoginPath) {
+  if (isTabletSession(request) && !isLoginPath && !(isMePath && hasAdminSession(request))) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         { error: "Admin paneli tabletten erişilemez" },
@@ -54,6 +60,8 @@ export function enforceAdminAccess(request: NextRequest): NextResponse | null {
   if (!accessKey) return null;
 
   if (hasAdminGate(request)) return null;
+
+  if (isMePath && hasAdminSession(request)) return null;
 
   const urlKey = request.nextUrl.searchParams.get("key");
   if (pathname === "/admin/login" && urlKey === accessKey) {
