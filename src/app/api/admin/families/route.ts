@@ -49,7 +49,6 @@ export async function GET() {
       _count: { select: { variants: true } },
     },
     orderBy: [{ brand: { sortOrder: "asc" } }, { name: "asc" }],
-    take: 200,
   });
 
   return NextResponse.json({

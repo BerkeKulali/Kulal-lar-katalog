@@ -112,6 +112,7 @@ export default function AdminFamiliesPage() {
   const [editLoading, setEditLoading] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
   const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null);
+  const [familySearch, setFamilySearch] = useState("");
   const didInitBrand = useRef(false);
 
   const loadData = useCallback(async () => {
@@ -158,6 +159,17 @@ export default function AdminFamiliesPage() {
   );
 
   const previewCount = countMatrixVariants(createPayloadMatrix);
+
+  const filteredFamilies = useMemo(() => {
+    const q = familySearch.trim().toLowerCase();
+    if (!q) return families;
+    return families.filter(
+      (f) =>
+        f.name.toLowerCase().includes(q) ||
+        f.slug.toLowerCase().includes(q) ||
+        f.brandName.toLowerCase().includes(q)
+    );
+  }, [families, familySearch]);
 
   const editPayloadMatrix = useMemo(
     () =>
@@ -537,12 +549,20 @@ export default function AdminFamiliesPage() {
 
       <section>
         <h2 className="mb-4 text-sm font-semibold text-zinc-400">
-          Mevcut ürün aileleri ({families.length})
+          Mevcut ürün aileleri ({families.length}
+          {familySearch.trim() ? ` · ${filteredFamilies.length} eşleşme` : ""})
         </h2>
         <p className="mb-4 text-xs text-zinc-600">
           Düzenle ile ölçü ve yüzey matrisini güncelleyin; ölçüye göre farklı
           yüzeyler için &quot;Ölçüye göre farklı&quot; modunu kullanın.
         </p>
+        <input
+          type="search"
+          value={familySearch}
+          onChange={(e) => setFamilySearch(e.target.value)}
+          placeholder="Aile ara (Volcano, Crema, MISHA…)"
+          className="mb-4 w-full border border-zinc-700 bg-black px-3 py-2 text-sm"
+        />
         <div className="overflow-x-auto border border-zinc-800">
           <table className="w-full text-left text-xs">
             <thead className="border-b border-zinc-800 text-zinc-500">
@@ -555,7 +575,16 @@ export default function AdminFamiliesPage() {
               </tr>
             </thead>
             <tbody>
-              {families.map((f) => (
+              {filteredFamilies.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-6 text-center text-zinc-500">
+                    {familySearch.trim()
+                      ? "Aramanızla eşleşen aile yok."
+                      : "Henüz ürün ailesi yok."}
+                  </td>
+                </tr>
+              ) : (
+                filteredFamilies.map((f) => (
                 <tr
                   key={f.id}
                   className={`border-b border-zinc-900${f.isActive ? "" : " opacity-60"}`}
@@ -617,7 +646,8 @@ export default function AdminFamiliesPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>
