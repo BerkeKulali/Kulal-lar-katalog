@@ -14,6 +14,7 @@ import {
   type SurfaceMatrix,
 } from "@/lib/family-matrix";
 import { getSurfacesForBrand } from "@/lib/constants";
+import { GURAL_PACKAGING_BY_SIZE } from "@/lib/gural-packaging";
 import { slugify } from "@/lib/utils";
 
 type Brand = { id: string; name: string; slug: string };
@@ -32,15 +33,7 @@ type SurfaceMode = "uniform" | "perSize";
 const DEFAULT_SIZES = ["60x120", "60x60", "80x80"];
 const DEFAULT_SURFACES = ["MAT", "SLP", "FLP"];
 const CREATE_PACKAGING_DEFAULTS: Record<string, PackagingBySize> = {
-  gural: {
-    "30x90": { palletM2: 68.04, boxM2: 1.62 },
-    "60x60": { palletM2: 64.8, boxM2: 1.8 },
-    "60x120": { palletM2: 60.48, boxM2: 2.16 },
-    "80x80": { palletM2: 69.12, boxM2: 1.28 },
-    "80x160": { palletM2: 51.2, boxM2: 2.56 },
-    "20x120": { palletM2: 64.8, boxM2: 1.44 },
-    "120x120": { palletM2: 51.84, boxM2: 2.88 },
-  },
+  gural: GURAL_PACKAGING_BY_SIZE,
 };
 
 function applyCreatePackagingDefaults(

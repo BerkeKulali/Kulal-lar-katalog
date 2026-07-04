@@ -10,9 +10,10 @@
     "lint": "eslint",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "tsx scripts/run-seed.ts",
     "db:migrate:turso": "tsx scripts/turso-migrate.ts",
     "gural:import-csv": "tsx scripts/gural-csv-to-import.ts",
+    "gural:sync": "tsx scripts/gural-sync.ts",
     "db:reset": "prisma migrate reset --force",
     "cloudinary:test": "tsx scripts/test-cloudinary.ts"
   },

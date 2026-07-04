@@ -74,6 +74,15 @@ export default function AdminImportPage() {
         <GuralCsvImportForm />
       </section>
 
+      <section className="mb-10 border border-zinc-800 p-5">
+        <h2 className="mb-3 text-sm font-semibold">GÜRAL END fiyat + ambalaj</h2>
+        <p className="mb-4 text-xs text-zinc-500">
+          Tüm GÜRAL ürünleri için END fiyatlarını 1. kalitenin %20 indirimli
+          haline ayarlar ve ölçü bazlı palet/kutu m² değerlerini günceller.
+        </p>
+        <GuralSyncForm />
+      </section>
+
       <section className="border border-zinc-800 p-5">
         <h2 className="mb-3 text-sm font-semibold">Fiyat listesi yükle</h2>
         <p className="mb-4 text-xs text-zinc-500">
@@ -132,6 +141,59 @@ export default function AdminImportPage() {
         <StockImportForm />
       </section>
     </AppShell>
+  );
+}
+
+function GuralSyncForm() {
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{
+    endCreated: number;
+    endUpdated: number;
+    packagingUpdated: number;
+    firstVariantsProcessed: number;
+    skippedNoPrice: number;
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSync() {
+    setLoading(true);
+    setResult(null);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/admin/gural/sync", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Senkronizasyon başarısız");
+        return;
+      }
+      setResult(data);
+    } catch {
+      setError("Sunucuya bağlanılamadı");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <button
+        type="button"
+        onClick={handleSync}
+        disabled={loading}
+        className="w-full border border-white py-3 text-sm font-semibold hover:bg-white hover:text-black disabled:opacity-40"
+      >
+        {loading ? "Güncelleniyor…" : "GÜRAL END + ambalaj senkronize et"}
+      </button>
+      {result && (
+        <p className="text-sm text-green-400">
+          END oluşturulan: {result.endCreated} · END güncellenen:{" "}
+          {result.endUpdated} · Ambalaj güncellenen: {result.packagingUpdated}{" "}
+          · 1. kalite işlenen: {result.firstVariantsProcessed}
+        </p>
+      )}
+      {error && <p className="text-sm text-red-400">{error}</p>}
+    </div>
   );
 }
 

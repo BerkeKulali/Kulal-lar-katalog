@@ -1,6 +1,8 @@
 import type { AdminUser, Quality, Surface } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeSize } from "@/lib/constants";
+import { guralPackagingForSize } from "@/lib/gural-packaging";
+import { endPriceFromFirst, variantCode } from "@/lib/prices";
 import { parseQuality, parseSurface, slugify } from "@/lib/utils";
 
 export type PriceImportRow = {
@@ -28,6 +30,7 @@ type VariantCache = {
 
 export type PriceImportContext = {
   brandId: string;
+  brandSlug: string;
   mode: string;
   families: Map<string, FamilyCache>;
   variants: Map<string, VariantCache>;
@@ -54,7 +57,7 @@ export async function createPriceImportContext(
     where: {
       OR: [{ slug }, { name: { contains: slug } }],
     },
-    select: { id: true },
+    select: { id: true, slug: true },
   });
 
   if (!brand) return null;
@@ -98,6 +101,7 @@ export async function createPriceImportContext(
 
   return {
     brandId: brand.id,
+    brandSlug: brand.slug,
     mode,
     families: familyMap,
     variants: variantMap,
@@ -185,10 +189,15 @@ export async function importPriceRowsWithContext(
       const vKey = variantCacheKey(family.id, size, surface, quality);
       const existing = ctx.variants.get(vKey);
 
+      const pack = ctx.brandSlug === "gural" ? guralPackagingForSize(size) : null;
+      const packData = pack
+        ? { palletM2: pack.palletM2, boxM2: pack.boxM2 }
+        : {};
+
       if (existing) {
         await prisma.productVariant.update({
           where: { id: existing.id },
-          data: { price, code: code ?? existing.code },
+          data: { price, code: code ?? existing.code, ...packData },
         });
         results.updated++;
       } else {
@@ -203,11 +212,23 @@ export async function importPriceRowsWithContext(
             quality,
             price,
             code,
+            ...packData,
           },
           select: { id: true, code: true },
         });
         ctx.variants.set(vKey, created);
         results.created++;
+      }
+
+      if (quality === "FIRST" && ctx.brandSlug === "gural") {
+        await upsertGuralEndVariant(
+          ctx,
+          family,
+          size,
+          surface,
+          price,
+          results
+        );
       }
     } catch (err) {
       results.errors.push(
@@ -217,6 +238,46 @@ export async function importPriceRowsWithContext(
   }
 
   return results;
+}
+
+async function upsertGuralEndVariant(
+  ctx: PriceImportContext,
+  family: FamilyCache,
+  size: string,
+  surface: Surface,
+  firstPrice: number,
+  results: PriceImportResult
+) {
+  if (ctx.brandSlug !== "gural" || firstPrice <= 0) return;
+
+  const endPrice = endPriceFromFirst(firstPrice);
+  const pack = guralPackagingForSize(size);
+  const packData = pack ? { palletM2: pack.palletM2, boxM2: pack.boxM2 } : {};
+  const endKey = variantCacheKey(family.id, size, surface, "END");
+  const existing = ctx.variants.get(endKey);
+
+  if (existing) {
+    await prisma.productVariant.update({
+      where: { id: existing.id },
+      data: { price: endPrice, ...packData },
+    });
+    results.updated++;
+  } else {
+    const created = await prisma.productVariant.create({
+      data: {
+        familyId: family.id,
+        size,
+        surface,
+        quality: "END",
+        price: endPrice,
+        code: variantCode(family.name, surface, "END"),
+        ...packData,
+      },
+      select: { id: true, code: true },
+    });
+    ctx.variants.set(endKey, created);
+    results.created++;
+  }
 }
 
 export async function touchPriceListUpdated() {
