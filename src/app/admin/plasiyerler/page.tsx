@@ -10,6 +10,7 @@ type Plasiyer = {
   isActive: boolean;
   orderCount: number;
   deviceCount: number;
+  visitCount: number;
 };
 
 export default function AdminPlasiyerlerPage() {
@@ -228,7 +229,8 @@ export default function AdminPlasiyerlerPage() {
                 <p className="font-medium">{sp.name}</p>
               )}
               <p className="mt-1 text-[11px] text-zinc-600">
-                {sp.orderCount} sipariş · {sp.deviceCount} tablet
+                {sp.orderCount} sipariş · {sp.visitCount} giriş · {sp.deviceCount}{" "}
+                tablet
                 {!sp.isActive && " · Pasif"}
               </p>
             </div>

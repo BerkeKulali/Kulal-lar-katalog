@@ -16,7 +16,7 @@ export async function GET() {
   const salespeople = await prisma.salesperson.findMany({
     orderBy: [{ isActive: "desc" }, { name: "asc" }],
     include: {
-      _count: { select: { orders: true, devices: true } },
+      _count: { select: { orders: true, devices: true, visits: true } },
     },
   });
 
@@ -27,6 +27,7 @@ export async function GET() {
       isActive: sp.isActive,
       orderCount: sp._count.orders,
       deviceCount: sp._count.devices,
+      visitCount: sp._count.visits,
       createdAt: sp.createdAt,
     })),
   });
@@ -57,6 +58,7 @@ export async function POST(request: Request) {
       isActive: salesperson.isActive,
       orderCount: 0,
       deviceCount: 0,
+      visitCount: 0,
     },
   });
 }

@@ -106,13 +106,14 @@ model StockLine {
 }
 
 model Salesperson {
-  id        String   @id @default(cuid())
+  id        String      @id @default(cuid())
   name      String
-  isActive  Boolean  @default(true)
+  isActive  Boolean     @default(true)
   devices   Device[]
   orders    Order[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  visits    SiteVisit[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 }
 
 model Device {
@@ -123,6 +124,19 @@ model Device {
   label           String?
   registeredAt    DateTime     @default(now())
   lastSeenAt      DateTime     @default(now())
+  visits          SiteVisit[]
+}
+
+model SiteVisit {
+  id            String       @id @default(cuid())
+  deviceId      String?
+  device        Device?      @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  salespersonId String?
+  salesperson   Salesperson? @relation(fields: [salespersonId], references: [id], onDelete: SetNull)
+  createdAt     DateTime     @default(now())
+
+  @@index([createdAt])
+  @@index([salespersonId, createdAt])
 }
 
 model Order {

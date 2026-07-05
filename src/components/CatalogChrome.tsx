@@ -5,6 +5,7 @@ import { CatalogSyncProvider } from "@/components/CatalogSyncProvider";
 import { DeviceCookieSync } from "@/components/DeviceCookieSync";
 import { ImageUpdateBanner } from "@/components/ImageUpdateBanner";
 import { PaletteFab } from "@/components/PaletteFab";
+import { VisitLogger } from "@/components/VisitLogger";
 
 /** Katalog tablet akışı — admin panelinde sync/sepet/görsel banner yok */
 export function CatalogChrome({ children }: { children: React.ReactNode }) {
@@ -18,6 +19,7 @@ export function CatalogChrome({ children }: { children: React.ReactNode }) {
   return (
     <CatalogSyncProvider>
       <DeviceCookieSync />
+      <VisitLogger />
       <ImageUpdateBanner />
       {children}
       <PaletteFab />

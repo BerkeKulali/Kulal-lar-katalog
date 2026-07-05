@@ -4,12 +4,14 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin-auth";
 import { ADMIN_NAV, formatAdminScope, getEffectivePermissions } from "@/lib/admin-permissions";
 import { prisma } from "@/lib/prisma";
+import { istanbulDaysAgo, istanbulStartOfDay } from "@/lib/site-visits";
 
 export default async function AdminDashboardPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/login");
 
-  const [variantCount, orderCount, settings] = await Promise.all([
+  const [variantCount, orderCount, settings, visitsToday, visitsWeek, visitsMonth] =
+    await Promise.all([
     prisma.productVariant.count({
       where: admin.brandId
         ? { family: { brandId: admin.brandId } }
@@ -19,6 +21,15 @@ export default async function AdminDashboardPage() {
       where: { status: "NEW" },
     }),
     prisma.appSettings.findUnique({ where: { id: "default" } }),
+    prisma.siteVisit.count({
+      where: { createdAt: { gte: istanbulStartOfDay() } },
+    }),
+    prisma.siteVisit.count({
+      where: { createdAt: { gte: istanbulDaysAgo(7) } },
+    }),
+    prisma.siteVisit.count({
+      where: { createdAt: { gte: istanbulDaysAgo(30) } },
+    }),
   ]);
 
   const lastUpdate = settings?.lastPriceListUpdate
@@ -40,6 +51,21 @@ export default async function AdminDashboardPage() {
         <Link href="/" className="text-xs text-zinc-500 hover:text-white">
           Kataloga dön
         </Link>
+      </div>
+
+      <div className="mb-4 grid grid-cols-3 gap-4">
+        <div className="border border-zinc-800 p-4">
+          <p className="text-2xl font-bold">{visitsToday}</p>
+          <p className="text-xs text-zinc-500">Bugün giriş</p>
+        </div>
+        <div className="border border-zinc-800 p-4">
+          <p className="text-2xl font-bold">{visitsWeek}</p>
+          <p className="text-xs text-zinc-500">Son 7 gün</p>
+        </div>
+        <div className="border border-zinc-800 p-4">
+          <p className="text-2xl font-bold">{visitsMonth}</p>
+          <p className="text-xs text-zinc-500">Son 30 gün</p>
+        </div>
       </div>
 
       <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3">
