@@ -75,3 +75,50 @@ export async function unlockSalespersonTablet(salespersonId: string) {
     }),
   ]);
 }
+
+/** Plasiyer başına yalnızca kilitli tablet kalsın; eski kurulum kayıtlarını siler. */
+export async function pruneDuplicateDevices(): Promise<{ removed: number }> {
+  const salespeople = await prisma.salesperson.findMany({
+    select: { id: true, lockedDeviceId: true },
+  });
+
+  let removed = 0;
+
+  for (const sp of salespeople) {
+    if (sp.lockedDeviceId) {
+      const result = await prisma.device.deleteMany({
+        where: {
+          salespersonId: sp.id,
+          id: { not: sp.lockedDeviceId },
+        },
+      });
+      removed += result.count;
+      continue;
+    }
+
+    const devices = await prisma.device.findMany({
+      where: { salespersonId: sp.id },
+      orderBy: { lastSeenAt: "desc" },
+      select: { id: true },
+    });
+
+    if (devices.length <= 1) continue;
+
+    const keepId = devices[0]!.id;
+    await prisma.$transaction([
+      prisma.salesperson.update({
+        where: { id: sp.id },
+        data: { lockedDeviceId: keepId },
+      }),
+      prisma.device.deleteMany({
+        where: {
+          salespersonId: sp.id,
+          id: { not: keepId },
+        },
+      }),
+    ]);
+    removed += devices.length - 1;
+  }
+
+  return { removed };
+}

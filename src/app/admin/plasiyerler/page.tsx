@@ -9,7 +9,6 @@ type Plasiyer = {
   name: string;
   isActive: boolean;
   orderCount: number;
-  deviceCount: number;
   visitCount: number;
   isTabletLocked: boolean;
   lockedDevice: {
@@ -131,7 +130,7 @@ export default function AdminPlasiyerlerPage() {
   }
 
   async function remove(sp: Plasiyer) {
-    const hasHistory = sp.orderCount > 0 || sp.deviceCount > 0;
+    const hasHistory = sp.orderCount > 0 || sp.isTabletLocked || sp.visitCount > 0;
     const ok = window.confirm(
       hasHistory
         ? `"${sp.name}" sipariş veya tablet kaydı olduğu için silinmeyecek; pasif yapılacak. Devam?`
@@ -269,14 +268,13 @@ export default function AdminPlasiyerlerPage() {
                 <p className="font-medium">{sp.name}</p>
               )}
               <p className="mt-1 text-[11px] text-zinc-600">
-                {sp.orderCount} sipariş · {sp.visitCount} giriş · {sp.deviceCount}{" "}
-                tablet
-                {!sp.isActive && " · Pasif"}
+                {sp.orderCount} sipariş · {sp.visitCount} giriş
+                {sp.isTabletLocked ? " · tablet bağlı" : " · tablet yok"}
+                {!sp.isActive && " · pasif"}
               </p>
               {sp.isTabletLocked && sp.lockedDevice && (
-                <p className="mt-1 text-[11px] text-amber-500/90">
-                  Tablet bağlı · son görülme{" "}
-                  {formatDate(sp.lockedDevice.lastSeenAt)}
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  Son görülme {formatDate(sp.lockedDevice.lastSeenAt)}
                 </p>
               )}
             </div>

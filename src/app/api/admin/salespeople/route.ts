@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
+import { pruneDuplicateDevices } from "@/lib/device-lock";
 import { prisma } from "@/lib/prisma";
 
 function normalizeName(raw: unknown): string | null {
@@ -13,6 +14,8 @@ export async function GET() {
   const auth = await requireAdminPermission("salespeople");
   if (!auth.admin) return auth.response;
 
+  await pruneDuplicateDevices();
+
   const salespeople = await prisma.salesperson.findMany({
     orderBy: [{ isActive: "desc" }, { name: "asc" }],
     include: {
@@ -24,7 +27,7 @@ export async function GET() {
           registeredAt: true,
         },
       },
-      _count: { select: { orders: true, devices: true, visits: true } },
+      _count: { select: { orders: true, visits: true } },
     },
   });
 
@@ -34,7 +37,6 @@ export async function GET() {
       name: sp.name,
       isActive: sp.isActive,
       orderCount: sp._count.orders,
-      deviceCount: sp._count.devices,
       visitCount: sp._count.visits,
       isTabletLocked: Boolean(sp.lockedDeviceId),
       lockedDevice: sp.lockedDevice,
@@ -67,7 +69,6 @@ export async function POST(request: Request) {
       name: salesperson.name,
       isActive: salesperson.isActive,
       orderCount: 0,
-      deviceCount: 0,
       visitCount: 0,
       isTabletLocked: false,
       lockedDevice: null,
