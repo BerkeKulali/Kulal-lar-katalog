@@ -1,35 +1,23 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import {
   DEVICE_TOKEN_COOKIE,
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
   deviceCookieOptions,
 } from "@/lib/device-cookie";
+import { registerTabletForSalesperson } from "@/lib/device-lock";
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { salespersonId, label } = body;
+    const { salespersonId } = body;
 
     if (!salespersonId) {
       return NextResponse.json({ error: "Plasiyer gerekli" }, { status: 400 });
     }
 
-    const salesperson = await prisma.salesperson.findUnique({
-      where: { id: salespersonId },
-    });
-
-    if (!salesperson) {
-      return NextResponse.json({ error: "Plasiyer bulunamadı" }, { status: 404 });
-    }
-
-    const device = await prisma.device.create({
-      data: {
-        salespersonId,
-        label: label ?? `Tablet - ${salesperson.name}`,
-      },
-    });
+    const { device, salesperson } =
+      await registerTabletForSalesperson(salespersonId);
 
     const response = NextResponse.json({
       token: device.token,
@@ -46,6 +34,7 @@ export async function POST(request: Request) {
     console.error("POST /api/device/register failed:", err);
     const message =
       err instanceof Error ? err.message : "Tablet kaydı oluşturulamadı";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message.includes("tablette kayıtlı") ? 409 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

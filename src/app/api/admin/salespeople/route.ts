@@ -16,6 +16,14 @@ export async function GET() {
   const salespeople = await prisma.salesperson.findMany({
     orderBy: [{ isActive: "desc" }, { name: "asc" }],
     include: {
+      lockedDevice: {
+        select: {
+          id: true,
+          label: true,
+          lastSeenAt: true,
+          registeredAt: true,
+        },
+      },
       _count: { select: { orders: true, devices: true, visits: true } },
     },
   });
@@ -28,6 +36,8 @@ export async function GET() {
       orderCount: sp._count.orders,
       deviceCount: sp._count.devices,
       visitCount: sp._count.visits,
+      isTabletLocked: Boolean(sp.lockedDeviceId),
+      lockedDevice: sp.lockedDevice,
       createdAt: sp.createdAt,
     })),
   });
@@ -59,6 +69,8 @@ export async function POST(request: Request) {
       orderCount: 0,
       deviceCount: 0,
       visitCount: 0,
+      isTabletLocked: false,
+      lockedDevice: null,
     },
   });
 }

@@ -2,13 +2,13 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import {
   DEVICE_TOKEN_COOKIE,
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
   deviceCookieOptions,
 } from "@/lib/device-cookie";
+import { registerTabletForSalesperson } from "@/lib/device-lock";
 
 export async function registerTabletAction(formData: FormData) {
   const salespersonId = formData.get("salespersonId");
@@ -18,22 +18,8 @@ export async function registerTabletAction(formData: FormData) {
   }
 
   try {
-    const salesperson = await prisma.salesperson.findUnique({
-      where: { id: salespersonId },
-    });
-
-    if (!salesperson) {
-      redirect(
-        "/kurulum?error=" + encodeURIComponent("Plasiyer bulunamadı")
-      );
-    }
-
-    const device = await prisma.device.create({
-      data: {
-        salespersonId,
-        label: `Tablet - ${salesperson.name}`,
-      },
-    });
+    const { device, salesperson } =
+      await registerTabletForSalesperson(salespersonId);
 
     const cookieStore = await cookies();
     const opts = deviceCookieOptions();

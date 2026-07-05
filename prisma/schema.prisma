@@ -106,25 +106,28 @@ model StockLine {
 }
 
 model Salesperson {
-  id        String      @id @default(cuid())
-  name      String
-  isActive  Boolean     @default(true)
-  devices   Device[]
-  orders    Order[]
-  visits    SiteVisit[]
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  name           String
+  isActive       Boolean     @default(true)
+  lockedDeviceId String?     @unique
+  lockedDevice   Device?     @relation("SalespersonDeviceLock", fields: [lockedDeviceId], references: [id], onDelete: SetNull)
+  devices        Device[]
+  orders         Order[]
+  visits         SiteVisit[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }
 
 model Device {
-  id              String       @id @default(cuid())
-  token           String       @unique @default(cuid())
-  salespersonId   String?
-  salesperson     Salesperson? @relation(fields: [salespersonId], references: [id])
-  label           String?
-  registeredAt    DateTime     @default(now())
-  lastSeenAt      DateTime     @default(now())
-  visits          SiteVisit[]
+  id                 String       @id @default(cuid())
+  token              String       @unique @default(cuid())
+  salespersonId      String?
+  salesperson        Salesperson? @relation(fields: [salespersonId], references: [id])
+  lockForSalesperson Salesperson? @relation("SalespersonDeviceLock")
+  label              String?
+  registeredAt       DateTime     @default(now())
+  lastSeenAt         DateTime     @default(now())
+  visits             SiteVisit[]
 }
 
 model SiteVisit {

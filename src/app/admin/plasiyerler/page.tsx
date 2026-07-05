@@ -11,6 +11,13 @@ type Plasiyer = {
   orderCount: number;
   deviceCount: number;
   visitCount: number;
+  isTabletLocked: boolean;
+  lockedDevice: {
+    id: string;
+    label: string;
+    lastSeenAt: string;
+    registeredAt: string;
+  } | null;
 };
 
 export default function AdminPlasiyerlerPage() {
@@ -157,6 +164,39 @@ export default function AdminPlasiyerlerPage() {
     await loadData();
   }
 
+  async function unlockTablet(sp: Plasiyer) {
+    const ok = window.confirm(
+      `"${sp.name}" için tablet kilidini kaldırmak istediğinize emin misiniz? Mevcut tablet oturumu sonlanır ve yeniden kurulum gerekir.`
+    );
+    if (!ok) return;
+
+    setActionId(sp.id);
+    setError(null);
+    setMessage(null);
+
+    const res = await fetch(`/api/admin/salespeople/${sp.id}/unlock-tablet`, {
+      method: "POST",
+    });
+
+    const data = await res.json().catch(() => ({}));
+    setActionId(null);
+
+    if (!res.ok) {
+      setError(data.error ?? "Tablet kilidi kaldırılamadı");
+      return;
+    }
+
+    setMessage(data.message ?? `"${sp.name}" için tablet kilidi kaldırıldı`);
+    await loadData();
+  }
+
+  function formatDate(value: string) {
+    return new Intl.DateTimeFormat("tr-TR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(value));
+  }
+
   return (
     <AppShell variant="admin" className="py-8">
       <div className="mb-6 flex items-center justify-between">
@@ -233,6 +273,12 @@ export default function AdminPlasiyerlerPage() {
                 tablet
                 {!sp.isActive && " · Pasif"}
               </p>
+              {sp.isTabletLocked && sp.lockedDevice && (
+                <p className="mt-1 text-[11px] text-amber-500/90">
+                  Tablet bağlı · son görülme{" "}
+                  {formatDate(sp.lockedDevice.lastSeenAt)}
+                </p>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -256,6 +302,14 @@ export default function AdminPlasiyerlerPage() {
                 </>
               ) : (
                 <>
+                  <button
+                    type="button"
+                    onClick={() => unlockTablet(sp)}
+                    disabled={actionId === sp.id || !sp.isTabletLocked}
+                    className="border border-amber-800 px-3 py-1.5 text-xs text-amber-300 hover:border-amber-500 disabled:opacity-40"
+                  >
+                    Tablet kilidini kaldır
+                  </button>
                   <button
                     type="button"
                     onClick={() => startEdit(sp)}
