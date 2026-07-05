@@ -12,6 +12,17 @@ export type GuralSyncResult = {
   skippedNoPrice: number;
 };
 
+async function runConcurrent<T>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T) => Promise<void>
+) {
+  for (let i = 0; i < items.length; i += concurrency) {
+    const batch = items.slice(i, i + concurrency);
+    await Promise.all(batch.map(fn));
+  }
+}
+
 export async function syncGuralEndPricesAndPackaging(): Promise<GuralSyncResult> {
   const brand = await prisma.brand.findUnique({ where: { slug: "gural" } });
   if (!brand) {
@@ -122,35 +133,24 @@ export async function syncGuralEndPricesAndPackaging(): Promise<GuralSyncResult>
     result.endCreated = endCreates.length;
   }
 
-  const BATCH = 50;
-  for (let i = 0; i < endUpdates.length; i += BATCH) {
-    const batch = endUpdates.slice(i, i + BATCH);
-    await prisma.$transaction(
-      batch.map((row) =>
-        prisma.productVariant.update({
-          where: { id: row.id },
-          data: {
-            price: row.price,
-            palletM2: row.palletM2,
-            boxM2: row.boxM2,
-          },
-        })
-      )
-    );
-  }
+  await runConcurrent(endUpdates, 25, async (row) => {
+    await prisma.productVariant.update({
+      where: { id: row.id },
+      data: {
+        price: row.price,
+        palletM2: row.palletM2,
+        boxM2: row.boxM2,
+      },
+    });
+  });
   result.endUpdated = endUpdates.length;
 
-  for (let i = 0; i < firstPackUpdates.length; i += BATCH) {
-    const batch = firstPackUpdates.slice(i, i + BATCH);
-    await prisma.$transaction(
-      batch.map((row) =>
-        prisma.productVariant.update({
-          where: { id: row.id },
-          data: { palletM2: row.palletM2, boxM2: row.boxM2 },
-        })
-      )
-    );
-  }
+  await runConcurrent(firstPackUpdates, 25, async (row) => {
+    await prisma.productVariant.update({
+      where: { id: row.id },
+      data: { palletM2: row.palletM2, boxM2: row.boxM2 },
+    });
+  });
 
   for (const [size, pack] of Object.entries(GURAL_PACKAGING_BY_SIZE)) {
     const normalized = normalizeSize(size);
