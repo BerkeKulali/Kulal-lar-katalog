@@ -116,7 +116,9 @@ export function buildGlobalSearchItems(
     byFamily.set(variant.familyId, list);
   }
 
-  return Object.values(families).flatMap((family) => {
+  return Object.values(families)
+    .filter((family) => family.isActive !== false)
+    .flatMap((family) => {
     const familyVariants = byFamily.get(family.id) ?? [];
 
     return buildFamilySearchItems(

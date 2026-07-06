@@ -92,12 +92,17 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
 
       applySync: (payload) => {
         set((state) => {
-          const variants = { ...state.variants };
-          const families = { ...state.families };
+          const variants: Record<string, SyncVariantRow> = payload.isDelta
+            ? { ...state.variants }
+            : {};
+          const families: Record<string, SyncFamilyRow> = payload.isDelta
+            ? { ...state.families }
+            : {};
 
           for (const v of payload.variants) {
             variants[v.id] = v;
           }
+
           for (const f of payload.families) {
             if (f.isActive === false) {
               delete families[f.id];
@@ -108,6 +113,12 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
               }
             } else {
               families[f.id] = f;
+            }
+          }
+
+          for (const [variantId, variant] of Object.entries(variants)) {
+            if (!families[variant.familyId]) {
+              delete variants[variantId];
             }
           }
 
@@ -189,6 +200,6 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
         );
       },
     }),
-    { name: "kulalilar-catalog-sync", skipHydration: true }
+    { name: "kulalilar-catalog-sync-v2", skipHydration: true }
   )
 );

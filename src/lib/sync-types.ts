@@ -34,3 +34,4 @@ export type SyncPayload = {
 };
 
 export const SYNC_INTERVAL_MS = 10 * 60 * 1000;
+export const FULL_SYNC_MAX_AGE_MS = 6 * 60 * 60 * 1000;

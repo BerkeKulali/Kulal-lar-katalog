@@ -3,7 +3,7 @@ import {
   collectPendingImages,
   isWifiConnection,
 } from "@/lib/offline-images";
-import { SYNC_INTERVAL_MS } from "@/lib/sync-types";
+import { SYNC_INTERVAL_MS, FULL_SYNC_MAX_AGE_MS } from "@/lib/sync-types";
 import { useCatalogSyncStore } from "@/store/catalog-sync";
 
 let downloadInFlight: Promise<void> | null = null;
@@ -18,7 +18,12 @@ export async function runCatalogSync() {
 
   try {
     const hasLocalData = Object.keys(store.variants).length > 0;
-    const since = hasLocalData ? store.lastSyncAt : null;
+    const lastSyncAge = store.lastSyncAt
+      ? Date.now() - new Date(store.lastSyncAt).getTime()
+      : Number.POSITIVE_INFINITY;
+    const useDelta =
+      hasLocalData && lastSyncAge < FULL_SYNC_MAX_AGE_MS && store.lastSyncAt;
+    const since = useDelta ? store.lastSyncAt : null;
     const url = since
       ? `/api/sync?since=${encodeURIComponent(since)}`
       : "/api/sync";
