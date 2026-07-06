@@ -5,6 +5,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { aspectForSize } from "@/lib/constants";
 import {
   buildGlobalSearchItems,
+  compareSearchItems,
   familyMatchesQuery,
   type GlobalSearchItem,
 } from "@/lib/search";
@@ -41,7 +42,7 @@ export function LiveSearchResults({
     if (!query.trim()) return [];
     return items
       .filter((item) => familyMatchesQuery(item.name, item.codes, query))
-      .sort((a, b) => a.name.localeCompare(b.name, "tr"));
+      .sort(compareSearchItems);
   }, [items, query]);
 
   if (!query.trim()) return null;
@@ -58,7 +59,7 @@ export function LiveSearchResults({
       ) : (
         filtered.map((family) => {
           const synced = hasSyncData
-            ? getFamilyPricesForSize(family.id, family.size)
+            ? getFamilyPricesForSize(family.familyId, family.size)
             : { first: {}, end: {} };
           const prices = {
             first: { ...family.prices.first, ...synced.first },
@@ -74,7 +75,7 @@ export function LiveSearchResults({
               )}
               <ProductCard
                 href={`/katalog/${family.brandSlug}/${family.size}/${family.slug}`}
-                name={family.name}
+                name={`${family.name} · ${family.size.toUpperCase()}`}
                 imageUrl={family.imageUrl}
                 prices={prices}
                 aspect={aspectForSize(family.size)}

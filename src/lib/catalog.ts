@@ -2,8 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { normalizeSize } from "@/lib/constants";
 import { buildPriceSummary, type PriceSummary } from "@/lib/prices";
 import type { Quality } from "@/generated/prisma/client";
-import { pickPreferredSize, type GlobalSearchItem } from "@/lib/search";
 import { pickSizeListImage, toImageCandidates } from "@/lib/product-image";
+import { buildFamilySearchItems, type GlobalSearchItem } from "@/lib/search";
 
 export type { PriceSummary };
 export { buildPriceSummary };
@@ -192,27 +192,17 @@ export async function getGlobalSearchCatalog(): Promise<GlobalSearchItem[]> {
     orderBy: [{ brand: { sortOrder: "asc" } }, { name: "asc" }],
   });
 
-  return families.map((family) => {
-    const sizes = [...new Set(family.variants.map((v) => v.size))];
-    const size = pickPreferredSize(sizes);
-    const sizeVariants = family.variants.filter((v) => v.size === size);
-
-    return {
-      id: family.id,
-      name: family.name,
-      slug: family.slug,
-      brandSlug: family.brand.slug,
-      brandName: family.brand.name,
-      imageUrl: pickSizeListImage(
-        family.imageUrl,
-        toImageCandidates(sizeVariants),
-        size
-      ),
-      size,
-      prices: buildPriceSummary(sizeVariants),
-      codes: family.variants
-        .map((v) => v.code)
-        .filter((code): code is string => Boolean(code)),
-    };
-  });
+  return families.flatMap((family) =>
+    buildFamilySearchItems(
+      {
+        id: family.id,
+        name: family.name,
+        slug: family.slug,
+        brandSlug: family.brand.slug,
+        brandName: family.brand.name,
+        imageUrl: family.imageUrl,
+      },
+      family.variants
+    )
+  );
 }
