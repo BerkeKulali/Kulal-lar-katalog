@@ -84,10 +84,21 @@ export function familyPublicIdVariants(familyName: string, familySlug: string) {
 export function imageMatchesFamilyPublicId(
   publicId: string,
   familyName: string,
-  variants: string[]
+  variants: string[],
+  originalFilename?: string
 ) {
   const id = publicId.toLowerCase();
-  if (variants.some((v) => id.includes(`/${v}/`) || id.endsWith(`/${v}`))) {
+  const filename = String(originalFilename ?? "").toLowerCase();
+  const haystack = `${id} ${filename}`;
+
+  if (
+    variants.some(
+      (v) =>
+        id.includes(`/${v}/`) ||
+        id.endsWith(`/${v}`) ||
+        haystack.includes(v)
+    )
+  ) {
     return true;
   }
 
@@ -100,17 +111,24 @@ export function imageMatchesFamilyPublicId(
   if (tokens.length === 0) return false;
   return tokens.every((token) => {
     const slug = slugifyImageName(token);
-    return id.includes(token) || id.includes(slug);
+    return haystack.includes(token) || haystack.includes(slug);
   });
 }
 
-export function filterImagesForFamily<T extends { public_id?: string }>(
+export function filterImagesForFamily<
+  T extends { public_id?: string; original_filename?: string }
+>(
   resources: T[],
   familyName: string,
   variants: string[]
 ) {
   return resources.filter((r) =>
-    imageMatchesFamilyPublicId(String(r.public_id ?? ""), familyName, variants)
+    imageMatchesFamilyPublicId(
+      String(r.public_id ?? ""),
+      familyName,
+      variants,
+      String(r.original_filename ?? "")
+    )
   );
 }
 
