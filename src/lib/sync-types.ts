@@ -28,6 +28,7 @@ export type SyncPayload = {
   priceListVersion: string;
   imageCatalogVersion: string;
   serverTime: string;
+  showStock: boolean;
   variants: SyncVariantRow[];
   families: SyncFamilyRow[];
   isDelta: boolean;

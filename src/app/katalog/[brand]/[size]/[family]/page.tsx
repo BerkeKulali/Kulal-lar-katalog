@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { AppShell } from "@/components/AppShell";
 import { CatalogBrandBar } from "@/components/CatalogSizeHeader";
 import { DeviceGate } from "@/components/DeviceGate";
@@ -7,6 +8,8 @@ import { ProductDetailView } from "@/components/ProductDetailView";
 import { SiteHeader } from "@/components/SiteHeader";
 import { formatSizeLabel, normalizeSize } from "@/lib/constants";
 import { getFamilyDetail } from "@/lib/catalog";
+import { SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
+import { getSalespersonShowStock } from "@/lib/salesperson-stock";
 import { kaliteQuery, parseKaliteFilter } from "@/lib/utils";
 
 export default async function ProductDetailPage({
@@ -25,6 +28,9 @@ export default async function ProductDetailPage({
     kaliteFilter === "ALL" ? undefined : kaliteFilter;
   const detail = await getFamilyDetail(brandSlug, size, familySlug);
   if (!detail) notFound();
+
+  const salespersonId = (await cookies()).get(SALESPERSON_ID_COOKIE)?.value;
+  const showStock = await getSalespersonShowStock(salespersonId);
 
   const { family, brand, sizes, allVariants } = detail;
 
@@ -46,6 +52,7 @@ export default async function ProductDetailPage({
           brandName={brand.name}
           familyImageUrl={family.imageUrl}
           sizes={sizes}
+          showStock={showStock}
           variants={allVariants.map((v) => ({
             id: v.id,
             size: v.size,
@@ -57,7 +64,7 @@ export default async function ProductDetailPage({
             palletM2: v.palletM2,
             boxM2: v.boxM2,
             truckM2: v.truckM2,
-            stockLines: v.stockLines,
+            stockLines: showStock ? v.stockLines : [],
           }))}
           initialSize={size}
           initialQuality={initialQuality}

@@ -18,6 +18,7 @@ export async function runCatalogSync() {
 
   try {
     const hasLocalData = Object.keys(store.variants).length > 0;
+    const prevShowStock = store.showStock;
     const lastSyncAge = store.lastSyncAt
       ? Date.now() - new Date(store.lastSyncAt).getTime()
       : Number.POSITIVE_INFINITY;
@@ -33,6 +34,13 @@ export async function runCatalogSync() {
 
     const payload = await res.json();
     store.applySync(payload);
+
+    if (prevShowStock === false && payload.showStock === true && payload.isDelta) {
+      const fullRes = await fetch("/api/sync", { cache: "no-store" });
+      if (fullRes.ok) {
+        store.applySync(await fullRes.json());
+      }
+    }
 
     const pending = useCatalogSyncStore.getState().pendingImageCount;
     if (pending > 0 && isWifiConnection()) {

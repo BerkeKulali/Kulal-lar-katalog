@@ -8,6 +8,7 @@ type Plasiyer = {
   id: string;
   name: string;
   isActive: boolean;
+  showStock: boolean;
   orderCount: number;
   visitCount: number;
   isTabletLocked: boolean;
@@ -101,6 +102,31 @@ export default function AdminPlasiyerlerPage() {
 
     setMessage(`"${data.salesperson?.name}" güncellendi`);
     cancelEdit();
+    await loadData();
+  }
+
+  async function toggleShowStock(sp: Plasiyer) {
+    setActionId(sp.id);
+    setError(null);
+    setMessage(null);
+
+    const res = await fetch(`/api/admin/salespeople/${sp.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ showStock: !sp.showStock }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    setActionId(null);
+
+    if (!res.ok) {
+      setError(data.error ?? "Stok ayarı güncellenemedi");
+      return;
+    }
+
+    setMessage(
+      `"${sp.name}" için stok ${data.salesperson?.showStock ? "açıldı" : "kapatıldı"}`
+    );
     await loadData();
   }
 
@@ -270,6 +296,7 @@ export default function AdminPlasiyerlerPage() {
               <p className="mt-1 text-[11px] text-zinc-600">
                 {sp.orderCount} sipariş · {sp.visitCount} giriş
                 {sp.isTabletLocked ? " · tablet bağlı" : " · tablet yok"}
+                {sp.showStock ? " · stok açık" : " · stok kapalı"}
                 {!sp.isActive && " · pasif"}
               </p>
               {sp.isTabletLocked && sp.lockedDevice && (
@@ -279,7 +306,28 @@ export default function AdminPlasiyerlerPage() {
               )}
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {editingId !== sp.id && (
+                <label className="flex items-center gap-2 border border-zinc-800 px-3 py-1.5 text-xs">
+                  <span className="text-zinc-500">Stok</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={sp.showStock}
+                    disabled={actionId === sp.id || !sp.isActive}
+                    onClick={() => toggleShowStock(sp)}
+                    className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
+                      sp.showStock ? "bg-emerald-600" : "bg-zinc-700"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                        sp.showStock ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </label>
+              )}
               {editingId === sp.id ? (
                 <>
                   <button

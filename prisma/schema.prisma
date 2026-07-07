@@ -109,6 +109,7 @@ model Salesperson {
   id             String      @id @default(cuid())
   name           String
   isActive       Boolean     @default(true)
+  showStock      Boolean     @default(true)
   lockedDeviceId String?     @unique
   lockedDevice   Device?     @relation("SalespersonDeviceLock", fields: [lockedDeviceId], references: [id], onDelete: SetNull)
   devices        Device[]

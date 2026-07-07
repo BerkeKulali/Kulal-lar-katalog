@@ -1,7 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { getActiveFamilyIds } from "@/lib/active-families";
+import { getSalespersonShowStock } from "@/lib/salesperson-stock";
 
-export async function buildCatalogSync(since?: Date) {
+export async function buildCatalogSync(
+  since?: Date,
+  salespersonId?: string | null
+) {
   const settings = await prisma.appSettings.findUnique({
     where: { id: "default" },
   });
@@ -55,11 +59,13 @@ export async function buildCatalogSync(since?: Date) {
   const t1 = variantImageMax._max.imageUpdatedAt?.getTime() ?? 0;
   const t2 = familyImageMax._max.imageUpdatedAt?.getTime() ?? 0;
   const imageCatalogVersion = new Date(Math.max(t1, t2)).toISOString();
+  const showStock = await getSalespersonShowStock(salespersonId);
 
   return {
     priceListVersion,
     imageCatalogVersion,
     serverTime: new Date().toISOString(),
+    showStock,
     variants: variants.map((v) => ({
       id: v.id,
       familyId: v.familyId,
@@ -69,7 +75,9 @@ export async function buildCatalogSync(since?: Date) {
       quality: v.quality,
       price: v.price,
       code: v.code,
-      stockM2: v.stockLines.reduce((s, l) => s + l.quantityM2, 0),
+      stockM2: showStock
+        ? v.stockLines.reduce((s, l) => s + l.quantityM2, 0)
+        : 0,
       imageUrl: v.imageUrl,
       imageUpdatedAt: v.imageUpdatedAt?.toISOString() ?? null,
       updatedAt: v.updatedAt.toISOString(),

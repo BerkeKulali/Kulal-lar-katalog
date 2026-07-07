@@ -17,6 +17,7 @@ type CatalogSyncState = {
   lastSyncAt: string | null;
   priceListVersion: string | null;
   imageCatalogVersion: string | null;
+  showStock: boolean;
   variants: Record<string, SyncVariantRow>;
   families: Record<string, SyncFamilyRow>;
   imageCache: Record<string, ImageCacheEntry>;
@@ -81,6 +82,7 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
       lastSyncAt: null,
       priceListVersion: null,
       imageCatalogVersion: null,
+      showStock: true,
       variants: {},
       families: {},
       imageCache: {},
@@ -92,6 +94,7 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
 
       applySync: (payload) => {
         set((state) => {
+          const showStock = payload.showStock ?? true;
           const variants: Record<string, SyncVariantRow> = payload.isDelta
             ? { ...state.variants }
             : {};
@@ -122,6 +125,14 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
             }
           }
 
+          if (!showStock) {
+            for (const [variantId, variant] of Object.entries(variants)) {
+              if (variant.stockM2 !== 0) {
+                variants[variantId] = { ...variant, stockM2: 0 };
+              }
+            }
+          }
+
           const imageCache = { ...state.imageCache };
           const pendingImageCount = countPendingImages(
             variants,
@@ -132,6 +143,7 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
           return {
             variants,
             families,
+            showStock,
             lastSyncAt: payload.serverTime,
             priceListVersion: payload.priceListVersion,
             imageCatalogVersion: payload.imageCatalogVersion,

@@ -85,6 +85,7 @@ export function ProductDetailView({
   variants,
   initialSize,
   initialQuality,
+  showStock: initialShowStock = true,
 }: {
   familyName: string;
   brandName: string;
@@ -93,12 +94,14 @@ export function ProductDetailView({
   variants: Variant[];
   initialSize: string;
   initialQuality?: "FIRST" | "END";
+  showStock?: boolean;
 }) {
   const addItem = useCartStore((s) => s.addItem);
   const getSyncedPrice = useCatalogSyncStore((s) => s.getSyncedPrice);
   const getFamilyStockForVariant = useCatalogSyncStore(
     (s) => s.getFamilyStockForVariant
   );
+  const syncedShowStock = useCatalogSyncStore((s) => s.showStock);
   const hasSyncData = useCatalogSyncStore(
     (s) => Object.keys(s.variants).length > 0
   );
@@ -147,15 +150,18 @@ export function ProductDetailView({
 
   const hasPrice = displayPrice != null && displayPrice > 0;
 
+  const canShowStock = hasSyncData ? syncedShowStock : initialShowStock;
+
   const syncedStockTotal =
-    selected && hasSyncData
+    canShowStock && selected && hasSyncData
       ? getFamilyStockForVariant(selected.id)
       : undefined;
 
-  const totalStock = selected
-    ? syncedStockTotal ??
-      selected.stockLines.reduce((sum, line) => sum + line.quantityM2, 0)
-    : 0;
+  const totalStock =
+    canShowStock && selected
+      ? syncedStockTotal ??
+        selected.stockLines.reduce((sum, line) => sum + line.quantityM2, 0)
+      : 0;
 
   const hasPalletCap = Boolean(selected?.palletM2 && selected.palletM2 > 0);
   const palletVisual = selected
@@ -257,12 +263,14 @@ export function ProductDetailView({
             )}
 
             <div className="product-detail-stats product-detail-stats--pack">
-              <div className="product-detail-stat">
-                <p className="product-detail-stat-label">Stok</p>
-                <p className="product-detail-stat-value">
-                  {formatStock(totalStock)}
-                </p>
-              </div>
+              {canShowStock && (
+                <div className="product-detail-stat">
+                  <p className="product-detail-stat-label">Stok</p>
+                  <p className="product-detail-stat-value">
+                    {formatStock(totalStock)}
+                  </p>
+                </div>
+              )}
               <div className="product-detail-stat">
                 <p className="product-detail-stat-label">Fiyat</p>
                 <p
@@ -285,7 +293,7 @@ export function ProductDetailView({
               </div>
             </div>
 
-            {selected.stockLines.length > 0 && (
+            {canShowStock && selected.stockLines.length > 0 && (
               <div className="product-detail-stock-lines">
                 {selected.stockLines.map((line) => (
                   <p key={line.id} className="product-detail-stock-line">

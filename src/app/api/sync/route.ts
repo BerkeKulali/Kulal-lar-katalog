@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
 import { buildCatalogSync } from "@/lib/sync-server";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +14,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Geçersiz since" }, { status: 400 });
   }
 
-  const payload = await buildCatalogSync(since);
+  const salespersonId = (await cookies()).get(SALESPERSON_ID_COOKIE)?.value;
+
+  const payload = await buildCatalogSync(since, salespersonId);
   return NextResponse.json(payload);
 }
