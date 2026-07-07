@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
+import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { normalizeSize } from "@/lib/constants";
 import {
   countMatrixVariants,
@@ -180,6 +181,8 @@ export async function POST(request: Request) {
 
       return { ...created, variants };
     });
+
+    invalidateCatalogCache();
 
     return NextResponse.json({
       ok: true,

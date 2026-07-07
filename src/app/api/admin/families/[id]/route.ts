@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
+import { invalidateCatalogCache } from "@/lib/cache-tags";
 import {
   buildVariantPlan,
   isUniformMatrix,
@@ -165,6 +166,8 @@ export async function PATCH(request: Request, context: RouteContext) {
           _count: { select: { variants: true } },
         },
       });
+
+      invalidateCatalogCache();
 
       return NextResponse.json({
         ok: true,
@@ -343,6 +346,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       },
     });
 
+    invalidateCatalogCache();
+
     return NextResponse.json({
       ok: true,
       family: {
@@ -390,6 +395,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
     }
 
     await prisma.productFamily.delete({ where: { id: family.id } });
+
+    invalidateCatalogCache();
 
     return NextResponse.json({ ok: true });
   } catch (err) {

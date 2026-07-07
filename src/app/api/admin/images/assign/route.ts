@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
+import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 import { normalizeSize } from "@/lib/constants";
 import { DISTINCT_IMAGE_SIZES } from "@/lib/product-image";
@@ -61,6 +62,7 @@ export async function PATCH(request: Request) {
       data: imageData,
     });
 
+    invalidateCatalogCache();
     return NextResponse.json({ ok: true, updated: 1 });
   }
 
@@ -95,6 +97,7 @@ export async function PATCH(request: Request) {
         data: imageData,
       }),
     ]);
+    invalidateCatalogCache();
     return NextResponse.json({ ok: true, updated: "family+variants" });
   }
 
@@ -109,6 +112,7 @@ export async function PATCH(request: Request) {
       data: imageData,
     });
 
+    invalidateCatalogCache();
     return NextResponse.json({
       ok: true,
       updated: result.count,

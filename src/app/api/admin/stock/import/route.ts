@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { requireAdmin } from "@/lib/admin-auth";
+import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { hasAnyPermission } from "@/lib/admin-permissions";
 import {
   aggregateStockRows,
@@ -118,6 +119,10 @@ export async function POST(request: Request) {
 
     results.variantsUpdated++;
     results.stockLinesWritten += lines.length;
+  }
+
+  if (results.variantsUpdated > 0) {
+    invalidateCatalogCache();
   }
 
   return NextResponse.json(results);

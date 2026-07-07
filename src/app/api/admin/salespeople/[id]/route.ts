@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
+import { invalidateSalespersonCache } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -56,6 +57,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     data,
   });
 
+  if (data.showStock !== undefined || data.isActive !== undefined) {
+    invalidateSalespersonCache();
+  }
+
   return NextResponse.json({
     ok: true,
     salesperson: {
@@ -91,6 +96,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
       where: { id },
       data: { isActive: false },
     });
+    invalidateSalespersonCache();
     return NextResponse.json({
       ok: true,
       deactivated: true,
@@ -105,5 +111,6 @@ export async function DELETE(_request: Request, context: RouteContext) {
   }
 
   await prisma.salesperson.delete({ where: { id } });
+  invalidateSalespersonCache();
   return NextResponse.json({ ok: true, deleted: true });
 }

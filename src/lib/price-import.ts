@@ -1,6 +1,7 @@
 import type { AdminUser, Quality, Surface } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeSize } from "@/lib/constants";
+import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { guralPackagingForSize } from "@/lib/gural-packaging";
 import { endPriceFromFirst, variantCode } from "@/lib/prices";
 import { parseQuality, parseSurface, slugify } from "@/lib/utils";
@@ -140,6 +141,7 @@ export async function importPriceRows(
       update: { lastPriceListUpdate: new Date() },
       create: { id: "default", lastPriceListUpdate: new Date() },
     });
+    invalidateCatalogCache();
   }
 
   return results;
@@ -327,4 +329,5 @@ export async function touchPriceListUpdated() {
     update: { lastPriceListUpdate: new Date() },
     create: { id: "default", lastPriceListUpdate: new Date() },
   });
+  invalidateCatalogCache();
 }

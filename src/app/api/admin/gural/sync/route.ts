@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
+import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { syncGuralEndPricesAndPackaging } from "@/lib/gural-sync";
 import { prisma } from "@/lib/prisma";
 
@@ -24,6 +25,7 @@ export async function POST() {
 
   try {
     const result = await syncGuralEndPricesAndPackaging();
+    invalidateCatalogCache();
     return NextResponse.json({ ok: true, ...result });
   } catch (err) {
     return NextResponse.json(

@@ -1,25 +1,26 @@
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { normalizeSize } from "@/lib/constants";
+import { normalizeSize, getSizesForBrand } from "@/lib/constants";
 import { buildPriceSummary, type PriceSummary } from "@/lib/prices";
 import type { Quality } from "@/generated/prisma/client";
 import { pickSizeListImage, toImageCandidates } from "@/lib/product-image";
 import { buildFamilySearchItems, type GlobalSearchItem } from "@/lib/search";
+import { CATALOG_TAG, CATALOG_REVALIDATE_SECONDS } from "@/lib/cache-tags";
 
 export type { PriceSummary };
 export { buildPriceSummary };
 
 const HIDDEN_BRAND_SLUGS = ["kale"] as const;
 
-export async function getBrands() {
-  return prisma.brand.findMany({
-    where: {
-      slug: { notIn: [...HIDDEN_BRAND_SLUGS] },
-    },
-    orderBy: { sortOrder: "asc" },
-  });
-}
+const catalogCacheOptions = {
+  tags: [CATALOG_TAG],
+  revalidate: CATALOG_REVALIDATE_SECONDS,
+};
 
-export async function getBrandBySlug(slug: string) {
+// --- Marka lookup (istek içinde tekilleştirilir) ---
+
+async function _getBrandBySlug(slug: string) {
   return prisma.brand.findFirst({
     where: {
       slug,
@@ -28,12 +29,60 @@ export async function getBrandBySlug(slug: string) {
   });
 }
 
-export async function getCatalogFamilies(
+/** Aynı istek içinde tekrar eden marka sorgularını tekilleştirir. */
+export const getBrandBySlug = cache(_getBrandBySlug);
+
+export const getBrands = cache(async () => {
+  return prisma.brand.findMany({
+    where: {
+      slug: { notIn: [...HIDDEN_BRAND_SLUGS] },
+    },
+    orderBy: { sortOrder: "asc" },
+  });
+});
+
+// --- Marka → ölçü / kalite listesi (marka sayfası) ---
+
+async function _getBrandSizeCatalog(brandId: string, brandSlug: string) {
+  const variantWhere = {
+    isActive: true,
+    family: { brandId, isActive: true },
+  } as const;
+
+  const [availableSizes, availableQualities] = await Promise.all([
+    prisma.productVariant.findMany({
+      where: variantWhere,
+      select: { size: true },
+      distinct: ["size"],
+    }),
+    prisma.productVariant.findMany({
+      where: variantWhere,
+      select: { quality: true },
+      distinct: ["quality"],
+    }),
+  ]);
+
+  const sizeSet = new Set(availableSizes.map((s) => s.size));
+  return {
+    sizes: getSizesForBrand(brandSlug).filter((s) => sizeSet.has(s)),
+    qualities: availableQualities.map((q) => q.quality as Quality),
+  };
+}
+
+export const getBrandSizeCatalog = unstable_cache(
+  _getBrandSizeCatalog,
+  ["catalog-brand-sizes"],
+  catalogCacheOptions
+);
+
+// --- Ölçü bazlı ürün aileleri (liste sayfaları) ---
+
+async function _getCatalogFamilies(
   brandSlug: string,
   size: string,
   quality?: Quality
 ) {
-  const brand = await getBrandBySlug(brandSlug);
+  const brand = await _getBrandBySlug(brandSlug);
   if (!brand) return null;
 
   const normalized = normalizeSize(size);
@@ -79,37 +128,51 @@ export async function getCatalogFamilies(
   }));
 }
 
-export async function getCatalogFamiliesGroupedByBrand(
+export const getCatalogFamilies = unstable_cache(
+  _getCatalogFamilies,
+  ["catalog-families"],
+  catalogCacheOptions
+);
+
+async function _getCatalogFamiliesGroupedByBrand(
   size: string,
   quality?: Quality
 ) {
-  const brands = await getBrands();
+  const brands = await prisma.brand.findMany({
+    where: { slug: { notIn: [...HIDDEN_BRAND_SLUGS] } },
+    orderBy: { sortOrder: "asc" },
+  });
+
   const groups = await Promise.all(
-    brands.map(async (brand) => {
-      const families = await getCatalogFamilies(brand.slug, size, quality);
-      return {
-        brand,
-        families: families ?? [],
-      };
-    })
+    brands.map(async (brand) => ({
+      brand: { id: brand.id, slug: brand.slug, name: brand.name },
+      families: (await _getCatalogFamilies(brand.slug, size, quality)) ?? [],
+    }))
   );
 
   return groups.filter((group) => group.families.length > 0);
 }
 
-export async function getFamilyDetail(
+export const getCatalogFamiliesGroupedByBrand = unstable_cache(
+  _getCatalogFamiliesGroupedByBrand,
+  ["catalog-grouped"],
+  catalogCacheOptions
+);
+
+// --- Ürün ailesi detayı ---
+
+async function _getFamilyDetail(
   brandSlug: string,
   size: string,
   familySlug: string
 ) {
-  const brand = await getBrandBySlug(brandSlug);
+  const brand = await _getBrandBySlug(brandSlug);
   if (!brand) return null;
 
   const normalized = normalizeSize(size);
   const family = await prisma.productFamily.findFirst({
     where: { brandId: brand.id, slug: familySlug, isActive: true },
     include: {
-      brand: true,
       variants: {
         where: { isActive: true },
         include: { stockLines: true },
@@ -120,17 +183,44 @@ export async function getFamilyDetail(
 
   if (!family) return null;
 
-  const sizes = [...new Set(family.variants.map((v) => v.size))];
-  const variantsForSize = family.variants.filter((v) => v.size === normalized);
+  const allVariants = family.variants.map((v) => ({
+    id: v.id,
+    size: v.size,
+    surface: v.surface as string,
+    quality: v.quality as string,
+    price: v.price,
+    code: v.code,
+    imageUrl: v.imageUrl,
+    palletM2: v.palletM2,
+    boxM2: v.boxM2,
+    truckM2: v.truckM2,
+    stockLines: v.stockLines.map((l) => ({
+      id: l.id,
+      label: l.label,
+      quantityM2: l.quantityM2,
+    })),
+  }));
 
   return {
-    family,
-    brand,
-    sizes,
-    variantsForSize,
-    allVariants: family.variants,
+    family: {
+      id: family.id,
+      name: family.name,
+      slug: family.slug,
+      imageUrl: family.imageUrl,
+    },
+    brand: { id: brand.id, slug: brand.slug, name: brand.name },
+    sizes: [...new Set(allVariants.map((v) => v.size))],
+    allVariants,
   };
 }
+
+export const getFamilyDetail = unstable_cache(
+  _getFamilyDetail,
+  ["catalog-family-detail"],
+  catalogCacheOptions
+);
+
+// --- Küçük, sık kullanılan sorgular ---
 
 export async function searchProducts(query: string) {
   const q = query.trim();
@@ -165,14 +255,16 @@ export async function getAppSettings() {
   });
 }
 
-export async function getActiveAnnouncements() {
+export const getActiveAnnouncements = cache(async () => {
   return prisma.announcement.findMany({
     where: { isActive: true },
     orderBy: { sortOrder: "asc" },
   });
-}
+});
 
-export async function getGlobalSearchCatalog(): Promise<GlobalSearchItem[]> {
+// --- Global arama indeksi (anasayfa + arama) ---
+
+async function _getGlobalSearchCatalog(): Promise<GlobalSearchItem[]> {
   const families = await prisma.productFamily.findMany({
     where: { isActive: true },
     include: {
@@ -206,3 +298,9 @@ export async function getGlobalSearchCatalog(): Promise<GlobalSearchItem[]> {
     )
   );
 }
+
+export const getGlobalSearchCatalog = unstable_cache(
+  _getGlobalSearchCatalog,
+  ["catalog-search-index"],
+  catalogCacheOptions
+);
