@@ -43,8 +43,41 @@ export const SURFACE_LABELS: Record<string, string> = {
 };
 
 const BRAND_EXTRA_SURFACES: Record<string, readonly string[]> = {
+  bien: ["GLS"],
   gural: ["SGR", "GLS", "SOFT_ANTISLIP", "ANTISLIP", "R10", "R11"],
 };
+
+const BRAND_EXTRA_SIZES: Record<string, readonly string[]> = {
+  bien: ["45x45", "50x50"],
+};
+
+/** Markanın kullanabileceği ölçüler */
+export function getSizesForBrand(brandSlug: string): string[] {
+  const slug = brandSlug.trim().toLowerCase();
+  const extras = BRAND_EXTRA_SIZES[slug] ?? [];
+  if (extras.length === 0) return [...TILE_SIZES];
+
+  const result: string[] = [...TILE_SIZES];
+  const insertBefore = result.indexOf("60x60");
+  const at = insertBefore >= 0 ? insertBefore : result.length;
+  for (const size of extras) {
+    if (!result.includes(size)) {
+      result.splice(at, 0, size);
+    }
+  }
+  return result;
+}
+
+/** Tüm markalardaki olası ölçüler (arama sıralaması için) */
+export function getAllCatalogSizes(): string[] {
+  const merged: string[] = [...TILE_SIZES];
+  for (const extras of Object.values(BRAND_EXTRA_SIZES)) {
+    for (const size of extras) {
+      if (!merged.includes(size)) merged.push(size);
+    }
+  }
+  return merged;
+}
 
 /** Markanın kullanabileceği yüzey kodları */
 export function getSurfacesForBrand(brandSlug: string): string[] {
@@ -76,6 +109,8 @@ export const SIZE_LAYOUT: Record<
   "30x60": { columns: 2, perPage: 4, aspect: "2/1" },
   "30x90": { columns: 2, perPage: 6, aspect: "3/1" },
   "40x120": { columns: 2, perPage: 6, aspect: "3/1" },
+  "45x45": { columns: 2, perPage: 4, aspect: "1/1" },
+  "50x50": { columns: 2, perPage: 4, aspect: "1/1" },
   "60x60": { columns: 2, perPage: 4, aspect: "1/1" },
   "60x120": { columns: 2, perPage: 6, aspect: "2/1" },
   "80x160": { columns: 2, perPage: 6, aspect: "2/1" },

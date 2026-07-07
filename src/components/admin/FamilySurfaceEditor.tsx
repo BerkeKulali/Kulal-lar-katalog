@@ -1,6 +1,6 @@
 "use client";
 
-import { TILE_SIZES, getSurfaceOptionsForBrand } from "@/lib/constants";
+import { getSizesForBrand, getSurfaceOptionsForBrand } from "@/lib/constants";
 import type { SurfaceMatrix } from "@/lib/family-matrix";
 
 type FamilySurfaceEditorProps = {
@@ -33,6 +33,7 @@ export function FamilySurfaceEditor({
   onMatrixChange,
 }: FamilySurfaceEditorProps) {
   const surfaceOptions = getSurfaceOptionsForBrand(brandSlug);
+  const sizeOptions = getSizesForBrand(brandSlug);
 
   function switchMode(next: "uniform" | "perSize") {
     if (next === mode) return;
@@ -109,7 +110,7 @@ export function FamilySurfaceEditor({
       <div>
         <p className="mb-2 text-xs font-semibold text-zinc-400">Ölçüler *</p>
         <div className="flex flex-wrap gap-2">
-          {TILE_SIZES.map((s) => (
+          {sizeOptions.map((s) => (
             <button
               key={s}
               type="button"

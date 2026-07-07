@@ -1,4 +1,4 @@
-import { normalizeSize, TILE_SIZES, getSurfacesForBrand } from "@/lib/constants";
+import { normalizeSize, getSizesForBrand, getSurfacesForBrand } from "@/lib/constants";
 import { toSurface } from "@/lib/surface";
 import type { Quality, Surface } from "@/generated/prisma/client";
 
@@ -133,7 +133,7 @@ export function normalizeMatrix(
 
   for (const [rawSize, rawSurfaces] of Object.entries(input)) {
     const size = normalizeSize(rawSize);
-    if (!TILE_SIZES.includes(size as (typeof TILE_SIZES)[number])) continue;
+    if (!getSizesForBrand(brandSlug).includes(size)) continue;
 
     const surfaces = [...new Set(rawSurfaces.map((s) => s.toUpperCase()))]
       .filter((s) => allowed.has(s))
@@ -160,9 +160,10 @@ export function matrixFromUniform(
   brandSlug: string
 ): SurfaceMatrix {
   const allowed = new Set(getSurfacesForBrand(brandSlug));
+  const allowedSizes = new Set(getSizesForBrand(brandSlug));
   const normalizedSizes = sizes
     .map((s) => normalizeSize(s))
-    .filter((s) => TILE_SIZES.includes(s as (typeof TILE_SIZES)[number]));
+    .filter((s) => allowedSizes.has(s));
 
   const normalizedSurfaces = surfaces
     .map((s) => s.toUpperCase())

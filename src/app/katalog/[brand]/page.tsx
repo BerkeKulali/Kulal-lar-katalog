@@ -5,7 +5,7 @@ import { BrandCatalogPicker } from "@/components/BrandCatalogPicker";
 import { CatalogBrandBar } from "@/components/CatalogSizeHeader";
 import { DeviceGate } from "@/components/DeviceGate";
 import { SiteHeader } from "@/components/SiteHeader";
-import { TILE_SIZES } from "@/lib/constants";
+import { getSizesForBrand } from "@/lib/constants";
 import { getBrandBySlug } from "@/lib/catalog";
 import { prisma } from "@/lib/prisma";
 import type { Quality } from "@/generated/prisma/client";
@@ -43,7 +43,7 @@ export default async function BrandSizePage({
   ]);
 
   const sizeSet = new Set(availableSizes.map((s) => s.size));
-  const sizes = TILE_SIZES.filter((s) => sizeSet.has(s));
+  const sizes = getSizesForBrand(brand.slug).filter((s) => sizeSet.has(s));
   const qualities = availableQualities.map((q) => q.quality as Quality);
 
   return (

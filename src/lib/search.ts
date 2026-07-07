@@ -1,5 +1,5 @@
 import type { Quality, Surface } from "@/generated/prisma/client";
-import { TILE_SIZES } from "@/lib/constants";
+import { getAllCatalogSizes } from "@/lib/constants";
 import { buildPriceSummary, type PriceSummary } from "@/lib/prices";
 import { pickSizeListImage, toImageCandidates } from "@/lib/product-image";
 import type { SyncFamilyRow, SyncVariantRow } from "@/lib/sync-types";
@@ -51,10 +51,10 @@ export function familyMatchesQuery(
 }
 
 export function sortSizes(sizes: string[]) {
-  const order = new Map(TILE_SIZES.map((size, index) => [size, index]));
+  const order = new Map(getAllCatalogSizes().map((size, index) => [size, index]));
   return [...sizes].sort((a, b) => {
-    const ai = order.get(a as (typeof TILE_SIZES)[number]) ?? 999;
-    const bi = order.get(b as (typeof TILE_SIZES)[number]) ?? 999;
+    const ai = order.get(a) ?? 999;
+    const bi = order.get(b) ?? 999;
     if (ai !== bi) return ai - bi;
     return a.localeCompare(b);
   });
