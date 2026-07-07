@@ -97,23 +97,22 @@ export default function AdminImportPage() {
       </section>
 
       <section className="mb-10 border border-zinc-800 p-5">
-        <h2 className="mb-3 text-sm font-semibold">QUA ve BIEN fiyat listesi</h2>
+        <h2 className="mb-3 text-sm font-semibold">BIEN fiyat listesi (CSV)</h2>
         <p className="mb-4 text-xs text-zinc-500">
-          QUA ve BIEN dosyalarını <strong>bu GÜRAL kutusuna yüklemeyin</strong> —
-          ürün adları GÜRAL&apos;a özel ayrıştırılır ve tüm satırlar yanlışlıkla{" "}
-          <strong>gural</strong> markasına yazılır. QUA / BIEN için aşağıdaki{" "}
-          <strong>genel Excel yükleme</strong> bölümünü kullanın (
-          <code className="text-zinc-400">marka_slug</code> sütununda{" "}
-          <code className="text-zinc-400">qua</code> veya{" "}
-          <code className="text-zinc-400">bien</code>). Tedarikçi CSV formatı
-          farklıysa markaya özel ayrı bir içe aktarma alanı açılabilir.
+          BIEN&apos;in gönderdiği toptan fiyat CSV dosyası. Tire ile ayrılmış ürün
+          grupları ve <strong>RENK</strong> sütunundan yüzey otomatik çıkarılır.
+          Fiyat: <strong>Fabrika sevk</strong> veya <strong>Depo teslim</strong>.
         </p>
-        <a
-          href="/api/admin/prices"
-          className="inline-block border border-zinc-600 px-4 py-2 text-xs hover:border-white"
-        >
-          Mevcut fiyat listesini indir (şablon)
-        </a>
+        <SupplierCsvImportForm brandSlug="bien" brandLabel="BIEN" />
+      </section>
+
+      <section className="mb-10 border border-zinc-800 p-5">
+        <h2 className="mb-3 text-sm font-semibold">QUA fiyat listesi (CSV)</h2>
+        <p className="mb-4 text-xs text-zinc-500">
+          QUA tedarikçi CSV&apos;si (BIEN ile aynı tablo yapısı).{" "}
+          <strong>GÜRAL kutusuna yüklemeyin.</strong>
+        </p>
+        <SupplierCsvImportForm brandSlug="qua" brandLabel="QUA" />
       </section>
 
       <section className="mb-10 border border-zinc-800 p-5">
@@ -562,6 +561,308 @@ function GuralCsvImportForm() {
           <p className="text-green-400">
             {result.parsed} satır işlendi · Güncellenen: {result.updated} · Yeni:{" "}
             {result.created}
+            {result.skipped > 0 ? ` · Atlanan: ${result.skipped}` : ""}
+          </p>
+          {[...result.parseErrors, ...result.errors].length > 0 && (
+            <ul className="max-h-48 overflow-y-auto text-xs text-red-400">
+              {[...result.parseErrors, ...result.errors].map((err) => (
+                <li key={err}>{err}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </form>
+  );
+}
+
+function SupplierCsvImportForm({
+  brandSlug,
+  brandLabel,
+}: {
+  brandSlug: "bien" | "qua";
+  brandLabel: string;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [mode, setMode] = useState("upsert");
+  const [priceColumn, setPriceColumn] = useState("fabrika");
+  const [pending, setPending] = useState<{
+    rows: Array<Record<string, unknown>>;
+    parseErrors: string[];
+    skipped: number;
+    total: number;
+    families: number;
+  } | null>(null);
+  const [result, setResult] = useState<{
+    parsed: number;
+    families: number;
+    updated: number;
+    created: number;
+    skipped: number;
+    parseErrors: string[];
+    errors: string[];
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState<{
+    phase: string;
+    current: number;
+    total: number;
+  } | null>(null);
+
+  const BATCH_SIZE = 40;
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!file) return;
+
+    setLoading(true);
+    setResult(null);
+    setPending(null);
+    setProgress({ phase: "CSV okunuyor…", current: 0, total: 0 });
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("brandSlug", brandSlug);
+    formData.append("priceColumn", priceColumn);
+
+    try {
+      const parseRes = await fetch("/api/admin/prices/supplier/parse", {
+        method: "POST",
+        body: formData,
+      });
+      const parsed = await parseRes.json();
+
+      if (!parseRes.ok) {
+        setResult({
+          parsed: 0,
+          families: 0,
+          updated: 0,
+          created: 0,
+          skipped: parsed.skipped ?? 0,
+          parseErrors: parsed.parseErrors ?? [],
+          errors: [parsed.error ?? "CSV okunamadı"],
+        });
+        return;
+      }
+
+      const rows = parsed.rows as Array<Record<string, unknown>>;
+      setPending({
+        rows,
+        parseErrors: parsed.parseErrors ?? [],
+        skipped: parsed.skipped ?? 0,
+        total: rows.length,
+        families: parsed.families ?? 0,
+      });
+    } catch {
+      setResult({
+        parsed: 0,
+        families: 0,
+        updated: 0,
+        created: 0,
+        skipped: 0,
+        parseErrors: [],
+        errors: ["Bağlantı kesildi veya sunucu zaman aşımına uğradı."],
+      });
+    } finally {
+      setLoading(false);
+      setProgress(null);
+    }
+  }
+
+  async function runImport() {
+    if (!pending) return;
+
+    setLoading(true);
+    setResult(null);
+    setProgress({ phase: "Yedek alınıyor…", current: 0, total: pending.total });
+
+    const backup = await createPreImportBackup(`${brandSlug}-csv`);
+    if (!backup.ok) {
+      setLoading(false);
+      setProgress(null);
+      setResult({
+        parsed: pending.total,
+        families: pending.families,
+        updated: 0,
+        created: 0,
+        skipped: pending.skipped,
+        parseErrors: pending.parseErrors,
+        errors: [backup.error ?? "Yedek alınamadı"],
+      });
+      return;
+    }
+
+    const rows = pending.rows;
+    const total = rows.length;
+    let updated = 0;
+    let created = 0;
+    const errors = [...pending.parseErrors];
+
+    setProgress({ phase: "Veritabanına yazılıyor…", current: 0, total });
+
+    try {
+      for (let offset = 0; offset < total; offset += BATCH_SIZE) {
+        const batch = rows.slice(offset, offset + BATCH_SIZE);
+        const batchIndex = Math.floor(offset / BATCH_SIZE);
+        const isLast = offset + BATCH_SIZE >= total;
+
+        const batchRes = await fetch("/api/admin/prices/import-batch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            rows: batch,
+            mode,
+            brandSlug,
+            batchIndex,
+            rowOffset: offset,
+            finalize: isLast,
+          }),
+        });
+
+        const batchData = await batchRes.json();
+        if (!batchRes.ok) {
+          errors.push(batchData.error ?? `Parti ${batchIndex + 1} başarısız`);
+          break;
+        }
+
+        updated += batchData.updated ?? 0;
+        created += batchData.created ?? 0;
+        errors.push(...(batchData.errors ?? []));
+
+        setProgress({
+          phase: "Veritabanına yazılıyor…",
+          current: Math.min(offset + batch.length, total),
+          total,
+        });
+      }
+
+      setResult({
+        parsed: total,
+        families: pending.families,
+        updated,
+        created,
+        skipped: pending.skipped,
+        parseErrors: pending.parseErrors,
+        errors,
+      });
+      setPending(null);
+    } catch {
+      setResult({
+        parsed: total,
+        families: pending.families,
+        updated,
+        created: 0,
+        skipped: pending.skipped,
+        parseErrors: pending.parseErrors,
+        errors: ["Bağlantı kesildi veya sunucu zaman aşımına uğradı. Tekrar deneyin."],
+      });
+    } finally {
+      setLoading(false);
+      setProgress(null);
+    }
+  }
+
+  const progressPct =
+    progress && progress.total > 0
+      ? Math.round((progress.current / progress.total) * 100)
+      : progress?.phase === "CSV okunuyor…"
+        ? 8
+        : 0;
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <input
+        type="file"
+        accept=".csv,.xlsx,.xls"
+        onChange={(e) => {
+          setFile(e.target.files?.[0] ?? null);
+          setPending(null);
+        }}
+        className="block w-full text-sm"
+      />
+      <select
+        value={priceColumn}
+        onChange={(e) => setPriceColumn(e.target.value)}
+        className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm"
+      >
+        <option value="fabrika">Fabrika sevk</option>
+        <option value="depo">Depo teslim</option>
+      </select>
+      <select
+        value={mode}
+        onChange={(e) => setMode(e.target.value)}
+        className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm"
+      >
+        <option value="upsert">Güncelle + yeni ekle</option>
+        <option value="update-only">Sadece güncelle</option>
+      </select>
+      {pending && (
+        <ImportConfirmPanel
+          title={`${brandLabel} CSV içe aktarmayı onaylayın`}
+          loading={loading}
+          onCancel={() => setPending(null)}
+          onConfirm={runImport}
+          disabled={pending.total === 0}
+        >
+          <p>
+            Dosya: <strong>{file?.name}</strong>
+          </p>
+          <p>
+            <strong>{pending.families}</strong> ürün ailesi ·{" "}
+            <strong>{pending.total}</strong> fiyat satırı
+            {pending.skipped > 0 ? ` · ${pending.skipped} satır atlandı` : ""}
+          </p>
+          <p>
+            Fiyat:{" "}
+            <strong>
+              {priceColumn === "fabrika" ? "Fabrika sevk" : "Depo teslim"}
+            </strong>
+            {" · "}
+            Mod:{" "}
+            <strong>
+              {mode === "upsert" ? "Güncelle + yeni ekle" : "Sadece güncelle"}
+            </strong>
+          </p>
+          {pending.parseErrors.length > 0 && (
+            <p className="text-amber-400">
+              {pending.parseErrors.length} uyarı var; geçerli satırlar yine de
+              yazılır.
+            </p>
+          )}
+        </ImportConfirmPanel>
+      )}
+      <button
+        type="submit"
+        disabled={!file || loading || Boolean(pending)}
+        className="w-full border border-white py-3 text-sm font-semibold hover:bg-white hover:text-black disabled:opacity-40"
+      >
+        {loading && !pending ? "Okunuyor…" : "Önizle ve onayla"}
+      </button>
+
+      {progress && (
+        <div className="space-y-2 rounded border border-zinc-800 p-3">
+          <div className="flex items-center justify-between text-xs text-zinc-400">
+            <span>{progress.phase}</span>
+            <span>
+              {progress.total > 0
+                ? `${progress.current} / ${progress.total} (%${progressPct})`
+                : "…"}
+            </span>
+          </div>
+          <div className="h-2 overflow-hidden rounded bg-zinc-800">
+            <div
+              className="h-full rounded bg-emerald-500 transition-all duration-300"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {result && (
+        <div className="mt-6 space-y-2 text-sm">
+          <p className="text-green-400">
+            {result.families} aile · {result.parsed} satır · Güncellenen:{" "}
+            {result.updated} · Yeni: {result.created}
             {result.skipped > 0 ? ` · Atlanan: ${result.skipped}` : ""}
           </p>
           {[...result.parseErrors, ...result.errors].length > 0 && (
