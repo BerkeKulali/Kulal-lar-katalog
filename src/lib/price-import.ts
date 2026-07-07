@@ -22,7 +22,7 @@ export type PriceImportResult = {
   errors: string[];
 };
 
-type FamilyCache = { id: string; name: string };
+type FamilyCache = { id: string; name: string; slug: string };
 type VariantCache = {
   id: string;
   code: string | null;
@@ -33,6 +33,7 @@ export type PriceImportContext = {
   brandSlug: string;
   mode: string;
   families: Map<string, FamilyCache>;
+  familiesBySlug: Map<string, FamilyCache>;
   variants: Map<string, VariantCache>;
   skipEndSync: boolean;
 };
@@ -66,7 +67,7 @@ export async function createPriceImportContext(
   const [families, variants] = await Promise.all([
     prisma.productFamily.findMany({
       where: { brandId: brand.id },
-      select: { id: true, name: true },
+      select: { id: true, name: true, slug: true },
     }),
     prisma.productVariant.findMany({
       where: { family: { brandId: brand.id } },
@@ -82,8 +83,11 @@ export async function createPriceImportContext(
   ]);
 
   const familyMap = new Map<string, FamilyCache>();
+  const familySlugMap = new Map<string, FamilyCache>();
   for (const family of families) {
     familyMap.set(family.name, family);
+    familySlugMap.set(family.slug, family);
+    familySlugMap.set(slugify(family.name), family);
   }
 
   const variantMap = new Map<string, VariantCache>();
@@ -104,6 +108,7 @@ export async function createPriceImportContext(
     brandSlug: brand.slug,
     mode,
     families: familyMap,
+    familiesBySlug: familySlugMap,
     variants: variantMap,
     skipEndSync: options?.skipEndSync ?? true,
   };
@@ -140,6 +145,49 @@ export async function importPriceRows(
   return results;
 }
 
+function registerFamily(ctx: PriceImportContext, family: FamilyCache) {
+  ctx.families.set(family.name, family);
+  ctx.familiesBySlug.set(family.slug, family);
+  ctx.familiesBySlug.set(slugify(family.name), family);
+}
+
+async function resolveOrCreateFamily(
+  ctx: PriceImportContext,
+  familyName: string
+): Promise<{ family: FamilyCache | null; created: boolean }> {
+  const cached =
+    ctx.families.get(familyName) ??
+    ctx.familiesBySlug.get(slugify(familyName));
+  if (cached) {
+    ctx.families.set(familyName, cached);
+    return { family: cached, created: false };
+  }
+
+  if (ctx.mode === "update-only") return { family: null, created: false };
+
+  const familySlug = slugify(familyName);
+  const existing = await prisma.productFamily.findUnique({
+    where: { brandId_slug: { brandId: ctx.brandId, slug: familySlug } },
+    select: { id: true, name: true, slug: true },
+  });
+  if (existing) {
+    registerFamily(ctx, existing);
+    ctx.families.set(familyName, existing);
+    return { family: existing, created: false };
+  }
+
+  const created = await prisma.productFamily.create({
+    data: {
+      brandId: ctx.brandId,
+      name: familyName,
+      slug: familySlug,
+    },
+    select: { id: true, name: true, slug: true },
+  });
+  registerFamily(ctx, created);
+  return { family: created, created: true };
+}
+
 export async function importPriceRowsWithContext(
   rows: PriceImportRow[],
   ctx: PriceImportContext,
@@ -168,21 +216,14 @@ export async function importPriceRowsWithContext(
         throw new Error("Geçersiz fiyat");
       }
 
-      let family = ctx.families.get(familyName);
+      const { family, created: familyCreated } = await resolveOrCreateFamily(
+        ctx,
+        familyName
+      );
       if (!family) {
-        if (ctx.mode === "update-only") {
-          throw new Error("Aile bulunamadı");
-        }
-        const created = await prisma.productFamily.create({
-          data: {
-            brandId: ctx.brandId,
-            name: familyName,
-            slug: slugify(familyName),
-          },
-          select: { id: true, name: true },
-        });
-        family = created;
-        ctx.families.set(familyName, created);
+        throw new Error("Aile bulunamadı");
+      }
+      if (familyCreated) {
         results.created++;
       }
 
