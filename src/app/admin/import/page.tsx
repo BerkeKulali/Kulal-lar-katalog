@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { ImportConfirmPanel } from "@/components/admin/ImportConfirmPanel";
+import { createPreImportBackup } from "@/lib/import-backup-client";
 import { FormEvent, useState } from "react";
 
 export default function AdminImportPage() {
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState("upsert");
+  const [pendingExcel, setPendingExcel] = useState(false);
   const [result, setResult] = useState<{
     updated: number;
     created: number;
@@ -17,9 +20,27 @@ export default function AdminImportPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!file) return;
+    setPendingExcel(true);
+    setResult(null);
+  }
+
+  async function runExcelImport() {
+    if (!file) return;
 
     setLoading(true);
+    setPendingExcel(false);
     setResult(null);
+
+    const backup = await createPreImportBackup("excel-prices");
+    if (!backup.ok) {
+      setLoading(false);
+      setResult({
+        updated: 0,
+        created: 0,
+        errors: [backup.error ?? "Yedek alınamadı"],
+      });
+      return;
+    }
 
     const formData = new FormData();
     formData.append("file", file);
@@ -66,12 +87,33 @@ export default function AdminImportPage() {
       <section className="mb-10 border border-zinc-800 p-5">
         <h2 className="mb-3 text-sm font-semibold">GÜRAL fiyat listesi (CSV)</h2>
         <p className="mb-4 text-xs text-zinc-500">
-          GÜRAL&apos;ın gönderdiği toptan fiyat CSV dosyasını doğrudan yükleyin.
-          Sütunlar: <strong>EBAT</strong>, <strong>ÜRÜN ADI</strong>,{" "}
+          <strong>Yalnızca GÜRAL</strong> markası içindir. GÜRAL&apos;ın gönderdiği
+          toptan fiyat CSV dosyasını doğrudan yükleyin. Sütunlar:{" "}
+          <strong>EBAT</strong>, <strong>ÜRÜN ADI</strong>,{" "}
           <strong>LİSTE FİYATI</strong> (veya fabrika / depo fiyatı). Ürün aileleri
           ve varyantlar otomatik oluşturulur.
         </p>
         <GuralCsvImportForm />
+      </section>
+
+      <section className="mb-10 border border-zinc-800 p-5">
+        <h2 className="mb-3 text-sm font-semibold">QUA ve BIEN fiyat listesi</h2>
+        <p className="mb-4 text-xs text-zinc-500">
+          QUA ve BIEN dosyalarını <strong>bu GÜRAL kutusuna yüklemeyin</strong> —
+          ürün adları GÜRAL&apos;a özel ayrıştırılır ve tüm satırlar yanlışlıkla{" "}
+          <strong>gural</strong> markasına yazılır. QUA / BIEN için aşağıdaki{" "}
+          <strong>genel Excel yükleme</strong> bölümünü kullanın (
+          <code className="text-zinc-400">marka_slug</code> sütununda{" "}
+          <code className="text-zinc-400">qua</code> veya{" "}
+          <code className="text-zinc-400">bien</code>). Tedarikçi CSV formatı
+          farklıysa markaya özel ayrı bir içe aktarma alanı açılabilir.
+        </p>
+        <a
+          href="/api/admin/prices"
+          className="inline-block border border-zinc-600 px-4 py-2 text-xs hover:border-white"
+        >
+          Mevcut fiyat listesini indir (şablon)
+        </a>
       </section>
 
       <section className="mb-10 border border-zinc-800 p-5">
@@ -93,7 +135,10 @@ export default function AdminImportPage() {
           <input
             type="file"
             accept=".xlsx,.xls"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+              setFile(e.target.files?.[0] ?? null);
+              setPendingExcel(false);
+            }}
             className="block w-full text-sm"
           />
           <select
@@ -104,12 +149,34 @@ export default function AdminImportPage() {
             <option value="upsert">Güncelle + yeni ekle</option>
             <option value="update-only">Sadece güncelle</option>
           </select>
+          {pendingExcel && file && (
+            <ImportConfirmPanel
+              title="Excel fiyat içe aktarmayı onaylayın"
+              loading={loading}
+              onCancel={() => setPendingExcel(false)}
+              onConfirm={runExcelImport}
+            >
+              <p>
+                Dosya: <strong>{file.name}</strong>
+              </p>
+              <p>
+                Mod:{" "}
+                <strong>
+                  {mode === "upsert" ? "Güncelle + yeni ekle" : "Sadece güncelle"}
+                </strong>
+              </p>
+              <p>
+                QUA / BIEN için dosyada <code>marka_slug</code> sütununun doğru
+                olduğundan emin olun.
+              </p>
+            </ImportConfirmPanel>
+          )}
           <button
             type="submit"
-            disabled={!file || loading}
+            disabled={!file || loading || pendingExcel}
             className="w-full border border-white py-3 text-sm font-semibold hover:bg-white hover:text-black disabled:opacity-40"
           >
-            {loading ? "Yükleniyor..." : "Yükle"}
+            {loading ? "Yükleniyor..." : "Önizle ve onayla"}
           </button>
         </form>
 
@@ -146,6 +213,7 @@ export default function AdminImportPage() {
 
 function GuralSyncForm() {
   const [loading, setLoading] = useState(false);
+  const [pending, setPending] = useState(false);
   const [result, setResult] = useState<{
     endCreated: number;
     endUpdated: number;
@@ -155,10 +223,18 @@ function GuralSyncForm() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSync() {
+  async function runSync() {
     setLoading(true);
+    setPending(false);
     setResult(null);
     setError(null);
+
+    const backup = await createPreImportBackup("gural-end-sync");
+    if (!backup.ok) {
+      setLoading(false);
+      setError(backup.error ?? "Yedek alınamadı");
+      return;
+    }
 
     try {
       const res = await fetch("/api/admin/gural/sync", { method: "POST" });
@@ -177,13 +253,23 @@ function GuralSyncForm() {
 
   return (
     <div className="space-y-4">
+      {pending && (
+        <ImportConfirmPanel
+          title="GÜRAL END + ambalaj senkronunu onaylayın"
+          loading={loading}
+          onCancel={() => setPending(false)}
+          onConfirm={runSync}
+        >
+          <p>Tüm GÜRAL ürünlerinde END fiyatları ve ölçü bazlı ambalaj güncellenir.</p>
+        </ImportConfirmPanel>
+      )}
       <button
         type="button"
-        onClick={handleSync}
-        disabled={loading}
+        onClick={() => setPending(true)}
+        disabled={loading || pending}
         className="w-full border border-white py-3 text-sm font-semibold hover:bg-white hover:text-black disabled:opacity-40"
       >
-        {loading ? "Güncelleniyor…" : "GÜRAL END + ambalaj senkronize et"}
+        {loading ? "Güncelleniyor…" : "Önizle ve onayla"}
       </button>
       {result && (
         <p className="text-sm text-green-400">
@@ -201,6 +287,12 @@ function GuralCsvImportForm() {
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState("upsert");
   const [priceColumn, setPriceColumn] = useState("liste");
+  const [pending, setPending] = useState<{
+    rows: Array<Record<string, unknown>>;
+    parseErrors: string[];
+    skipped: number;
+    total: number;
+  } | null>(null);
   const [result, setResult] = useState<{
     parsed: number;
     updated: number;
@@ -224,6 +316,7 @@ function GuralCsvImportForm() {
 
     setLoading(true);
     setResult(null);
+    setPending(null);
     setProgress({ phase: "CSV okunuyor…", current: 0, total: 0 });
 
     const formData = new FormData();
@@ -250,13 +343,58 @@ function GuralCsvImportForm() {
       }
 
       const rows = parsed.rows as Array<Record<string, unknown>>;
-      const total = rows.length;
-      let updated = 0;
-      let created = 0;
-      const errors = [...(parsed.parseErrors ?? [])];
+      setPending({
+        rows,
+        parseErrors: parsed.parseErrors ?? [],
+        skipped: parsed.skipped ?? 0,
+        total: rows.length,
+      });
+    } catch {
+      setResult({
+        parsed: 0,
+        updated: 0,
+        created: 0,
+        skipped: 0,
+        parseErrors: [],
+        errors: ["Bağlantı kesildi veya sunucu zaman aşımına uğradı."],
+      });
+    } finally {
+      setLoading(false);
+      setProgress(null);
+    }
+  }
 
-      setProgress({ phase: "Veritabanına yazılıyor…", current: 0, total });
+  async function runGuralImport() {
+    if (!pending) return;
 
+    setLoading(true);
+    setResult(null);
+    setProgress({ phase: "Yedek alınıyor…", current: 0, total: pending.total });
+
+    const backup = await createPreImportBackup("gural-csv");
+    if (!backup.ok) {
+      setLoading(false);
+      setProgress(null);
+      setResult({
+        parsed: pending.total,
+        updated: 0,
+        created: 0,
+        skipped: pending.skipped,
+        parseErrors: pending.parseErrors,
+        errors: [backup.error ?? "Yedek alınamadı"],
+      });
+      return;
+    }
+
+    const rows = pending.rows;
+    const total = rows.length;
+    let updated = 0;
+    let created = 0;
+    const errors = [...pending.parseErrors];
+
+    setProgress({ phase: "Veritabanına yazılıyor…", current: 0, total });
+
+    try {
       for (let offset = 0; offset < total; offset += BATCH_SIZE) {
         const batch = rows.slice(offset, offset + BATCH_SIZE);
         const batchIndex = Math.floor(offset / BATCH_SIZE);
@@ -296,17 +434,18 @@ function GuralCsvImportForm() {
         parsed: total,
         updated,
         created,
-        skipped: parsed.skipped ?? 0,
-        parseErrors: parsed.parseErrors ?? [],
+        skipped: pending.skipped,
+        parseErrors: pending.parseErrors,
         errors,
       });
+      setPending(null);
     } catch {
       setResult({
-        parsed: 0,
-        updated: 0,
+        parsed: total,
+        updated,
         created: 0,
-        skipped: 0,
-        parseErrors: [],
+        skipped: pending.skipped,
+        parseErrors: pending.parseErrors,
         errors: ["Bağlantı kesildi veya sunucu zaman aşımına uğradı. Tekrar deneyin."],
       });
     } finally {
@@ -327,7 +466,10 @@ function GuralCsvImportForm() {
       <input
         type="file"
         accept=".csv,.xlsx,.xls"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        onChange={(e) => {
+          setFile(e.target.files?.[0] ?? null);
+          setPending(null);
+        }}
         className="block w-full text-sm"
       />
       <select
@@ -347,12 +489,50 @@ function GuralCsvImportForm() {
         <option value="upsert">Güncelle + yeni ekle</option>
         <option value="update-only">Sadece güncelle</option>
       </select>
+      {pending && (
+        <ImportConfirmPanel
+          title="GÜRAL CSV içe aktarmayı onaylayın"
+          loading={loading}
+          onCancel={() => setPending(null)}
+          onConfirm={runGuralImport}
+          disabled={pending.total === 0}
+        >
+          <p>
+            Dosya: <strong>{file?.name}</strong>
+          </p>
+          <p>
+            <strong>{pending.total}</strong> satır işlenecek
+            {pending.skipped > 0 ? ` · ${pending.skipped} satır atlandı` : ""}
+          </p>
+          <p>
+            Fiyat sütunu:{" "}
+            <strong>
+              {priceColumn === "liste"
+                ? "Liste fiyatı"
+                : priceColumn === "fabrika"
+                  ? "Fabrika sevk"
+                  : "Depo teslim"}
+            </strong>
+            {" · "}
+            Mod:{" "}
+            <strong>
+              {mode === "upsert" ? "Güncelle + yeni ekle" : "Sadece güncelle"}
+            </strong>
+          </p>
+          {pending.parseErrors.length > 0 && (
+            <p className="text-amber-400">
+              {pending.parseErrors.length} ayrıştırma uyarısı var; onaylarsanız
+              geçerli satırlar yine de yazılır.
+            </p>
+          )}
+        </ImportConfirmPanel>
+      )}
       <button
         type="submit"
-        disabled={!file || loading}
+        disabled={!file || loading || Boolean(pending)}
         className="w-full border border-white py-3 text-sm font-semibold hover:bg-white hover:text-black disabled:opacity-40"
       >
-        {loading ? "Aktarılıyor…" : "GÜRAL CSV yükle"}
+        {loading && !pending ? "Okunuyor…" : "Önizle ve onayla"}
       </button>
 
       {progress && (
@@ -400,6 +580,7 @@ function GuralCsvImportForm() {
 function StockImportForm() {
   const [file, setFile] = useState<File | null>(null);
   const [mode, setMode] = useState("replace");
+  const [pending, setPending] = useState(false);
   const [result, setResult] = useState<{
     variantsUpdated: number;
     stockLinesWritten: number;
@@ -411,9 +592,28 @@ function StockImportForm() {
   async function handleStockSubmit(e: FormEvent) {
     e.preventDefault();
     if (!file) return;
+    setPending(true);
+    setResult(null);
+  }
+
+  async function runStockImport() {
+    if (!file) return;
 
     setLoading(true);
+    setPending(false);
     setResult(null);
+
+    const backup = await createPreImportBackup("netsis-stock");
+    if (!backup.ok) {
+      setLoading(false);
+      setResult({
+        variantsUpdated: 0,
+        stockLinesWritten: 0,
+        skippedCodes: [],
+        errors: [backup.error ?? "Yedek alınamadı"],
+      });
+      return;
+    }
 
     const formData = new FormData();
     formData.append("file", file);
@@ -445,7 +645,10 @@ function StockImportForm() {
       <input
         type="file"
         accept=".xlsx,.xls,.csv"
-        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        onChange={(e) => {
+          setFile(e.target.files?.[0] ?? null);
+          setPending(false);
+        }}
         className="block w-full text-sm"
       />
       <select
@@ -456,12 +659,32 @@ function StockImportForm() {
         <option value="replace">Eşleşen ürünlerde stoku tamamen yenile</option>
         <option value="upsert">Özellik etiketine göre güncelle / ekle</option>
       </select>
+      {pending && file && (
+        <ImportConfirmPanel
+          title="Netsis stok içe aktarmayı onaylayın"
+          loading={loading}
+          onCancel={() => setPending(false)}
+          onConfirm={runStockImport}
+        >
+          <p>
+            Dosya: <strong>{file.name}</strong>
+          </p>
+          <p>
+            Mod:{" "}
+            <strong>
+              {mode === "replace"
+                ? "Eşleşen ürünlerde stoku tamamen yenile"
+                : "Özellik etiketine göre güncelle / ekle"}
+            </strong>
+          </p>
+        </ImportConfirmPanel>
+      )}
       <button
         type="submit"
-        disabled={!file || loading}
+        disabled={!file || loading || pending}
         className="w-full border border-white py-3 text-sm font-semibold hover:bg-white hover:text-black disabled:opacity-40"
       >
-        {loading ? "Aktarılıyor..." : "Stokları aktar"}
+        {loading ? "Aktarılıyor..." : "Önizle ve onayla"}
       </button>
 
       {result && (
