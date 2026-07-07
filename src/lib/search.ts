@@ -88,7 +88,12 @@ export function buildFamilySearchItems(
       brandName: family.brandName,
       imageUrl: pickSizeListImage(
         family.imageUrl ?? null,
-        toImageCandidates(sizeVariants),
+        toImageCandidates(
+          sizeVariants.map((v) => ({
+            quality: v.quality,
+            imageUrl: v.imageUrl ?? null,
+          }))
+        ),
         size
       ),
       size,
