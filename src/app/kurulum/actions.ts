@@ -3,6 +3,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
+  DEVICE_AUTH_COOKIE,
+  DEVICE_AUTH_MAX_AGE,
   DEVICE_TOKEN_COOKIE,
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
@@ -25,6 +27,12 @@ export async function registerTabletAction(formData: FormData) {
     const opts = deviceCookieOptions();
 
     cookieStore.set(DEVICE_TOKEN_COOKIE, device.token, opts);
+    cookieStore.set(DEVICE_AUTH_COOKIE, device.token, {
+      path: "/",
+      maxAge: DEVICE_AUTH_MAX_AGE,
+      sameSite: "lax",
+      httpOnly: true,
+    });
     cookieStore.set(SALESPERSON_ID_COOKIE, salesperson.id, opts);
     cookieStore.set(SALESPERSON_NAME_COOKIE, salesperson.name, opts);
   } catch (err) {

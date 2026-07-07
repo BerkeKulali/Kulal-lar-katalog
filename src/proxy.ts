@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { enforceAdminAccess } from "@/lib/admin-access";
 import {
+  DEVICE_AUTH_COOKIE,
+  DEVICE_AUTH_MAX_AGE,
   DEVICE_TOKEN_COOKIE,
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
@@ -26,9 +28,19 @@ function isPublicPath(pathname: string) {
 
 function clearDeviceCookies(response: NextResponse) {
   const opts = { path: "/", maxAge: 0 };
+  response.cookies.set(DEVICE_AUTH_COOKIE, "", opts);
   response.cookies.set(DEVICE_TOKEN_COOKIE, "", opts);
   response.cookies.set(SALESPERSON_ID_COOKIE, "", opts);
   response.cookies.set(SALESPERSON_NAME_COOKIE, "", opts);
+}
+
+function setDeviceAuthCookie(response: NextResponse, deviceToken: string) {
+  response.cookies.set(DEVICE_AUTH_COOKIE, deviceToken, {
+    path: "/",
+    maxAge: DEVICE_AUTH_MAX_AGE,
+    sameSite: "lax",
+    httpOnly: true,
+  });
 }
 
 export default async function proxy(request: NextRequest) {
@@ -42,13 +54,19 @@ export default async function proxy(request: NextRequest) {
   }
 
   const deviceToken = request.cookies.get(DEVICE_TOKEN_COOKIE)?.value;
+  const authToken = request.cookies.get(DEVICE_AUTH_COOKIE)?.value;
   const hasDevice = Boolean(deviceToken);
+  const hasRecentAuth = Boolean(deviceToken && authToken === deviceToken);
 
   if (isPublicPath(pathname)) {
     if (pathname === "/kurulum" && hasDevice && deviceToken) {
-      const authorized = await isDeviceAuthorized(deviceToken);
+      const authorized = hasRecentAuth
+        ? true
+        : await isDeviceAuthorized(deviceToken);
       if (authorized) {
-        return NextResponse.redirect(new URL("/", request.url));
+        const response = NextResponse.redirect(new URL("/", request.url));
+        if (!hasRecentAuth) setDeviceAuthCookie(response, deviceToken);
+        return response;
       }
     }
     return NextResponse.next();
@@ -58,7 +76,9 @@ export default async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/kurulum", request.url));
   }
 
-  const authorized = await isDeviceAuthorized(deviceToken);
+  const authorized = hasRecentAuth
+    ? true
+    : await isDeviceAuthorized(deviceToken);
   if (!authorized) {
     const url = new URL("/kurulum", request.url);
     url.searchParams.set("error", DEVICE_NOT_AUTHORIZED);
@@ -67,7 +87,9 @@ export default async function proxy(request: NextRequest) {
     return response;
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  if (!hasRecentAuth) setDeviceAuthCookie(response, deviceToken);
+  return response;
 }
 
 export const config = {

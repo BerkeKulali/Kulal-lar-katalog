@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import {
+  DEVICE_AUTH_COOKIE,
+  DEVICE_AUTH_MAX_AGE,
   DEVICE_TOKEN_COOKIE,
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
@@ -26,6 +28,12 @@ export async function POST(request: Request) {
 
     const opts = deviceCookieOptions();
     response.cookies.set(DEVICE_TOKEN_COOKIE, device.token, opts);
+    response.cookies.set(DEVICE_AUTH_COOKIE, device.token, {
+      path: "/",
+      maxAge: DEVICE_AUTH_MAX_AGE,
+      sameSite: "lax",
+      httpOnly: true,
+    });
     response.cookies.set(SALESPERSON_ID_COOKIE, salesperson.id, opts);
     response.cookies.set(SALESPERSON_NAME_COOKIE, salesperson.name, opts);
 

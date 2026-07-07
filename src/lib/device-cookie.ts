@@ -1,7 +1,9 @@
 export const DEVICE_TOKEN_COOKIE = "kulalilar-device-token";
 export const SALESPERSON_ID_COOKIE = "kulalilar-salesperson-id";
 export const SALESPERSON_NAME_COOKIE = "kulalilar-salesperson-name";
+export const DEVICE_AUTH_COOKIE = "kulalilar-device-auth";
 export const DEVICE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+export const DEVICE_AUTH_MAX_AGE = 60 * 10;
 
 export function deviceCookieOptions() {
   return {
