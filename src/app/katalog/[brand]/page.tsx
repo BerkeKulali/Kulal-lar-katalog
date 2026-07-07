@@ -7,9 +7,10 @@ import { DeviceGate } from "@/components/DeviceGate";
 import { SiteHeader } from "@/components/SiteHeader";
 import { TILE_SIZES } from "@/lib/constants";
 import { getBrandBySlug } from "@/lib/catalog";
-import { getActiveFamilyIds } from "@/lib/active-families";
 import { prisma } from "@/lib/prisma";
 import type { Quality } from "@/generated/prisma/client";
+
+export const revalidate = 60;
 
 export default async function BrandSizePage({
   params,
@@ -20,29 +21,26 @@ export default async function BrandSizePage({
   const brand = await getBrandBySlug(brandSlug);
   if (!brand) notFound();
 
-  const activeFamilyIds = await getActiveFamilyIds(brand.id);
+  const variantWhere = {
+    isActive: true,
+    family: {
+      brandId: brand.id,
+      isActive: true,
+    },
+  } as const;
 
-  const [availableSizes, availableQualities] =
-    activeFamilyIds.length === 0
-      ? [[], []]
-      : await Promise.all([
-          prisma.productVariant.findMany({
-            where: {
-              isActive: true,
-              familyId: { in: activeFamilyIds },
-            },
-            select: { size: true },
-            distinct: ["size"],
-          }),
-          prisma.productVariant.findMany({
-            where: {
-              isActive: true,
-              familyId: { in: activeFamilyIds },
-            },
-            select: { quality: true },
-            distinct: ["quality"],
-          }),
-        ]);
+  const [availableSizes, availableQualities] = await Promise.all([
+    prisma.productVariant.findMany({
+      where: variantWhere,
+      select: { size: true },
+      distinct: ["size"],
+    }),
+    prisma.productVariant.findMany({
+      where: variantWhere,
+      select: { quality: true },
+      distinct: ["quality"],
+    }),
+  ]);
 
   const sizeSet = new Set(availableSizes.map((s) => s.size));
   const sizes = TILE_SIZES.filter((s) => sizeSet.has(s));
