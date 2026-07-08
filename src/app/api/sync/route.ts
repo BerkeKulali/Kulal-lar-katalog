@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
+import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
+import { prisma } from "@/lib/prisma";
 import { buildCatalogSync } from "@/lib/sync-server";
 
 export const dynamic = "force-dynamic";
+
+// "Son görülme" için mevcut sync çağrısına binen, throttle'lı heartbeat.
+const LAST_SEEN_THROTTLE_MS = 5 * 60 * 1000;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -14,7 +18,24 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Geçersiz since" }, { status: 400 });
   }
 
-  const salespersonId = (await cookies()).get(SALESPERSON_ID_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const salespersonId = cookieStore.get(SALESPERSON_ID_COOKIE)?.value;
+  const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
+
+  // Yeni istek atmadan, yalnızca gerçekten eskiyse tek koşullu yazım yapar.
+  if (deviceToken) {
+    void prisma.device
+      .updateMany({
+        where: {
+          token: deviceToken,
+          lastSeenAt: { lt: new Date(Date.now() - LAST_SEEN_THROTTLE_MS) },
+        },
+        data: { lastSeenAt: new Date() },
+      })
+      .catch(() => {
+        // takip güncellemesi kritik değil; senkronu bloklamaz
+      });
+  }
 
   const payload = await buildCatalogSync(since, salespersonId);
   return NextResponse.json(payload);
