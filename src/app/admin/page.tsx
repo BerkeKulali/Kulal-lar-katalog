@@ -69,8 +69,11 @@ export default async function AdminDashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-xs text-zinc-500 hover:text-white">
-            Kataloga dön
+          <Link
+            href="/kurulum?force=1"
+            className="text-xs text-zinc-500 hover:text-white"
+          >
+            Kataloga dön (kurulum)
           </Link>
           <AdminLogoutButton />
         </div>
