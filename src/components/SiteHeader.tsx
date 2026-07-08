@@ -58,8 +58,8 @@ export function SiteHeader({ rightSlot }: { rightSlot?: React.ReactNode }) {
   return (
     <header className="site-header relative z-[60] pb-3 pt-2">
       {actorSession && (
-        <div className="absolute left-0 top-2 z-[60] max-w-[12.5rem] rounded-full border border-zinc-700/80 bg-black/30 px-3 py-1.5 text-[11px] leading-none text-zinc-200 backdrop-blur-sm">
-          <span className="mr-1 text-zinc-500">
+        <div className="absolute left-0 top-2 z-[60] max-w-[12.5rem] rounded-full border border-white/35 bg-black/75 px-3 py-1.5 text-[11px] leading-none text-white shadow-[0_4px_14px_rgba(0,0,0,0.35)] backdrop-blur-sm">
+          <span className="mr-1 text-zinc-300">
             {actorSession.actorType === "dealer" ? "Bayi:" : "Plasiyer:"}
           </span>
           <span className="inline-block max-w-[8.2rem] truncate font-medium align-bottom">
