@@ -12,7 +12,7 @@ export function AdminLogoutButton() {
     try {
       await fetch("/api/admin/login", { method: "DELETE" });
     } finally {
-      router.push("/admin/login");
+      router.push("/kurulum");
       router.refresh();
     }
   }
