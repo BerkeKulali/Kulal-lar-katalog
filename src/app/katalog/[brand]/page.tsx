@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { AppShell } from "@/components/AppShell";
 import { BrandCatalogPicker } from "@/components/BrandCatalogPicker";
 import { CatalogBrandBar } from "@/components/CatalogSizeHeader";
@@ -15,7 +16,8 @@ export default async function BrandSizePage({
   params: Promise<{ brand: string }>;
 }) {
   const { brand: brandSlug } = await params;
-  const brand = await getBrandBySlug(brandSlug);
+  const audience = await getCatalogAudienceFromCookies();
+  const brand = await getBrandBySlug(brandSlug, audience);
   if (!brand) notFound();
 
   const { sizes, qualities } = await getBrandSizeCatalog(brand.id, brand.slug);

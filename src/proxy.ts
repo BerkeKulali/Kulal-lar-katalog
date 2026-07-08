@@ -51,6 +51,14 @@ function setDeviceAuthCookie(response: NextResponse, deviceToken: string) {
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const actorType = request.cookies.get(DEVICE_ACTOR_TYPE_COOKIE)?.value;
+
+  if (
+    actorType === "dealer" &&
+    (pathname.startsWith("/katalog/bien") || pathname.startsWith("/katalog/qua"))
+  ) {
+    return NextResponse.redirect(new URL("/katalog/gural", request.url));
+  }
 
   const adminBlock = enforceAdminAccess(request);
   if (adminBlock) return adminBlock;

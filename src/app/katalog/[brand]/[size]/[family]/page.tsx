@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cookies } from "next/headers";
+import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { AppShell } from "@/components/AppShell";
 import { CatalogBrandBar } from "@/components/CatalogSizeHeader";
 import { DeviceGate } from "@/components/DeviceGate";
@@ -26,7 +27,8 @@ export default async function ProductDetailPage({
   const kaliteFilter = parseKaliteFilter(kalite);
   const initialQuality =
     kaliteFilter === "ALL" ? undefined : kaliteFilter;
-  const detail = await getFamilyDetail(brandSlug, size, familySlug);
+  const audience = await getCatalogAudienceFromCookies();
+  const detail = await getFamilyDetail(brandSlug, size, familySlug, audience);
   if (!detail) notFound();
 
   const salespersonId = (await cookies()).get(SALESPERSON_ID_COOKIE)?.value;

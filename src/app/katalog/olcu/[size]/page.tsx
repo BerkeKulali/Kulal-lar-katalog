@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { AppShell } from "@/components/AppShell";
 import { BrandHeaderMark } from "@/components/BrandHeaderMark";
 import { CatalogSizeHeader } from "@/components/CatalogSizeHeader";
@@ -24,7 +25,12 @@ export default async function SizeCatalogPage({
   const qualityForQuery =
     kaliteFilter === "ALL" ? undefined : (kaliteFilter as Quality);
 
-  const groups = await getCatalogFamiliesGroupedByBrand(size, qualityForQuery);
+  const audience = await getCatalogAudienceFromCookies();
+  const groups = await getCatalogFamiliesGroupedByBrand(
+    size,
+    qualityForQuery,
+    audience
+  );
   const layout = getSizeLayout(size);
   const gridClass =
     layout.columns === 2

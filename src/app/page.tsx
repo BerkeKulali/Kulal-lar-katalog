@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { AppShell } from "@/components/AppShell";
 import { BrandCatalogTile } from "@/components/BrandCatalogTile";
 import { DeviceGate } from "@/components/DeviceGate";
@@ -14,11 +15,12 @@ import {
 } from "@/lib/catalog";
 
 export default async function HomePage() {
+  const audience = await getCatalogAudienceFromCookies();
   const [brands, settings, announcements, searchIndex] = await Promise.all([
-    getBrands(),
+    getBrands(audience),
     getAppSettings(),
     getActiveAnnouncements(),
-    getGlobalSearchCatalog(),
+    getGlobalSearchCatalog(audience),
   ]);
 
   const lastUpdate = new Intl.DateTimeFormat("tr-TR", {

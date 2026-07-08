@@ -7,11 +7,19 @@ import type { Quality } from "@/generated/prisma/client";
 import { pickSizeListImage, toImageCandidates } from "@/lib/product-image";
 import { buildFamilySearchItems, type GlobalSearchItem } from "@/lib/search";
 import { CATALOG_TAG, CATALOG_REVALIDATE_SECONDS } from "@/lib/cache-tags";
+import type { CatalogAudience } from "@/lib/catalog-audience";
 
 export type { PriceSummary };
 export { buildPriceSummary };
 
 const HIDDEN_BRAND_SLUGS = ["kale"] as const;
+const DEALER_HIDDEN_BRAND_SLUGS = ["bien", "qua"] as const;
+
+function hiddenBrandSlugsForAudience(audience: CatalogAudience) {
+  return audience === "dealer"
+    ? [...HIDDEN_BRAND_SLUGS, ...DEALER_HIDDEN_BRAND_SLUGS]
+    : [...HIDDEN_BRAND_SLUGS];
+}
 
 const catalogCacheOptions = {
   tags: [CATALOG_TAG],
@@ -20,11 +28,11 @@ const catalogCacheOptions = {
 
 // --- Marka lookup (istek içinde tekilleştirilir) ---
 
-async function _getBrandBySlug(slug: string) {
+async function _getBrandBySlug(slug: string, audience: CatalogAudience = "default") {
   return prisma.brand.findFirst({
     where: {
       slug,
-      NOT: { slug: { in: [...HIDDEN_BRAND_SLUGS] } },
+      NOT: { slug: { in: hiddenBrandSlugsForAudience(audience) } },
     },
   });
 }
@@ -32,10 +40,10 @@ async function _getBrandBySlug(slug: string) {
 /** Aynı istek içinde tekrar eden marka sorgularını tekilleştirir. */
 export const getBrandBySlug = cache(_getBrandBySlug);
 
-export const getBrands = cache(async () => {
+export const getBrands = cache(async (audience: CatalogAudience = "default") => {
   return prisma.brand.findMany({
     where: {
-      slug: { notIn: [...HIDDEN_BRAND_SLUGS] },
+      slug: { notIn: hiddenBrandSlugsForAudience(audience) },
     },
     orderBy: { sortOrder: "asc" },
   });
@@ -80,9 +88,10 @@ export const getBrandSizeCatalog = unstable_cache(
 async function _getCatalogFamilies(
   brandSlug: string,
   size: string,
-  quality?: Quality
+  quality?: Quality,
+  audience: CatalogAudience = "default"
 ) {
-  const brand = await _getBrandBySlug(brandSlug);
+  const brand = await _getBrandBySlug(brandSlug, audience);
   if (!brand) return null;
 
   const normalized = normalizeSize(size);
@@ -136,17 +145,18 @@ export const getCatalogFamilies = unstable_cache(
 
 async function _getCatalogFamiliesGroupedByBrand(
   size: string,
-  quality?: Quality
+  quality?: Quality,
+  audience: CatalogAudience = "default"
 ) {
   const brands = await prisma.brand.findMany({
-    where: { slug: { notIn: [...HIDDEN_BRAND_SLUGS] } },
+    where: { slug: { notIn: hiddenBrandSlugsForAudience(audience) } },
     orderBy: { sortOrder: "asc" },
   });
 
   const groups = await Promise.all(
     brands.map(async (brand) => ({
       brand: { id: brand.id, slug: brand.slug, name: brand.name },
-      families: (await _getCatalogFamilies(brand.slug, size, quality)) ?? [],
+      families: (await _getCatalogFamilies(brand.slug, size, quality, audience)) ?? [],
     }))
   );
 
@@ -164,9 +174,10 @@ export const getCatalogFamiliesGroupedByBrand = unstable_cache(
 async function _getFamilyDetail(
   brandSlug: string,
   size: string,
-  familySlug: string
+  familySlug: string,
+  audience: CatalogAudience = "default"
 ) {
-  const brand = await _getBrandBySlug(brandSlug);
+  const brand = await _getBrandBySlug(brandSlug, audience);
   if (!brand) return null;
 
   const normalized = normalizeSize(size);
@@ -264,9 +275,14 @@ export const getActiveAnnouncements = cache(async () => {
 
 // --- Global arama indeksi (anasayfa + arama) ---
 
-async function _getGlobalSearchCatalog(): Promise<GlobalSearchItem[]> {
+async function _getGlobalSearchCatalog(
+  audience: CatalogAudience = "default"
+): Promise<GlobalSearchItem[]> {
   const families = await prisma.productFamily.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      brand: { slug: { notIn: hiddenBrandSlugsForAudience(audience) } },
+    },
     include: {
       brand: true,
       variants: {

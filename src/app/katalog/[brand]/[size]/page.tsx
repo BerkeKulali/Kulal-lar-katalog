@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { AppShell } from "@/components/AppShell";
 import { CatalogSizeHeader } from "@/components/CatalogSizeHeader";
 import { DeviceGate } from "@/components/DeviceGate";
@@ -22,10 +23,16 @@ export default async function ProductListPage({
   const kaliteFilter = parseKaliteFilter(kalite);
   const qualityForQuery =
     kaliteFilter === "ALL" ? undefined : (kaliteFilter as Quality);
-  const brand = await getBrandBySlug(brandSlug);
+  const audience = await getCatalogAudienceFromCookies();
+  const brand = await getBrandBySlug(brandSlug, audience);
   if (!brand) notFound();
 
-  const families = await getCatalogFamilies(brandSlug, size, qualityForQuery);
+  const families = await getCatalogFamilies(
+    brandSlug,
+    size,
+    qualityForQuery,
+    audience
+  );
   if (!families) notFound();
 
   const layout = getSizeLayout(size);

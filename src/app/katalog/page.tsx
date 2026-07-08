@@ -2,10 +2,12 @@ import { BrandCatalogTile } from "@/components/BrandCatalogTile";
 import { AppShell } from "@/components/AppShell";
 import { DeviceGate } from "@/components/DeviceGate";
 import { SiteHeader } from "@/components/SiteHeader";
+import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { getBrands } from "@/lib/catalog";
 
 export default async function CatalogIndexPage() {
-  const brands = await getBrands();
+  const audience = await getCatalogAudienceFromCookies();
+  const brands = await getBrands(audience);
 
   return (
     <DeviceGate>
