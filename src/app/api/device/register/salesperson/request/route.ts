@@ -9,8 +9,20 @@ import {
   deviceCookieOptions,
 } from "@/lib/device-cookie";
 import { createSalespersonAccessRequest } from "@/lib/device-access";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const limit = checkRateLimit(`sp-request:${clientIp(request)}`, {
+    max: 10,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Çok fazla talep. Lütfen daha sonra tekrar deneyin." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   try {
     const body = await request.json().catch(() => ({}));
     const salespersonId = String(body.salespersonId ?? "").trim();

@@ -150,8 +150,13 @@ export function SetupEntryPanel({
     setLoading(true);
     setError("");
     try {
-      await fetch("/api/device/reset", { method: "POST" });
-      router.push("/kurulum?force=1");
+      const res = await fetch("/api/device/reset", { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Cihaz sıfırlanamadı");
+        return;
+      }
+      router.push("/kurulum");
       router.refresh();
     } catch {
       setError("Cihaz sıfırlanamadı");

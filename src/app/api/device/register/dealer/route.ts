@@ -11,8 +11,20 @@ import {
   deviceCookieOptions,
 } from "@/lib/device-cookie";
 import { createDealerDeviceAccess } from "@/lib/device-access";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  const limit = checkRateLimit(`dealer-register:${clientIp(request)}`, {
+    max: 5,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Çok fazla kayıt denemesi. Lütfen daha sonra tekrar deneyin." },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   try {
     const body = await request.json().catch(() => ({}));
     const dealerName = String(body.dealerName ?? "");

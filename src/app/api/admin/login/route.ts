@@ -16,6 +16,7 @@ import {
 } from "@/lib/device-cookie";
 import { hashPassword, isHashedPassword, verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit, clearRateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -30,6 +31,17 @@ export async function POST(request: Request) {
     );
   }
 
+  const rateKey = `admin-login:${clientIp(request)}:${email}`;
+  const limit = checkRateLimit(rateKey, { max: 5, windowMs: 15 * 60 * 1000 });
+  if (!limit.allowed) {
+    return NextResponse.json(
+      {
+        error: `Çok fazla başarısız deneme. ${Math.ceil(limit.retryAfterSeconds / 60)} dakika sonra tekrar deneyin.`,
+      },
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } }
+    );
+  }
+
   const user = await prisma.adminUser.findUnique({ where: { email } });
   // Kullanıcı yok / şifre yanlış ayrımı yapılmaz (hesap keşfini önler).
   if (!user || !verifyPassword(password, user.password)) {
@@ -38,6 +50,8 @@ export async function POST(request: Request) {
       { status: 401 }
     );
   }
+
+  clearRateLimit(rateKey);
 
   // Geçiş dönemi: düz metin saklanan şifreyi ilk başarılı girişte hash'le.
   if (!isHashedPassword(user.password)) {

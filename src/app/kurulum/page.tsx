@@ -32,9 +32,6 @@ export default async function SetupPage({
           <span className="font-mono">http://192.168.1.10:3000</span>).{" "}
           localhost ile tablet IP farklı sayılır.
         </p>
-        <p className="theme-muted text-xs">
-          Giriş ekranına zorla dönmek için: <span className="font-mono">/kurulum?force=1</span>
-        </p>
       </div>
       <SetupEntryPanel
         salespeople={salespeople.map((sp) => ({

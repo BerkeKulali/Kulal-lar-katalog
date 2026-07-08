@@ -74,7 +74,11 @@ export default async function proxy(request: NextRequest) {
 
   if (isPublicPath(pathname)) {
     if (pathname === "/kurulum" && hasDevice && deviceToken) {
-      const forceSetup = request.nextUrl.searchParams.get("force") === "1";
+      // force=1 test amaçlıdır; production'da yalnızca admin oturumu varken çalışır.
+      const forceSetup =
+        request.nextUrl.searchParams.get("force") === "1" &&
+        (process.env.NODE_ENV !== "production" ||
+          Boolean(request.cookies.get("kulalilar_admin")?.value));
       if (forceSetup) {
         return NextResponse.next();
       }

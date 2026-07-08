@@ -59,7 +59,19 @@ export function enforceAdminAccess(request: NextRequest): NextResponse | null {
   }
 
   const accessKey = process.env.ADMIN_ACCESS_KEY?.trim();
-  if (!accessKey) return null;
+
+  // Fail-closed: anahtar tanımsızsa admin production'da tamamen kapalı.
+  // (Geliştirme ortamında anahtar zorunlu değil.)
+  if (!accessKey) {
+    if (process.env.NODE_ENV !== "production") return null;
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "ADMIN_ACCESS_KEY tanımlı değil; admin erişimi kapalı" },
+        { status: 503 }
+      );
+    }
+    return NextResponse.redirect(new URL("/", request.url));
+  }
 
   if (hasAdminGate(request)) return null;
 
