@@ -8,6 +8,7 @@ import {
   serializePermissions,
   type AdminPermission,
 } from "@/lib/admin-permissions";
+import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -112,7 +113,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         { status: 400 }
       );
     }
-    data.password = password;
+    data.password = hashPassword(password);
   }
 
   const nextRole =

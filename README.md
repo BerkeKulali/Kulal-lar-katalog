@@ -37,8 +37,7 @@ Atama seçenekleri:
 ## Admin
 
 - URL: `/admin/login`
-- Süper admin: `admin@kulalilar.com` / `admin123`
-- QUA sorumlusu: `qua@kulalilar.com` / `qua123`
+- Seed kullanıcı şifreleri `SEED_ADMIN_PASSWORD` / `SEED_QUA_PASSWORD` env değişkenleriyle belirlenir. Canlı ortamda seed şifrelerini asla kullanmayın; panelden değiştirin.
 
 ## Vercel ön gösterim
 

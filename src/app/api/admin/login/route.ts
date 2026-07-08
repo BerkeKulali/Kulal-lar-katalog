@@ -1,6 +1,12 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
+  ADMIN_SESSION_COOKIE,
+  ADMIN_SESSION_MAX_AGE,
+  ADMIN_SESSION_REMEMBER_MAX_AGE,
+  createAdminSessionValue,
+} from "@/lib/admin-session";
+import {
   DEVICE_ACTOR_TYPE_COOKIE,
   DEVICE_AUTH_COOKIE,
   DEVICE_REQUEST_TOKEN_COOKIE,
@@ -8,9 +14,8 @@ import {
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
 } from "@/lib/device-cookie";
+import { hashPassword, isHashedPassword, verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
-
-const COOKIE_NAME = "kulalilar_admin";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -26,48 +31,46 @@ export async function POST(request: Request) {
   }
 
   const user = await prisma.adminUser.findUnique({ where: { email } });
-  if (!user) {
+  // Kullanıcı yok / şifre yanlış ayrımı yapılmaz (hesap keşfini önler).
+  if (!user || !verifyPassword(password, user.password)) {
     return NextResponse.json(
-      {
-        error: "Bu e-posta ile kayıtlı admin kullanıcısı yok",
-        code: "USER_NOT_FOUND",
-      },
-      { status: 401 }
-    );
-  }
-  if (user.password !== password) {
-    return NextResponse.json(
-      { error: "Şifre hatalı", code: "WRONG_PASSWORD" },
+      { error: "E-posta veya şifre hatalı" },
       { status: 401 }
     );
   }
 
+  // Geçiş dönemi: düz metin saklanan şifreyi ilk başarılı girişte hash'le.
+  if (!isHashedPassword(user.password)) {
+    await prisma.adminUser.update({
+      where: { id: user.id },
+      data: { password: hashPassword(password) },
+    });
+  }
+
+  const maxAge = rememberDevice
+    ? ADMIN_SESSION_REMEMBER_MAX_AGE
+    : ADMIN_SESSION_MAX_AGE;
+
   const cookieStore = await cookies();
-  const sessionCookie = {
+  cookieStore.set(ADMIN_SESSION_COOKIE, createAdminSessionValue(user.id, maxAge), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-  } as const;
-  cookieStore.set(
-    COOKIE_NAME,
-    user.id,
-    rememberDevice ? { ...sessionCookie, maxAge: 60 * 60 * 24 * 30 } : sessionCookie
-  );
+    maxAge,
+  });
 
-  // Admin "cihazı hatırla" yalnızca admin session'ı uzatır.
-  // Katalog cihaz cookie'si yazılmaz; aksi durumda giriş yapılmadan katalog/admin bypass olur.
-  if (rememberDevice) {
-    const existingActorType = cookieStore.get(DEVICE_ACTOR_TYPE_COOKIE)?.value;
-    if (existingActorType === "admin") {
-      const clear = { path: "/", maxAge: 0 };
-      cookieStore.set(DEVICE_TOKEN_COOKIE, "", clear);
-      cookieStore.set(DEVICE_AUTH_COOKIE, "", clear);
-      cookieStore.set(SALESPERSON_ID_COOKIE, "", clear);
-      cookieStore.set(SALESPERSON_NAME_COOKIE, "", clear);
-      cookieStore.set(DEVICE_ACTOR_TYPE_COOKIE, "", clear);
-      cookieStore.set(DEVICE_REQUEST_TOKEN_COOKIE, "", clear);
-    }
+  // Admin girişi katalog cihaz cookie'si YAZMAZ. Eski bir admin cihaz
+  // kaydı varsa temizlenir; aksi durumda katalog/admin bypass oluşur.
+  const existingActorType = cookieStore.get(DEVICE_ACTOR_TYPE_COOKIE)?.value;
+  if (existingActorType === "admin") {
+    const clear = { path: "/", maxAge: 0 };
+    cookieStore.set(DEVICE_TOKEN_COOKIE, "", clear);
+    cookieStore.set(DEVICE_AUTH_COOKIE, "", clear);
+    cookieStore.set(SALESPERSON_ID_COOKIE, "", clear);
+    cookieStore.set(SALESPERSON_NAME_COOKIE, "", clear);
+    cookieStore.set(DEVICE_ACTOR_TYPE_COOKIE, "", clear);
+    cookieStore.set(DEVICE_REQUEST_TOKEN_COOKIE, "", clear);
   }
 
   return NextResponse.json({
@@ -80,6 +83,6 @@ export async function POST(request: Request) {
 
 export async function DELETE() {
   const cookieStore = await cookies();
-  cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete(ADMIN_SESSION_COOKIE);
   return NextResponse.json({ ok: true });
 }

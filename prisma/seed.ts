@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaClient, Quality, Surface } from "../src/generated/prisma/client";
+import { hashPassword } from "../src/lib/password";
 
 function createSeedClient() {
   const url = process.env.DATABASE_URL ?? "file:./prisma/dev.db";
@@ -307,11 +308,14 @@ async function main() {
     prisma.salesperson.create({ data: { name: "Ayşe Kaya" } }),
   ]);
 
+  // Seed şifreleri yalnızca yerel geliştirme içindir; canlıda mutlaka değiştirin.
+  const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD ?? "admin123";
+
   await prisma.adminUser.create({
     data: {
       email: "admin@kulalilar.com",
       name: "Süper Admin",
-      password: "admin123",
+      password: hashPassword(seedAdminPassword),
       role: "SUPER",
     },
   });
@@ -320,7 +324,7 @@ async function main() {
     data: {
       email: "qua@kulalilar.com",
       name: "QUA Sorumlusu",
-      password: "qua123",
+      password: hashPassword(process.env.SEED_QUA_PASSWORD ?? "qua123"),
       role: "BRAND_MANAGER",
       brandId: brands[0].id,
     },
@@ -341,7 +345,7 @@ async function main() {
   });
 
   console.log("Seed tamamlandı.");
-  console.log("Admin: admin@kulalilar.com / admin123");
+  console.log("Admin: admin@kulalilar.com (şifre: SEED_ADMIN_PASSWORD env değeri)");
   console.log("Pazarlamacılar:", salespeople.map((s) => s.name).join(", "));
 }
 

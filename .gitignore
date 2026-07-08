@@ -43,4 +43,9 @@ next-env.d.ts
 /dev.db
 /prisma/dev.db
 
+# veritabanı yedekleri (şifre/sipariş verisi içerir, asla commit'lenmemeli)
+/backups/*.json
+/backups/*.db
+/backups/*.xlsx
+
 /src/generated/prisma

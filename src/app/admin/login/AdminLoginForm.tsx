@@ -10,8 +10,8 @@ export function AdminLoginForm() {
   const needKey = searchParams.get("needKey") === "1";
   const denied = searchParams.get("denied");
 
-  const [email, setEmail] = useState("admin@kulalilar.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [rememberDevice, setRememberDevice] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -125,10 +125,6 @@ export function AdminLoginForm() {
           {loading ? "Giriş deneniyor…" : "Giriş yap"}
         </button>
       </form>
-
-      <p className="mt-6 text-center text-[11px] text-zinc-500">
-        Demo: admin@kulalilar.com / admin123
-      </p>
     </AppShell>
   );
 }

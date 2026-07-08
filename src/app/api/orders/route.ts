@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { requireAdmin } from "@/lib/admin-auth";
 import { prisma } from "@/lib/prisma";
 import {
   DEVICE_TOKEN_COOKIE,
@@ -8,6 +9,11 @@ import {
 import { generateOrderNumber } from "@/lib/utils";
 
 export async function GET() {
+  const admin = await requireAdmin();
+  if (!admin) {
+    return NextResponse.json({ error: "Yetkisiz" }, { status: 401 });
+  }
+
   const orders = await prisma.order.findMany({
     include: {
       salesperson: true,

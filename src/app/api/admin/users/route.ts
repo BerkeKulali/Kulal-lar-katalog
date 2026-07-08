@@ -8,6 +8,7 @@ import {
   serializePermissions,
   type AdminPermission,
 } from "@/lib/admin-permissions";
+import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 
 function isAdminPermission(value: string): value is AdminPermission {
@@ -143,7 +144,7 @@ export async function POST(request: Request) {
     data: {
       name,
       email,
-      password,
+      password: hashPassword(password),
       role,
       permissions: permissionsJson,
       ...(role === "BRAND_MANAGER" && brandId

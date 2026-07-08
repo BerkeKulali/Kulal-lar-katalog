@@ -2,13 +2,17 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { AdminPermission } from "@/lib/admin-permissions";
 import { hasPermission } from "@/lib/admin-permissions";
+import {
+  ADMIN_SESSION_COOKIE,
+  verifyAdminSessionValue,
+} from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
-
-const COOKIE_NAME = "kulalilar_admin";
 
 export async function getAdminSession() {
   const cookieStore = await cookies();
-  const adminId = cookieStore.get(COOKIE_NAME)?.value;
+  const adminId = verifyAdminSessionValue(
+    cookieStore.get(ADMIN_SESSION_COOKIE)?.value
+  );
   if (!adminId) return null;
 
   return prisma.adminUser.findUnique({

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { AdminLogoutButton } from "@/components/admin/AdminLogoutButton";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin-auth";
 import { ADMIN_NAV, formatAdminScope, getEffectivePermissions } from "@/lib/admin-permissions";
@@ -67,9 +68,12 @@ export default async function AdminDashboardPage() {
             {admin.name} · {formatAdminScope(admin)}
           </p>
         </div>
-        <Link href="/" className="text-xs text-zinc-500 hover:text-white">
-          Kataloga dön
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/" className="text-xs text-zinc-500 hover:text-white">
+            Kataloga dön
+          </Link>
+          <AdminLogoutButton />
+        </div>
       </div>
 
       <div className="mb-4 grid grid-cols-3 gap-4">
