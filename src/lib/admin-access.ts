@@ -90,6 +90,9 @@ export function enforceAdminAccess(request: NextRequest): NextResponse | null {
   }
 
   if (pathname === "/admin/login") {
+    if (request.nextUrl.searchParams.get("needKey") === "1") {
+      return null;
+    }
     const login = new URL("/admin/login", request.url);
     login.searchParams.set("needKey", "1");
     return NextResponse.redirect(login);
