@@ -22,6 +22,10 @@ export default async function HomePage() {
     getActiveAnnouncements(),
     getGlobalSearchCatalog(audience),
   ]);
+  const visibleAnnouncements = announcements.filter((item) => {
+    const text = `${item.title} ${item.body ?? ""}`.toLowerCase();
+    return !text.includes("qua");
+  });
 
   const lastUpdate = new Intl.DateTimeFormat("tr-TR", {
     day: "2-digit",
@@ -38,9 +42,9 @@ export default async function HomePage() {
           <SyncStatusLine serverPriceDate={lastUpdate} />
         </section>
 
-        {announcements.length > 0 && (
+        {visibleAnnouncements.length > 0 && (
           <section className="mt-6 px-5">
-            {announcements.map((item) => (
+            {visibleAnnouncements.map((item) => (
               <div
                 key={item.id}
                 className="mb-3 border border-zinc-800 px-4 py-3 text-sm"
