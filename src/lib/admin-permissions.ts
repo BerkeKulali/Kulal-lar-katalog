@@ -20,7 +20,7 @@ export const PERMISSION_LABELS: Record<AdminPermission, string> = {
   stock: "Stok yönetimi",
   orders: "Siparişler",
   import: "Excel import / export",
-  salespeople: "Plasiyerler",
+  salespeople: "Plasiyerler ve bayiler",
   admins: "Admin kullanıcıları",
 };
 
@@ -48,6 +48,11 @@ export const ADMIN_NAV: {
   {
     href: "/admin/plasiyerler",
     label: "Plasiyerler (tablet kurulumu)",
+    permission: "salespeople",
+  },
+  {
+    href: "/admin/bayiler",
+    label: "Bayiler (denetim ve silme)",
     permission: "salespeople",
   },
   {

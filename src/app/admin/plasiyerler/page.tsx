@@ -266,17 +266,7 @@ export default function AdminPlasiyerlerPage() {
     }).format(new Date(value));
   }
 
-  const dealerRequests = requests.filter((req) => req.type === "DEALER");
   const salespersonRequests = requests.filter((req) => req.type === "SALESPERSON");
-  const dealerPendingCount = dealerRequests.filter(
-    (req) => req.status === "PENDING"
-  ).length;
-  const dealerApprovedCount = dealerRequests.filter(
-    (req) => req.status === "APPROVED"
-  ).length;
-  const dealerRejectedCount = dealerRequests.filter(
-    (req) => req.status === "REJECTED"
-  ).length;
 
   return (
     <AppShell variant="admin" className="py-8">
@@ -287,9 +277,14 @@ export default function AdminPlasiyerlerPage() {
             Tablet kurulumunda görünen isimler
           </p>
         </div>
-        <Link href="/admin" className="text-xs text-zinc-500 hover:text-white">
-          ← Admin
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/bayiler" className="text-xs text-zinc-500 hover:text-white">
+            Bayiler
+          </Link>
+          <Link href="/admin" className="text-xs text-zinc-500 hover:text-white">
+            ← Admin
+          </Link>
+        </div>
       </div>
 
       {message && (
@@ -363,45 +358,6 @@ export default function AdminPlasiyerlerPage() {
                         Reddet
                       </button>
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="mb-6 border border-zinc-800 p-4">
-          <h2 className="text-sm font-semibold">Bayi denetimi</h2>
-          <p className="mt-1 text-xs text-zinc-500">
-            Bayi girişleri burada listelenir. Silme yapılmaz; kim ne zaman giriş
-            yaptı izlenir.
-          </p>
-          <p className="mt-2 text-[11px] text-zinc-500">
-            Toplam: {dealerRequests.length} · Bekleyen: {dealerPendingCount} ·
-            Onaylı: {dealerApprovedCount} · Reddedilen: {dealerRejectedCount}
-          </p>
-          {dealerRequests.length === 0 ? (
-            <p className="mt-3 text-xs text-zinc-500">Henüz bayi kaydı yok.</p>
-          ) : (
-            <div className="mt-3 space-y-2">
-              {dealerRequests.map((req) => (
-                <div key={req.id} className="border border-zinc-800 p-3 text-xs">
-                  <p className="font-medium">Bayi · {req.dealerName ?? req.requestLabel}</p>
-                  <p className="mt-1 text-zinc-500">
-                    Durum: {req.status}
-                    {req.approvedBy ? ` · işlem yapan: ${req.approvedBy}` : ""}
-                    {req.rejectionReason ? ` · not: ${req.rejectionReason}` : ""}
-                  </p>
-                  <p className="text-zinc-600">Talep: {formatDate(req.createdAt)}</p>
-                  {req.approvedAt && (
-                    <p className="text-zinc-600">
-                      Onay: {formatDate(req.approvedAt)}
-                    </p>
-                  )}
-                  {req.completedAt && (
-                    <p className="text-zinc-600">
-                      Tamamlanma: {formatDate(req.completedAt)}
-                    </p>
                   )}
                 </div>
               ))}
