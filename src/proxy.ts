@@ -52,6 +52,10 @@ function setDeviceAuthCookie(response: NextResponse, deviceToken: string) {
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const actorType = request.cookies.get(DEVICE_ACTOR_TYPE_COOKIE)?.value;
+  const hasValidActorType =
+    actorType === "dealer" ||
+    actorType === "salesperson" ||
+    actorType === "salesperson-pending";
 
   if (
     actorType === "dealer" &&
@@ -73,6 +77,12 @@ export default async function proxy(request: NextRequest) {
   const hasRecentAuth = Boolean(deviceToken && authToken === deviceToken);
 
   if (isPublicPath(pathname)) {
+    if (pathname === "/kurulum" && request.cookies.get(DEVICE_TOKEN_COOKIE)?.value && !hasValidActorType) {
+      const response = NextResponse.next();
+      clearDeviceCookies(response);
+      return response;
+    }
+
     if (pathname === "/kurulum" && hasDevice && deviceToken) {
       // force=1 test amaçlıdır; production'da yalnızca admin oturumu varken çalışır.
       const forceSetup =
@@ -92,6 +102,14 @@ export default async function proxy(request: NextRequest) {
       }
     }
     return NextResponse.next();
+  }
+
+  // Güvenlik sertleştirmesi: eski sürümden kalma actorType'sız/bozuk cookie'ler
+  // kataloga erişim vermez; cihaz yeniden kurulumdan geçmelidir.
+  if (hasDevice && !hasValidActorType) {
+    const response = NextResponse.redirect(new URL("/kurulum", request.url));
+    clearDeviceCookies(response);
+    return response;
   }
 
   if (!hasDevice || !deviceToken) {
