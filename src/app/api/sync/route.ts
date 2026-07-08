@@ -23,18 +23,19 @@ export async function GET(request: Request) {
   const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
 
   // Yeni istek atmadan, yalnızca gerçekten eskiyse tek koşullu yazım yapar.
+  // Serverless'te fire-and-forget yazımlar düşebildiği için await ediyoruz.
   if (deviceToken) {
-    void prisma.device
-      .updateMany({
+    try {
+      await prisma.device.updateMany({
         where: {
           token: deviceToken,
           lastSeenAt: { lt: new Date(Date.now() - LAST_SEEN_THROTTLE_MS) },
         },
         data: { lastSeenAt: new Date() },
-      })
-      .catch(() => {
-        // takip güncellemesi kritik değil; senkronu bloklamaz
       });
+    } catch {
+      // takip güncellemesi kritik değil; senkronu bloklamaz
+    }
   }
 
   const payload = await buildCatalogSync(since, salespersonId);
