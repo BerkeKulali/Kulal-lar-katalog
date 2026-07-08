@@ -7,7 +7,7 @@ import { buildCatalogSync } from "@/lib/sync-server";
 export const dynamic = "force-dynamic";
 
 // "Son görülme" için mevcut sync çağrısına binen, throttle'lı heartbeat.
-const LAST_SEEN_THROTTLE_MS = 5 * 60 * 1000;
+const LAST_SEEN_THROTTLE_MS = 15 * 60 * 1000;
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);

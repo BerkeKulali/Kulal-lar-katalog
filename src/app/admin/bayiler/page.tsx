@@ -45,6 +45,16 @@ export default function AdminDealersPage() {
     loadData();
   }, [loadData]);
 
+  // Sayfa açıkken hafif otomatik yenileme (sadece sekme görünürken).
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadData();
+      }
+    }, 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, [loadData]);
+
   function formatDate(value: string) {
     return new Intl.DateTimeFormat("tr-TR", {
       dateStyle: "short",
@@ -88,6 +98,14 @@ export default function AdminDealersPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => loadData()}
+            disabled={loading}
+            className="text-xs text-zinc-500 hover:text-white disabled:opacity-40"
+          >
+            {loading ? "Yenileniyor…" : "Yenile"}
+          </button>
           <Link href="/admin/plasiyerler" className="text-xs text-zinc-500 hover:text-white">
             Plasiyerler
           </Link>
