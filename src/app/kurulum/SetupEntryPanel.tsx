@@ -146,6 +146,20 @@ export function SetupEntryPanel({
     }
   }
 
+  async function handleResetSession() {
+    setLoading(true);
+    setError("");
+    try {
+      await fetch("/api/device/reset", { method: "POST" });
+      router.push("/kurulum?force=1");
+      router.refresh();
+    } catch {
+      setError("Cihaz sıfırlanamadı");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="mx-auto mt-8 max-w-md space-y-5 px-6">
       <div className="grid grid-cols-3 gap-2">
@@ -274,6 +288,14 @@ export function SetupEntryPanel({
           {error}
         </p>
       )}
+      <button
+        type="button"
+        onClick={handleResetSession}
+        disabled={loading}
+        className="w-full border border-zinc-700 py-2 text-xs text-zinc-300 disabled:opacity-40"
+      >
+        Test için bu cihazdaki tüm girişleri sıfırla
+      </button>
     </div>
   );
 }

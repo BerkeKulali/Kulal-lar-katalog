@@ -1,14 +1,12 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
-  DEVICE_ACTOR_NAME_COOKIE,
   DEVICE_ACTOR_TYPE_COOKIE,
   DEVICE_AUTH_COOKIE,
-  DEVICE_AUTH_MAX_AGE,
+  DEVICE_REQUEST_TOKEN_COOKIE,
   DEVICE_TOKEN_COOKIE,
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
-  deviceCookieOptions,
 } from "@/lib/device-cookie";
 import { prisma } from "@/lib/prisma";
 
@@ -57,23 +55,19 @@ export async function POST(request: Request) {
     rememberDevice ? { ...sessionCookie, maxAge: 60 * 60 * 24 * 30 } : sessionCookie
   );
 
+  // Admin "cihazı hatırla" yalnızca admin session'ı uzatır.
+  // Katalog cihaz cookie'si yazılmaz; aksi durumda giriş yapılmadan katalog/admin bypass olur.
   if (rememberDevice) {
-    const device = await prisma.device.create({
-      data: { label: `Admin - ${user.name}` },
-      select: { token: true },
-    });
-    const opts = deviceCookieOptions();
-    cookieStore.set(DEVICE_TOKEN_COOKIE, device.token, opts);
-    cookieStore.set(DEVICE_AUTH_COOKIE, device.token, {
-      path: "/",
-      maxAge: DEVICE_AUTH_MAX_AGE,
-      sameSite: "lax",
-      httpOnly: true,
-    });
-    cookieStore.set(DEVICE_ACTOR_TYPE_COOKIE, "admin", opts);
-    cookieStore.set(DEVICE_ACTOR_NAME_COOKIE, user.name, opts);
-    cookieStore.set(SALESPERSON_ID_COOKIE, "", { path: "/", maxAge: 0 });
-    cookieStore.set(SALESPERSON_NAME_COOKIE, "", { path: "/", maxAge: 0 });
+    const existingActorType = cookieStore.get(DEVICE_ACTOR_TYPE_COOKIE)?.value;
+    if (existingActorType === "admin") {
+      const clear = { path: "/", maxAge: 0 };
+      cookieStore.set(DEVICE_TOKEN_COOKIE, "", clear);
+      cookieStore.set(DEVICE_AUTH_COOKIE, "", clear);
+      cookieStore.set(SALESPERSON_ID_COOKIE, "", clear);
+      cookieStore.set(SALESPERSON_NAME_COOKIE, "", clear);
+      cookieStore.set(DEVICE_ACTOR_TYPE_COOKIE, "", clear);
+      cookieStore.set(DEVICE_REQUEST_TOKEN_COOKIE, "", clear);
+    }
   }
 
   return NextResponse.json({

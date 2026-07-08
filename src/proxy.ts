@@ -66,6 +66,10 @@ export default async function proxy(request: NextRequest) {
 
   if (isPublicPath(pathname)) {
     if (pathname === "/kurulum" && hasDevice && deviceToken) {
+      const forceSetup = request.nextUrl.searchParams.get("force") === "1";
+      if (forceSetup) {
+        return NextResponse.next();
+      }
       const authorized = hasRecentAuth
         ? true
         : await isDeviceAuthorized(deviceToken);
