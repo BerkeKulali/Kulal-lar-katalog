@@ -20,8 +20,23 @@ type Plasiyer = {
   } | null;
 };
 
+type AccessRequest = {
+  id: string;
+  type: "SALESPERSON" | "DEALER";
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  requestLabel: string;
+  dealerName: string | null;
+  salesperson: { id: string; name: string } | null;
+  rejectionReason: string | null;
+  createdAt: string;
+  approvedAt: string | null;
+  completedAt: string | null;
+  approvedBy: string | null;
+};
+
 export default function AdminPlasiyerlerPage() {
   const [salespeople, setSalespeople] = useState<Plasiyer[]>([]);
+  const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [newName, setNewName] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -31,13 +46,20 @@ export default function AdminPlasiyerlerPage() {
   const [actionId, setActionId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    const res = await fetch("/api/admin/salespeople");
-    if (!res.ok) {
+    const [salespeopleRes, requestsRes] = await Promise.all([
+      fetch("/api/admin/salespeople"),
+      fetch("/api/admin/access-requests"),
+    ]);
+    if (!salespeopleRes.ok || !requestsRes.ok) {
       setError("Liste yüklenemedi");
       return;
     }
-    const data = await res.json();
-    setSalespeople(data.salespeople ?? []);
+    const [salespeopleData, requestsData] = await Promise.all([
+      salespeopleRes.json(),
+      requestsRes.json(),
+    ]);
+    setSalespeople(salespeopleData.salespeople ?? []);
+    setRequests(requestsData.requests ?? []);
   }, []);
 
   useEffect(() => {
@@ -215,6 +237,28 @@ export default function AdminPlasiyerlerPage() {
     await loadData();
   }
 
+  async function handleRequestAction(
+    requestId: string,
+    action: "approve" | "reject"
+  ) {
+    setActionId(requestId);
+    setError(null);
+    setMessage(null);
+    const res = await fetch(`/api/admin/access-requests/${requestId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setActionId(null);
+    if (!res.ok) {
+      setError(data.error ?? "Talep güncellenemedi");
+      return;
+    }
+    setMessage(action === "approve" ? "Talep onaylandı" : "Talep reddedildi");
+    await loadData();
+  }
+
   function formatDate(value: string) {
     return new Intl.DateTimeFormat("tr-TR", {
       dateStyle: "short",
@@ -271,6 +315,50 @@ export default function AdminPlasiyerlerPage() {
       </form>
 
       <div className="space-y-2">
+        <div className="mb-6 border border-zinc-800 p-4">
+          <h2 className="text-sm font-semibold">Giriş talepleri ve bildirimler</h2>
+          {requests.length === 0 ? (
+            <p className="mt-2 text-xs text-zinc-500">Henüz talep yok.</p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {requests.map((req) => (
+                <div key={req.id} className="border border-zinc-800 p-3 text-xs">
+                  <p className="font-medium">
+                    {req.type === "DEALER" ? "Bayi" : "Plasiyer"} ·{" "}
+                    {req.dealerName ?? req.salesperson?.name ?? req.requestLabel}
+                  </p>
+                  <p className="mt-1 text-zinc-500">
+                    Durum: {req.status}
+                    {req.approvedBy ? ` · işlem yapan: ${req.approvedBy}` : ""}
+                    {req.rejectionReason ? ` · not: ${req.rejectionReason}` : ""}
+                  </p>
+                  <p className="text-zinc-600">Talep: {formatDate(req.createdAt)}</p>
+                  {req.status === "PENDING" && req.type === "SALESPERSON" && (
+                    <div className="mt-2 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleRequestAction(req.id, "approve")}
+                        disabled={actionId === req.id}
+                        className="border border-emerald-800 px-2 py-1 text-emerald-300 disabled:opacity-50"
+                      >
+                        Onayla
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRequestAction(req.id, "reject")}
+                        disabled={actionId === req.id}
+                        className="border border-red-900 px-2 py-1 text-red-300 disabled:opacity-50"
+                      >
+                        Reddet
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {salespeople.length === 0 && (
           <p className="text-sm text-zinc-500">Henüz plasiyer yok.</p>
         )}

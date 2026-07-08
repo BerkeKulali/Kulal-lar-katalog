@@ -12,6 +12,7 @@ export function AdminLoginForm() {
 
   const [email, setEmail] = useState("admin@kulalilar.com");
   const [password, setPassword] = useState("admin123");
+  const [rememberDevice, setRememberDevice] = useState(true);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -31,7 +32,11 @@ export function AdminLoginForm() {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+          rememberDevice,
+        }),
       });
 
       const data = await res.json().catch(() => null);
@@ -98,6 +103,15 @@ export function AdminLoginForm() {
           placeholder="Şifre"
           autoComplete="current-password"
         />
+        <label className="flex items-center gap-2 text-xs text-zinc-400">
+          <input
+            type="checkbox"
+            checked={rememberDevice}
+            onChange={(e) => setRememberDevice(e.target.checked)}
+            className="h-4 w-4"
+          />
+          Bu cihazı hatırla
+        </label>
         {error && (
           <p className="rounded border border-red-900/60 bg-red-950/30 px-3 py-2 text-sm text-red-300">
             {error}

@@ -10,7 +10,16 @@ export default async function AdminDashboardPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/login");
 
-  const [variantCount, orderCount, settings, visitsToday, visitsWeek, visitsMonth] =
+  const [
+    variantCount,
+    orderCount,
+    settings,
+    visitsToday,
+    visitsWeek,
+    visitsMonth,
+    pendingAccessRequests,
+    dealerNotifications,
+  ] =
     await Promise.all([
     prisma.productVariant.count({
       where: admin.brandId
@@ -29,6 +38,16 @@ export default async function AdminDashboardPage() {
     }),
     prisma.siteVisit.count({
       where: { createdAt: { gte: istanbulDaysAgo(30) } },
+    }),
+    prisma.accessRequest.count({
+      where: { type: "SALESPERSON", status: "PENDING" },
+    }),
+    prisma.accessRequest.count({
+      where: {
+        type: "DEALER",
+        status: "APPROVED",
+        createdAt: { gte: istanbulDaysAgo(1) },
+      },
     }),
   ]);
 
@@ -80,6 +99,12 @@ export default async function AdminDashboardPage() {
         <div className="border border-zinc-800 p-4 col-span-2 sm:col-span-1">
           <p className="text-sm font-bold">{lastUpdate}</p>
           <p className="text-xs text-zinc-500">Son fiyat güncelleme</p>
+        </div>
+        <div className="border border-amber-800 p-4 col-span-2 sm:col-span-1">
+          <p className="text-sm font-bold">
+            {pendingAccessRequests} plasiyer onayı · {dealerNotifications} bayi bildirimi
+          </p>
+          <p className="text-xs text-zinc-500">Yeni giriş talepleri</p>
         </div>
       </div>
 

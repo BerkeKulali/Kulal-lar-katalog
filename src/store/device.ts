@@ -2,6 +2,8 @@
 
 import { create } from "zustand";
 import {
+  DEVICE_ACTOR_NAME_COOKIE,
+  DEVICE_ACTOR_TYPE_COOKIE,
   DEVICE_TOKEN_COOKIE,
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
@@ -9,14 +11,18 @@ import {
 
 type DeviceData = {
   deviceToken: string;
-  salespersonId: string;
+  salespersonId: string | null;
   salespersonName: string;
+  actorType: string;
+  actorName: string;
 };
 
 type DeviceState = {
   deviceToken: string | null;
   salespersonId: string | null;
   salespersonName: string | null;
+  actorType: string | null;
+  actorName: string | null;
   isSetup: boolean;
   setDevice: (data: DeviceData) => void;
   clearDevice: () => void;
@@ -35,13 +41,17 @@ export function readDeviceFromCookies(): DeviceData | null {
   const deviceToken = readCookie(DEVICE_TOKEN_COOKIE);
   const salespersonId = readCookie(SALESPERSON_ID_COOKIE);
   const salespersonName = readCookie(SALESPERSON_NAME_COOKIE);
+  const actorType = readCookie(DEVICE_ACTOR_TYPE_COOKIE) ?? "salesperson";
+  const actorName = readCookie(DEVICE_ACTOR_NAME_COOKIE) ?? salespersonName ?? "";
 
-  if (!deviceToken || !salespersonId) return null;
+  if (!deviceToken) return null;
 
   return {
     deviceToken,
-    salespersonId,
+    salespersonId: salespersonId ?? null,
     salespersonName: salespersonName ?? "",
+    actorType,
+    actorName,
   };
 }
 
@@ -49,6 +59,8 @@ export const useDeviceStore = create<DeviceState>()((set) => ({
   deviceToken: null,
   salespersonId: null,
   salespersonName: null,
+  actorType: null,
+  actorName: null,
   isSetup: false,
   setDevice: (data) =>
     set({
@@ -60,6 +72,8 @@ export const useDeviceStore = create<DeviceState>()((set) => ({
       deviceToken: null,
       salespersonId: null,
       salespersonName: null,
+      actorType: null,
+      actorName: null,
       isSetup: false,
     }),
 }));

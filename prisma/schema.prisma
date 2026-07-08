@@ -37,6 +37,17 @@ enum AdminRole {
   BRAND_MANAGER
 }
 
+enum AccessRequestType {
+  SALESPERSON
+  DEALER
+}
+
+enum AccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Brand {
   id        String          @id @default(cuid())
   name      String
@@ -113,6 +124,7 @@ model Salesperson {
   lockedDeviceId String?     @unique
   lockedDevice   Device?     @relation("SalespersonDeviceLock", fields: [lockedDeviceId], references: [id], onDelete: SetNull)
   devices        Device[]
+  accessRequests AccessRequest[]
   orders         Order[]
   visits         SiteVisit[]
   createdAt      DateTime    @default(now())
@@ -129,6 +141,7 @@ model Device {
   registeredAt       DateTime     @default(now())
   lastSeenAt         DateTime     @default(now())
   visits             SiteVisit[]
+  accessRequests     AccessRequest[]
 }
 
 model SiteVisit {
@@ -202,6 +215,7 @@ model AdminUser {
   permissions String?
   approvedOrders Order[]         @relation("OrderApprovedBy")
   orderLogs      OrderAdminLog[]
+  accessRequests AccessRequest[] @relation("AccessRequestApprovedBy")
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
@@ -220,4 +234,29 @@ model AppSettings {
   id                   String   @id @default("default")
   lastPriceListUpdate  DateTime @default(now())
   updatedAt            DateTime @updatedAt
+}
+
+model AccessRequest {
+  id                  String              @id @default(cuid())
+  type                AccessRequestType
+  status              AccessRequestStatus @default(PENDING)
+  salespersonId       String?
+  salesperson         Salesperson?        @relation(fields: [salespersonId], references: [id], onDelete: SetNull)
+  dealerName          String?
+  requestToken        String              @unique
+  requestLabel        String
+  deviceId            String?
+  device              Device?             @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  approvedByAdminId   String?
+  approvedByAdmin     AdminUser?          @relation("AccessRequestApprovedBy", fields: [approvedByAdminId], references: [id], onDelete: SetNull)
+  rejectionReason     String?
+  notifiedAt          DateTime?
+  approvedAt          DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+  @@index([salespersonId, status])
 }

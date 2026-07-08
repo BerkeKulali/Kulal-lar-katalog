@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { enforceAdminAccess } from "@/lib/admin-access";
 import {
+  DEVICE_ACTOR_NAME_COOKIE,
+  DEVICE_ACTOR_TYPE_COOKIE,
   DEVICE_AUTH_COOKIE,
   DEVICE_AUTH_MAX_AGE,
+  DEVICE_REQUEST_TOKEN_COOKIE,
   DEVICE_TOKEN_COOKIE,
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
@@ -32,6 +35,9 @@ function clearDeviceCookies(response: NextResponse) {
   response.cookies.set(DEVICE_TOKEN_COOKIE, "", opts);
   response.cookies.set(SALESPERSON_ID_COOKIE, "", opts);
   response.cookies.set(SALESPERSON_NAME_COOKIE, "", opts);
+  response.cookies.set(DEVICE_ACTOR_TYPE_COOKIE, "", opts);
+  response.cookies.set(DEVICE_ACTOR_NAME_COOKIE, "", opts);
+  response.cookies.set(DEVICE_REQUEST_TOKEN_COOKIE, "", opts);
 }
 
 function setDeviceAuthCookie(response: NextResponse, deviceToken: string) {
