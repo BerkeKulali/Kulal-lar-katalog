@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { enforceAdminAccess } from "@/lib/admin-access";
+import { ADMIN_SESSION_COOKIE, verifyAdminSessionValue } from "@/lib/admin-session";
 import {
   DEVICE_ACTOR_NAME_COOKIE,
   DEVICE_ACTOR_TYPE_COOKIE,
@@ -52,6 +53,9 @@ function setDeviceAuthCookie(response: NextResponse, deviceToken: string) {
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const actorType = request.cookies.get(DEVICE_ACTOR_TYPE_COOKIE)?.value;
+  const hasValidAdminSession = Boolean(
+    verifyAdminSessionValue(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)
+  );
   const hasValidActorType =
     actorType === "dealer" ||
     actorType === "salesperson" ||
@@ -68,6 +72,11 @@ export default async function proxy(request: NextRequest) {
   if (adminBlock) return adminBlock;
 
   if (pathname.startsWith("/admin")) {
+    return NextResponse.next();
+  }
+
+  // Admin oturumu varken katalog için cihaz kilidi aranmaz.
+  if (hasValidAdminSession) {
     return NextResponse.next();
   }
 
