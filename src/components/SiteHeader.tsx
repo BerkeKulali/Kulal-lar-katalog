@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { KulalilarLogo } from "@/components/KulalilarLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { readDeviceFromCookies } from "@/store/device";
 import { useThemeStore } from "@/store/theme";
 
 const NAV_ITEMS = [
@@ -15,9 +16,15 @@ type AdminSession = {
   name: string;
 };
 
+type DealerSession = {
+  actorType: string;
+  actorName: string;
+};
+
 export function SiteHeader({ rightSlot }: { rightSlot?: React.ReactNode }) {
   const theme = useThemeStore((s) => s.theme);
   const [admin, setAdmin] = useState<AdminSession | null>(null);
+  const [dealer, setDealer] = useState<DealerSession | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,8 +43,25 @@ export function SiteHeader({ rightSlot }: { rightSlot?: React.ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    const device = readDeviceFromCookies();
+    const actorType = device?.actorType ?? "";
+    const actorName = device?.actorName?.trim() ?? "";
+    const showInHeader = actorType === "dealer" || actorType === "salesperson";
+    if (!showInHeader || !actorName) {
+      setDealer(null);
+      return;
+    }
+    setDealer({ actorType, actorName });
+  }, []);
+
   return (
     <header className="site-header relative z-[60] pb-3 pt-2">
+      {dealer && (
+        <div className="absolute left-0 top-3 z-[60] max-w-[10rem] truncate border border-zinc-800 px-2 py-1 text-[11px] font-medium text-zinc-400">
+          {dealer.actorName}
+        </div>
+      )}
       <div className="absolute right-0 top-2 z-[60] flex items-center gap-3">
         <nav className="flex items-center gap-3">
           <details className="relative z-[60]">
