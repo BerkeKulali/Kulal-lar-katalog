@@ -40,6 +40,8 @@ body {
 
 html {
   background: var(--viewport-bg);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 .app-viewport {
@@ -233,6 +235,39 @@ html {
   line-height: 1.2;
   color: var(--foreground);
   text-transform: uppercase;
+}
+
+@media (max-width: 26rem) {
+  .catalog-size-header-grid,
+  .catalog-brand-bar .catalog-size-header-grid {
+    grid-template-columns: minmax(4.5rem, 1fr) minmax(0, 2.2fr) minmax(4.5rem, 1fr);
+    gap: 0.375rem 0.5rem;
+  }
+
+  .brand-header-mark__logo {
+    height: 3.25rem;
+    max-width: 9rem;
+  }
+
+  .brand-header-mark__logo--qua {
+    height: 1.2rem;
+    max-width: 3.7rem;
+  }
+
+  .brand-header-mark__logo--bien {
+    max-width: 6.5rem;
+  }
+
+  .catalog-size-title {
+    margin-top: 0.5rem;
+    font-size: clamp(0.95rem, 4.4vw, 1.05rem);
+    letter-spacing: 0.14em;
+  }
+
+  .product-detail-title {
+    font-size: clamp(1rem, 4.8vw, 1.1rem);
+    letter-spacing: 0.05em;
+  }
 }
 
 .catalog-size-quality {
