@@ -112,12 +112,29 @@ export function startCatalogSyncLoop() {
     runCatalogSync();
   };
 
+  // Masaüstünde (ör. tek sekme sürekli açık) visibilitychange ateşlenmez.
+  // Gerçek etkileşimde de sync tetikleyelim; 15 dk throttle ile seyrek kalır.
+  let lastActivitySync = Date.now();
+  const ACTIVITY_THROTTLE_MS = 15 * 60 * 1000;
+  const onActivity = () => {
+    const now = Date.now();
+    if (now - lastActivitySync < ACTIVITY_THROTTLE_MS) return;
+    lastActivitySync = now;
+    runCatalogSync();
+  };
+
   document.addEventListener("visibilitychange", onVisible);
   window.addEventListener("online", onOnline);
+  window.addEventListener("focus", onActivity);
+  window.addEventListener("pointerdown", onActivity, { passive: true });
+  window.addEventListener("keydown", onActivity);
 
   return () => {
     clearInterval(interval);
     document.removeEventListener("visibilitychange", onVisible);
     window.removeEventListener("online", onOnline);
+    window.removeEventListener("focus", onActivity);
+    window.removeEventListener("pointerdown", onActivity);
+    window.removeEventListener("keydown", onActivity);
   };
 }
