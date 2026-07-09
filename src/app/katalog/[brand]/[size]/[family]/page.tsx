@@ -5,6 +5,7 @@ import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { AppShell } from "@/components/AppShell";
 import { CatalogBrandBar } from "@/components/CatalogSizeHeader";
 import { DeviceGate } from "@/components/DeviceGate";
+import { FamilyClickTracker } from "@/components/FamilyClickTracker";
 import { ProductDetailView } from "@/components/ProductDetailView";
 import { SiteHeader } from "@/components/SiteHeader";
 import { formatSizeLabel, normalizeSize } from "@/lib/constants";
@@ -39,6 +40,7 @@ export default async function ProductDetailPage({
   return (
     <DeviceGate>
       <AppShell className="pb-24">
+        <FamilyClickTracker familyId={family.id} />
         <SiteHeader />
         <CatalogBrandBar brandSlug={brand.slug} brandName={brand.name} />
         <div className="pb-2">

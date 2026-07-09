@@ -13,6 +13,7 @@ export const DATA_TABLES = [
   "Announcement",
   "AppSettings",
   "AccessRequest",
+  "FamilyClickStat",
 ] as const;
 
 export type DataTable = (typeof DATA_TABLES)[number];
