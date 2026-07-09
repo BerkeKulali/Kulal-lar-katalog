@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 const MAX_ITEMS = 200;
 const MAX_COUNT_PER_ITEM = 500;
+const LAST_SEEN_THROTTLE_MS = 10 * 60 * 1000;
 
 type Incoming = { familyId?: unknown; count?: unknown };
 
@@ -30,6 +31,20 @@ export async function POST(request: Request) {
   });
   if (!limit.allowed) {
     return NextResponse.json({ ok: true, throttled: true }, { status: 429 });
+  }
+
+  // Gerçek etkileşimde geldiği için "son görülme" için güvenilir bir sinyal.
+  // Yalnızca gerçekten eskiyse (throttle) tek koşullu yazım yapar.
+  try {
+    await prisma.device.updateMany({
+      where: {
+        token: deviceToken,
+        lastSeenAt: { lt: new Date(Date.now() - LAST_SEEN_THROTTLE_MS) },
+      },
+      data: { lastSeenAt: new Date() },
+    });
+  } catch {
+    // takip güncellemesi kritik değil; sayacı bloklamaz
   }
 
   const body = await request.json().catch(() => null);
