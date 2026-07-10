@@ -7,6 +7,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { useCartStore } from "@/store/cart";
 import { useDeviceStore } from "@/store/device";
 import { formatMoneyTotal, formatPrice, qualityLabel } from "@/lib/utils";
+import { featureBadges, normalizeProductFeatures } from "@/lib/product-features";
 
 export default function CartPage() {
   const items = useCartStore((s) => s.items);
@@ -54,12 +55,15 @@ export default function CartPage() {
           notes: notes.trim() || undefined,
           salespersonId,
           deviceToken,
-          items: items.map((item) => ({
-            variantId: item.variantId,
-            quantityM2: item.quantityM2,
-            unitPriceSnapshot: item.price,
-            productLabel: `${item.familyName} ${item.size.toUpperCase()} ${item.surface} ${qualityLabel(item.quality as "FIRST" | "END")}`,
-          })),
+          items: items.map((item) => {
+            const badges = featureBadges(normalizeProductFeatures(item));
+            return {
+              variantId: item.variantId,
+              quantityM2: item.quantityM2,
+              unitPriceSnapshot: item.price,
+              productLabel: `${item.familyName} ${item.size.toUpperCase()} ${item.surface} ${qualityLabel(item.quality as "FIRST" | "END")}${badges.length ? ` ${badges.join(" ")}` : ""}`,
+            };
+          }),
         }),
       });
 
@@ -103,6 +107,8 @@ export default function CartPage() {
           <ul className="space-y-4">
             {items.map((item) => {
               const lineTotal = item.price * item.quantityM2;
+              const features = normalizeProductFeatures(item);
+              const badges = featureBadges(features);
               return (
               <li
                 key={item.variantId}
@@ -115,6 +121,7 @@ export default function CartPage() {
                       {item.brandName} · {item.size.toUpperCase()} ·{" "}
                       {item.surface} ·{" "}
                       {qualityLabel(item.quality as "FIRST" | "END")}
+                      {badges.length > 0 && ` · ${badges.join(" · ")}`}
                     </p>
                     <p className="mt-1">{formatPrice(item.price)}</p>
                   </div>

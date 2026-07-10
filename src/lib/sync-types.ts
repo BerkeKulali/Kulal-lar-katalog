@@ -5,6 +5,8 @@ export type SyncVariantRow = {
   size: string;
   surface: string;
   quality: string;
+  feature3D: boolean;
+  featureRec: boolean;
   price: number | null;
   code: string | null;
   stockM2: number;

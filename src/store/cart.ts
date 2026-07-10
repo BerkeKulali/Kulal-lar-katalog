@@ -10,6 +10,8 @@ export type CartItem = {
   size: string;
   surface: string;
   quality: string;
+  feature3D?: boolean;
+  featureRec?: boolean;
   price: number;
   quantityM2: number;
   code?: string | null;

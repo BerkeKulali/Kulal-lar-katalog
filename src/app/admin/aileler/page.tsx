@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FamilySurfaceEditor } from "@/components/admin/FamilySurfaceEditor";
+import { FamilyFeaturesEditor } from "@/components/admin/FamilyFeaturesEditor";
 import { FamilyPackagingEditor } from "@/components/admin/FamilyPackagingEditor";
 import { AppShell } from "@/components/AppShell";
 import {
@@ -14,6 +15,7 @@ import {
   type SurfaceMatrix,
 } from "@/lib/family-matrix";
 import { getSurfacesForBrand } from "@/lib/constants";
+import { DEFAULT_PRODUCT_FEATURES, type ProductFeatureFlags } from "@/lib/product-features";
 import { GURAL_PACKAGING_BY_SIZE } from "@/lib/gural-packaging";
 import { slugify } from "@/lib/utils";
 
@@ -89,6 +91,8 @@ export default function AdminFamiliesPage() {
   const [selectedSizes, setSelectedSizes] = useState<string[]>(DEFAULT_SIZES);
   const [selectedSurfaces, setSelectedSurfaces] =
     useState<string[]>(DEFAULT_SURFACES);
+  const [selectedFeatures, setSelectedFeatures] =
+    useState<ProductFeatureFlags>(DEFAULT_PRODUCT_FEATURES);
   const [createMatrix, setCreateMatrix] = useState<SurfaceMatrix>({});
   const [createPackaging, setCreatePackaging] = useState<PackagingBySize>({});
   const [loading, setLoading] = useState(false);
@@ -100,6 +104,8 @@ export default function AdminFamiliesPage() {
   const [editMode, setEditMode] = useState<SurfaceMode>("uniform");
   const [editSizes, setEditSizes] = useState<string[]>([]);
   const [editSurfaces, setEditSurfaces] = useState<string[]>([]);
+  const [editFeatures, setEditFeatures] =
+    useState<ProductFeatureFlags>(DEFAULT_PRODUCT_FEATURES);
   const [editMatrix, setEditMatrix] = useState<SurfaceMatrix>({});
   const [editPackaging, setEditPackaging] = useState<PackagingBySize>({});
   const [editLoading, setEditLoading] = useState(false);
@@ -217,6 +223,7 @@ export default function AdminFamiliesPage() {
         name,
         matrix,
         packaging: createPackaging,
+        features: selectedFeatures,
       }),
     });
 
@@ -295,6 +302,9 @@ export default function AdminFamiliesPage() {
       setEditMode(f.surfaceMode === "perSize" ? "perSize" : "uniform");
       setEditSizes((f.sizes as string[]) ?? []);
       setEditSurfaces((f.surfaces as string[]) ?? []);
+      setEditFeatures(
+        (f.features as ProductFeatureFlags | undefined) ?? DEFAULT_PRODUCT_FEATURES
+      );
       setEditMatrix((f.matrix as SurfaceMatrix) ?? {});
       setEditPackaging((f.packaging as PackagingBySize) ?? {});
     } catch {
@@ -310,6 +320,7 @@ export default function AdminFamiliesPage() {
     setEditMode("uniform");
     setEditSizes([]);
     setEditSurfaces([]);
+    setEditFeatures(DEFAULT_PRODUCT_FEATURES);
     setEditMatrix({});
     setEditPackaging({});
   }
@@ -335,6 +346,7 @@ export default function AdminFamiliesPage() {
         brandSlug: editBrandSlug,
         matrix,
         packaging: editPackaging,
+        features: editFeatures,
       }),
     });
 
@@ -500,6 +512,11 @@ export default function AdminFamiliesPage() {
           onUniformSurfacesChange={setSelectedSurfaces}
           matrix={createMatrix}
           onMatrixChange={setCreateMatrix}
+        />
+
+        <FamilyFeaturesEditor
+          features={selectedFeatures}
+          onChange={setSelectedFeatures}
         />
 
         <FamilyPackagingEditor
@@ -699,6 +716,11 @@ export default function AdminFamiliesPage() {
                 onUniformSurfacesChange={setEditSurfaces}
                 matrix={editMatrix}
                 onMatrixChange={setEditMatrix}
+              />
+
+              <FamilyFeaturesEditor
+                features={editFeatures}
+                onChange={setEditFeatures}
               />
 
               <FamilyPackagingEditor

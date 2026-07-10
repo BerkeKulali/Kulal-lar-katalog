@@ -199,6 +199,8 @@ async function _getFamilyDetail(
     size: v.size,
     surface: v.surface as string,
     quality: v.quality as string,
+    feature3D: v.feature3D,
+    featureRec: v.featureRec,
     price: v.price,
     code: v.code,
     imageUrl: v.imageUrl,

@@ -14,6 +14,11 @@ import {
   type SurfaceMatrix,
 } from "@/lib/family-matrix";
 import { variantCode } from "@/lib/prices";
+import {
+  DEFAULT_PRODUCT_FEATURES,
+  normalizeProductFeatures,
+  type ProductFeatureFlags,
+} from "@/lib/product-features";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
 import type { Quality, Surface } from "@/generated/prisma/client";
@@ -34,6 +39,8 @@ async function loadFamilyForAdmin(id: string, adminBrandId: string | null) {
           palletM2: true,
           boxM2: true,
           truckM2: true,
+          feature3D: true,
+          featureRec: true,
           _count: { select: { orderLines: true } },
         },
       },
@@ -90,6 +97,13 @@ export async function GET(_request: Request, context: RouteContext) {
     const sizes = matrixSizes(matrix);
     const surfaces =
       uniform && sizes.length > 0 ? (matrix[sizes[0]] ?? []) : [];
+    const features =
+      family.variants.length > 0
+        ? normalizeProductFeatures({
+            feature3D: family.variants.every((v) => v.feature3D),
+            featureRec: family.variants.every((v) => v.featureRec),
+          })
+        : DEFAULT_PRODUCT_FEATURES;
 
     return NextResponse.json({
       family: {
@@ -103,6 +117,7 @@ export async function GET(_request: Request, context: RouteContext) {
         surfaceMode: uniform ? "uniform" : "perSize",
         sizes,
         surfaces,
+        features,
         variantCount: family.variants.length,
         hasOrders: family.variants.some((v) => v._count.orderLines > 0),
         isActive: family.isActive,
@@ -130,7 +145,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     const body = await request.json();
-    const { name, sizes, surfaces, matrix, brandSlug, packaging, isActive } =
+    const { name, sizes, surfaces, matrix, brandSlug, packaging, isActive, features } =
       body as {
       name?: string;
       sizes?: string[];
@@ -139,6 +154,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       brandSlug?: string;
       packaging?: PackagingBySize;
       isActive?: boolean;
+      features?: Partial<ProductFeatureFlags>;
     };
 
     if (isActive !== undefined && typeof isActive !== "boolean") {
@@ -155,7 +171,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       matrix === undefined &&
       sizes === undefined &&
       surfaces === undefined &&
-      packaging === undefined;
+      packaging === undefined &&
+      features === undefined;
 
     if (onlyStatusUpdate) {
       const updated = await prisma.productFamily.update({
@@ -265,12 +282,20 @@ export async function PATCH(request: Request, context: RouteContext) {
     const familyName = updates.name ?? family.name;
     const matrixSizesList = matrixSizes(resolvedMatrix);
     const normalizedPackaging = normalizePackaging(packaging, matrixSizesList);
+    const normalizedFeatures =
+      features !== undefined
+        ? normalizeProductFeatures(features)
+        : normalizeProductFeatures({
+            feature3D: family.variants.every((v) => v.feature3D),
+            featureRec: family.variants.every((v) => v.featureRec),
+          });
 
     const { toCreate, toRemove } = buildVariantPlan(
       resolvedMatrix,
       familyName,
       family.variants,
       family.id,
+      normalizedFeatures,
       variantCode
     );
 
@@ -293,17 +318,36 @@ export async function PATCH(request: Request, context: RouteContext) {
           where: { id: family.id },
           data: updates,
         });
+      }
 
-        if (updates.name) {
-          const variants = await tx.productVariant.findMany({
-            where: { familyId: family.id },
+      if (features !== undefined) {
+        await tx.productVariant.updateMany({
+          where: { familyId: family.id },
+          data: {
+            feature3D: normalizedFeatures.feature3D,
+            featureRec: normalizedFeatures.featureRec,
+          },
+        });
+      }
+
+      if (updates.name || features !== undefined) {
+        const variants = await tx.productVariant.findMany({
+          where: { familyId: family.id },
+        });
+        for (const v of variants) {
+          const flags =
+            features !== undefined
+              ? normalizedFeatures
+              : normalizeProductFeatures({
+                  feature3D: v.feature3D,
+                  featureRec: v.featureRec,
+                });
+          await tx.productVariant.update({
+            where: { id: v.id },
+            data: {
+              code: variantCode(familyName, v.surface, v.quality, flags),
+            },
           });
-          for (const v of variants) {
-            await tx.productVariant.update({
-              where: { id: v.id },
-              data: { code: variantCode(familyName, v.surface, v.quality) },
-            });
-          }
         }
       }
 

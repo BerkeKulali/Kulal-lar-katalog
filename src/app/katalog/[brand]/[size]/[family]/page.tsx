@@ -62,6 +62,8 @@ export default async function ProductDetailPage({
             size: v.size,
             surface: v.surface,
             quality: v.quality,
+            feature3D: v.feature3D,
+            featureRec: v.featureRec,
             price: v.price,
             code: v.code,
             imageUrl: v.imageUrl,

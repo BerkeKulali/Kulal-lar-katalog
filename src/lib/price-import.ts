@@ -4,6 +4,12 @@ import { normalizeSize } from "@/lib/constants";
 import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { guralPackagingForSize } from "@/lib/gural-packaging";
 import { endPriceFromFirst, variantCode } from "@/lib/prices";
+import {
+  DEFAULT_PRODUCT_FEATURES,
+  normalizeProductFeatures,
+  parseFeaturesFromText,
+  type ProductFeatureFlags,
+} from "@/lib/product-features";
 import { parseQuality, parseSurface, slugify } from "@/lib/utils";
 
 export type PriceImportRow = {
@@ -15,6 +21,8 @@ export type PriceImportRow = {
   kalite: string;
   fiyat: number;
   kod?: string | null;
+  feature3D?: boolean;
+  featureRec?: boolean;
 };
 
 export type PriceImportResult = {
@@ -43,9 +51,10 @@ function variantCacheKey(
   familyId: string,
   size: string,
   surface: Surface,
-  quality: Quality
+  quality: Quality,
+  features: ProductFeatureFlags
 ) {
-  return `${familyId}|${size}|${surface}|${quality}`;
+  return `${familyId}|${size}|${surface}|${quality}|${features.feature3D ? 1 : 0}|${features.featureRec ? 1 : 0}`;
 }
 
 export async function createPriceImportContext(
@@ -78,6 +87,8 @@ export async function createPriceImportContext(
         size: true,
         surface: true,
         quality: true,
+        feature3D: true,
+        featureRec: true,
         code: true,
       },
     }),
@@ -98,7 +109,11 @@ export async function createPriceImportContext(
         variant.familyId,
         variant.size,
         variant.surface,
-        variant.quality
+        variant.quality,
+        {
+          feature3D: variant.feature3D,
+          featureRec: variant.featureRec,
+        }
       ),
       { id: variant.id, code: variant.code }
     );
@@ -229,7 +244,21 @@ export async function importPriceRowsWithContext(
         results.created++;
       }
 
-      const vKey = variantCacheKey(family.id, size, surface, quality);
+      const parsedFeatures = parseFeaturesFromText(
+        `${code ?? ""} ${familyName} ${row.yuzey ?? ""}`
+      );
+      const features = normalizeProductFeatures({
+        feature3D: row.feature3D ?? parsedFeatures.feature3D,
+        featureRec: row.featureRec ?? parsedFeatures.featureRec,
+      });
+
+      const vKey = variantCacheKey(
+        family.id,
+        size,
+        surface,
+        quality,
+        features
+      );
       const existing = ctx.variants.get(vKey);
 
       const pack = ctx.brandSlug === "gural" ? guralPackagingForSize(size) : null;
@@ -253,6 +282,8 @@ export async function importPriceRowsWithContext(
             size,
             surface,
             quality,
+            feature3D: features.feature3D,
+            featureRec: features.featureRec,
             price,
             code,
             ...packData,
@@ -269,6 +300,7 @@ export async function importPriceRowsWithContext(
           family,
           size,
           surface,
+          features,
           price,
           results
         );
@@ -288,6 +320,7 @@ async function upsertGuralEndVariant(
   family: FamilyCache,
   size: string,
   surface: Surface,
+  features: ProductFeatureFlags,
   firstPrice: number,
   results: PriceImportResult
 ) {
@@ -296,7 +329,13 @@ async function upsertGuralEndVariant(
   const endPrice = endPriceFromFirst(firstPrice);
   const pack = guralPackagingForSize(size);
   const packData = pack ? { palletM2: pack.palletM2, boxM2: pack.boxM2 } : {};
-  const endKey = variantCacheKey(family.id, size, surface, "END");
+  const endKey = variantCacheKey(
+    family.id,
+    size,
+    surface,
+    "END",
+    normalizeProductFeatures(features)
+  );
   const existing = ctx.variants.get(endKey);
 
   if (existing) {
@@ -312,8 +351,10 @@ async function upsertGuralEndVariant(
         size,
         surface,
         quality: "END",
+        feature3D: features.feature3D,
+        featureRec: features.featureRec,
         price: endPrice,
-        code: variantCode(family.name, surface, "END"),
+        code: variantCode(family.name, surface, "END", features),
         ...packData,
       },
       select: { id: true, code: true },

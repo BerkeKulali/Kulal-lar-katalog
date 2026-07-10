@@ -12,6 +12,11 @@ import {
   type SurfaceMatrix,
 } from "@/lib/family-matrix";
 import { variantCode } from "@/lib/prices";
+import {
+  DEFAULT_PRODUCT_FEATURES,
+  normalizeProductFeatures,
+  type ProductFeatureFlags,
+} from "@/lib/product-features";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
 import { toSurface } from "@/lib/surface";
@@ -72,13 +77,14 @@ export async function POST(request: Request) {
     const admin = auth.admin;
 
     const body = await request.json();
-    const { brandSlug, name, sizes, surfaces, matrix, packaging } = body as {
+    const { brandSlug, name, sizes, surfaces, matrix, packaging, features } = body as {
       brandSlug: string;
       name: string;
       sizes?: string[];
       surfaces?: string[];
       matrix?: SurfaceMatrix;
       packaging?: PackagingBySize;
+      features?: Partial<ProductFeatureFlags>;
     };
 
     const trimmedName = name?.trim().toUpperCase();
@@ -126,10 +132,14 @@ export async function POST(request: Request) {
       );
     }
 
+    const normalizedFeatures = normalizeProductFeatures(features);
+
     const variantCreates: {
       size: string;
       surface: Surface;
       quality: Quality;
+      feature3D: boolean;
+      featureRec: boolean;
       code: string;
       palletM2: number | null;
       boxM2: number | null;
@@ -149,7 +159,14 @@ export async function POST(request: Request) {
             size,
             surface: toSurface(surface),
             quality,
-            code: variantCode(trimmedName, toSurface(surface), quality),
+            feature3D: normalizedFeatures.feature3D,
+            featureRec: normalizedFeatures.featureRec,
+            code: variantCode(
+              trimmedName,
+              toSurface(surface),
+              quality,
+              normalizedFeatures
+            ),
             palletM2: pack.palletM2 ?? null,
             boxM2: pack.boxM2 ?? null,
             truckM2: pack.truckM2 ?? null,

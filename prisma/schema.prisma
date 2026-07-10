@@ -22,8 +22,6 @@ enum Surface {
   ANTISLIP
   R10
   R11
-  THREE_D
-  REC
 }
 
 enum OrderStatus {
@@ -98,6 +96,8 @@ model ProductVariant {
   size          String
   surface       Surface
   quality       Quality
+  feature3D     Boolean       @default(false)
+  featureRec    Boolean       @default(false)
   code          String?
   price         Int?
   palletM2      Float?
@@ -112,7 +112,7 @@ model ProductVariant {
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
-  @@unique([familyId, size, surface, quality])
+  @@unique([familyId, size, surface, quality, feature3D, featureRec])
   @@index([familyId, size])
 }
 

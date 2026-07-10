@@ -46,6 +46,8 @@ export async function syncGuralEndPricesAndPackaging(): Promise<GuralSyncResult>
         size: true,
         surface: true,
         quality: true,
+        feature3D: true,
+        featureRec: true,
         price: true,
       },
     }),
@@ -63,7 +65,7 @@ export async function syncGuralEndPricesAndPackaging(): Promise<GuralSyncResult>
   >();
 
   for (const v of allVariants) {
-    const key = `${v.familyId}|${v.size}|${v.surface}`;
+    const key = `${v.familyId}|${v.size}|${v.surface}|${v.feature3D ? 1 : 0}|${v.featureRec ? 1 : 0}`;
     const entry = byKey.get(key) ?? {};
     if (v.quality === "FIRST") entry.first = v;
     if (v.quality === "END") entry.end = v;
@@ -75,6 +77,8 @@ export async function syncGuralEndPricesAndPackaging(): Promise<GuralSyncResult>
     size: string;
     surface: Surface;
     quality: "END";
+    feature3D: boolean;
+    featureRec: boolean;
     price: number;
     code: string;
     palletM2: number | null;
@@ -112,8 +116,13 @@ export async function syncGuralEndPricesAndPackaging(): Promise<GuralSyncResult>
         size: first.size,
         surface: first.surface as Surface,
         quality: "END",
+        feature3D: first.feature3D,
+        featureRec: first.featureRec,
         price: endPrice,
-        code: variantCode(familyName, first.surface as Surface, "END"),
+        code: variantCode(familyName, first.surface as Surface, "END", {
+          feature3D: first.feature3D,
+          featureRec: first.featureRec,
+        }),
         palletM2: pack?.palletM2 ?? null,
         boxM2: pack?.boxM2 ?? null,
       });

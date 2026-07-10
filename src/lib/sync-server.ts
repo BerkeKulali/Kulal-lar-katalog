@@ -73,6 +73,8 @@ export async function buildCatalogSync(
       size: v.size,
       surface: v.surface,
       quality: v.quality,
+      feature3D: v.feature3D,
+      featureRec: v.featureRec,
       price: v.price,
       code: v.code,
       stockM2: showStock

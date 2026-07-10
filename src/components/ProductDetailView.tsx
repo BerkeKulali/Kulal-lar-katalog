@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FocusEvent, type ReactNode } from "r
 import { TileImage } from "@/components/TileImage";
 import { useCartStore } from "@/store/cart";
 import { formatSizeDisplay, surfaceDisplayLabel } from "@/lib/constants";
+import { featureBadges } from "@/lib/product-features";
 import { pickVariantDisplayImage, toImageCandidates } from "@/lib/product-image";
 import { useCatalogSyncStore } from "@/store/catalog-sync";
 import { formatPrice, formatStock, qualityLabel, sortQualities } from "@/lib/utils";
@@ -22,6 +23,8 @@ type Variant = {
   size: string;
   surface: string;
   quality: string;
+  feature3D: boolean;
+  featureRec: boolean;
   price: number | null;
   code: string | null;
   palletM2: number | null;
@@ -108,6 +111,8 @@ export function ProductDetailView({
   const [size, setSize] = useState(initialSize);
   const [surface, setSurface] = useState<string | null>(null);
   const [quality, setQuality] = useState<string | null>(initialQuality ?? null);
+  const [feature3D, setFeature3D] = useState<boolean | null>(null);
+  const [featureRec, setFeatureRec] = useState<boolean | null>(null);
   const [qtyText, setQtyText] = useState("");
   const [saleMode, setSaleMode] = useState<SaleMode>("m2");
   const [added, setAdded] = useState(false);
@@ -129,12 +134,57 @@ export function ProductDetailView({
     return sortQualities([...new Set(pool.map((v) => v.quality))]);
   }, [variantsForSize, surface]);
 
+  const variantsForSurfaceQuality = useMemo(() => {
+    const s = surface ?? surfaces[0];
+    const q = quality ?? qualities[0];
+    if (!s || !q) return [];
+    return variantsForSize.filter((v) => v.surface === s && v.quality === q);
+  }, [variantsForSize, surface, quality, surfaces, qualities]);
+
+  const has3DChoice = useMemo(
+    () =>
+      variantsForSurfaceQuality.some((v) => v.feature3D) &&
+      variantsForSurfaceQuality.some((v) => !v.feature3D),
+    [variantsForSurfaceQuality]
+  );
+
+  const hasRecChoice = useMemo(
+    () =>
+      variantsForSurfaceQuality.some((v) => v.featureRec) &&
+      variantsForSurfaceQuality.some((v) => !v.featureRec),
+    [variantsForSurfaceQuality]
+  );
+
+  const resolvedFeature3D = has3DChoice
+    ? (feature3D ?? false)
+    : (variantsForSurfaceQuality[0]?.feature3D ?? false);
+
+  const resolvedFeatureRec = hasRecChoice
+    ? (featureRec ?? false)
+    : (variantsForSurfaceQuality[0]?.featureRec ?? false);
+
   const selected = useMemo(() => {
     const s = surface ?? surfaces[0];
     const q = quality ?? qualities[0];
     if (!s || !q) return null;
-    return variantsForSize.find((v) => v.surface === s && v.quality === q) ?? null;
-  }, [variantsForSize, surface, quality, surfaces, qualities]);
+    return (
+      variantsForSize.find(
+        (v) =>
+          v.surface === s &&
+          v.quality === q &&
+          v.feature3D === resolvedFeature3D &&
+          v.featureRec === resolvedFeatureRec
+      ) ?? null
+    );
+  }, [
+    variantsForSize,
+    surface,
+    quality,
+    surfaces,
+    qualities,
+    resolvedFeature3D,
+    resolvedFeatureRec,
+  ]);
 
   const activeSurface = surface ?? surfaces[0] ?? null;
   const activeQuality = quality ?? qualities[0] ?? null;
@@ -215,6 +265,8 @@ export function ProductDetailView({
       size: selected.size,
       surface: selected.surface,
       quality: selected.quality,
+      feature3D: selected.feature3D,
+      featureRec: selected.featureRec,
       price: displayPrice!,
       code: selected.code,
       quantityM2: effectiveQuantity,
@@ -257,6 +309,11 @@ export function ProductDetailView({
               <span className="product-detail-badge">
                 {qualityLabel(selected.quality as "FIRST" | "END")}
               </span>
+              {featureBadges(selected).map((badge) => (
+                <span key={badge} className="product-detail-badge">
+                  {badge}
+                </span>
+              ))}
             </div>
             {selected.code && (
               <p className="product-detail-code">{selected.code}</p>
@@ -377,6 +434,8 @@ export function ProductDetailView({
                   setSize(s);
                   setSurface(null);
                   setQuality(null);
+                  setFeature3D(null);
+                  setFeatureRec(null);
                 }}
               >
                 {formatSizeDisplay(s)}
@@ -394,6 +453,8 @@ export function ProductDetailView({
                 onClick={() => {
                   setSurface(s);
                   setQuality(null);
+                  setFeature3D(null);
+                  setFeatureRec(null);
                 }}
               >
                 {surfaceDisplayLabel(s)}
@@ -408,11 +469,36 @@ export function ProductDetailView({
               <DetailOption
                 key={q}
                 active={activeQuality === q}
-                onClick={() => setQuality(q)}
+                onClick={() => {
+                  setQuality(q);
+                  setFeature3D(null);
+                  setFeatureRec(null);
+                }}
               >
                 {qualityLabel(q as "FIRST" | "END")}
               </DetailOption>
             ))}
+          </DetailSection>
+        )}
+
+        {(has3DChoice || hasRecChoice) && (
+          <DetailSection title="ÖZELLİKLER">
+            {has3DChoice && (
+              <DetailOption
+                active={resolvedFeature3D}
+                onClick={() => setFeature3D((v) => !(v ?? false))}
+              >
+                3D
+              </DetailOption>
+            )}
+            {hasRecChoice && (
+              <DetailOption
+                active={resolvedFeatureRec}
+                onClick={() => setFeatureRec((v) => !(v ?? false))}
+              >
+                REC
+              </DetailOption>
+            )}
           </DetailSection>
         )}
 

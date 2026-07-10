@@ -1,4 +1,9 @@
 import type { Quality, Surface } from "@/generated/prisma/client";
+import {
+  DEFAULT_PRODUCT_FEATURES,
+  featureBadges,
+  type ProductFeatureFlags,
+} from "@/lib/product-features";
 
 export type PriceSummary = {
   first: Partial<Record<Surface, number>>;
@@ -22,10 +27,15 @@ export function buildPriceSummary(
 export function variantCode(
   familyName: string,
   surface: Surface,
-  quality: Quality
+  quality: Quality,
+  features: ProductFeatureFlags = DEFAULT_PRODUCT_FEATURES
 ) {
   const q = quality === "FIRST" ? "1." : "END.";
-  return `${familyName} ${surface} ${q}`;
+  const extras = featureBadges(features);
+  if (extras.length === 0) {
+    return `${familyName} ${surface} ${q}`;
+  }
+  return `${familyName} ${surface} ${extras.join(" ")} ${q}`;
 }
 
 /** END fiyatı: 1. kalite fiyatından %20 indirim, sonra yukarı en yakın 5'e */

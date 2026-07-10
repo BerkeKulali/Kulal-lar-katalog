@@ -1,5 +1,6 @@
 import { normalizeSize } from "@/lib/constants";
 import { parseSurface } from "@/lib/utils";
+import { parseFeaturesFromText } from "@/lib/product-features";
 import type { Surface } from "@/generated/prisma/client";
 import type { PriceImportRow } from "@/lib/price-import";
 
@@ -60,27 +61,17 @@ function normalizeFamilyName(name: string) {
 /** BIEN / QUA RENK sütununu katalog yüzey koduna çevirir */
 export function parseSupplierRenkToSurface(renk: string): Surface {
   const direct = parseSurface(renk);
-  if (
-    direct &&
-    ["MAT", "SLP", "FLP", "GLS", "THREE_D", "REC"].includes(direct)
-  ) {
+  if (direct && ["MAT", "SLP", "FLP", "GLS"].includes(direct)) {
     return direct;
   }
 
   const v = renk.toUpperCase();
-
-  if (/\bREC\b/.test(v)) {
-    return "REC";
-  }
 
   if (/FULL.*(LAP|PARLAK)|PARLAK\s*3D|SIRDAN\s*PARLAK|SIDAN\s*PARLAK/i.test(v)) {
     return "FLP";
   }
   if (/SEMI.*LAP|SEMİ.*LAP|SEMİ\s*3D/i.test(v)) {
     return "SLP";
-  }
-  if (/\b3D\b/.test(v)) {
-    return "THREE_D";
   }
   if (/MAT.*PARLAK/i.test(v)) {
     return "MAT";
@@ -113,6 +104,8 @@ type PriceGroup = {
   renk: string;
   surface: Surface;
   price: number;
+  feature3D: boolean;
+  featureRec: boolean;
 };
 
 function emitRows(
@@ -133,6 +126,8 @@ function emitRows(
       kalite: "1",
       fiyat: group.price,
       kod: `${family} ${group.size.toUpperCase()} ${group.renk}`.trim(),
+      feature3D: group.feature3D,
+      featureRec: group.featureRec,
     });
   }
 }
@@ -190,11 +185,14 @@ export function parseSupplierPriceCsvRows(
     }
 
     if (renkRaw && price != null && currentSize) {
+      const features = parseFeaturesFromText(renkRaw);
       currentGroup = {
         size: currentSize,
         renk: renkRaw,
         surface: parseSupplierRenkToSurface(renkRaw),
         price,
+        feature3D: features.feature3D,
+        featureRec: features.featureRec,
       };
       emitRows(brandSlug, currentGroup, names, rows);
       continue;
