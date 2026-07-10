@@ -679,6 +679,12 @@ export default function AdminFamiliesPage() {
             </div>
 
             <div className="space-y-5">
+              {error && (
+                <p className="border border-red-800 bg-red-950/40 px-3 py-2 text-sm text-red-400">
+                  {error}
+                </p>
+              )}
+
               {brands.length > 1 && (
                 <div>
                   <label className="mb-1 block text-xs text-zinc-500">Marka</label>

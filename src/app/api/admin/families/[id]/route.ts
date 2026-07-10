@@ -8,6 +8,7 @@ import {
   matrixSizes,
   normalizeMatrix,
   normalizePackaging,
+  reconcileVariantPlan,
   variantsToMatrix,
   variantsToPackaging,
   type PackagingBySize,
@@ -22,6 +23,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
 import type { Quality, Surface } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -247,8 +249,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     const targetSlug = updates.slug ?? family.slug;
+    const nameChanged =
+      name !== undefined && name.trim().toUpperCase() !== family.name;
+    const brandChanged = brandSlug !== undefined && targetBrandId !== family.brandId;
 
-    if (updates.name || updates.brandId) {
+    if (nameChanged || brandChanged) {
       const conflict = await prisma.productFamily.findFirst({
         where: {
           brandId: targetBrandId,
@@ -259,7 +264,9 @@ export async function PATCH(request: Request, context: RouteContext) {
 
       if (conflict) {
         return NextResponse.json(
-          { error: "Hedef markada aynı isimde başka bir ürün var" },
+          {
+            error: `Bu markada "${conflict.name}" adlı ürün zaten var. Farklı bir ad seçin.`,
+          },
           { status: 409 }
         );
       }
@@ -298,15 +305,20 @@ export async function PATCH(request: Request, context: RouteContext) {
       normalizedFeatures,
       variantCode
     );
+    const { toCreate: createRows, toRemove: removeRows, toUpdate } =
+      reconcileVariantPlan(toCreate, family.variants);
 
-    const blocked = toRemove.filter(
+    const blocked = removeRows.filter(
       (v) => (v._count?.orderLines ?? 0) > 0
     );
     if (blocked.length > 0) {
+      const sample = blocked
+        .slice(0, 3)
+        .map((v) => `${v.size} ${v.surface} ${v.quality}`)
+        .join(", ");
       return NextResponse.json(
         {
-          error:
-            "Siparişe bağlı variant silinemez. Önce ilgili siparişleri kontrol edin.",
+          error: `Siparişe bağlı variant silinemez (${sample}). Önce ilgili siparişleri kontrol edin.`,
         },
         { status: 409 }
       );
@@ -320,14 +332,26 @@ export async function PATCH(request: Request, context: RouteContext) {
         });
       }
 
-      if (toRemove.length > 0) {
-        await tx.productVariant.deleteMany({
-          where: { id: { in: toRemove.map((v) => v.id) } },
+      for (const row of toUpdate) {
+        await tx.productVariant.update({
+          where: { id: row.id },
+          data: {
+            surface: row.surface,
+            feature3D: row.feature3D,
+            featureRec: row.featureRec,
+            code: row.code,
+          },
         });
       }
 
-      if (toCreate.length > 0) {
-        const createRows = toCreate.map((row) => {
+      if (removeRows.length > 0) {
+        await tx.productVariant.deleteMany({
+          where: { id: { in: removeRows.map((v) => v.id) } },
+        });
+      }
+
+      if (createRows.length > 0) {
+        const rows = createRows.map((row) => {
           const pack = normalizedPackaging[row.size] ?? {};
           return {
             ...row,
@@ -336,7 +360,7 @@ export async function PATCH(request: Request, context: RouteContext) {
             truckM2: pack.truckM2 ?? null,
           };
         });
-        await tx.productVariant.createMany({ data: createRows });
+        await tx.productVariant.createMany({ data: rows });
       }
 
       if (features !== undefined) {
@@ -403,12 +427,22 @@ export async function PATCH(request: Request, context: RouteContext) {
         variantCount: updated?._count.variants ?? 0,
         isActive: updated?.isActive ?? family.isActive,
       },
-      addedVariants: toCreate.length,
-      removedVariants: toRemove.length,
+      addedVariants: createRows.length,
+      removedVariants: removeRows.length,
+      updatedVariants: toUpdate.length,
       brandChanged: Boolean(updates.brandId),
     });
   } catch (err) {
     console.error("PATCH /api/admin/families/[id] failed:", err);
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return NextResponse.json(
+        {
+          error:
+            "Bu ölçü/yüzey/kalite/özellik kombinasyonu zaten kayıtlı. Çakışan satırı kontrol edin.",
+        },
+        { status: 409 }
+      );
+    }
     const message = err instanceof Error ? err.message : "Güncelleme başarısız";
     return NextResponse.json({ error: message }, { status: 500 });
   }

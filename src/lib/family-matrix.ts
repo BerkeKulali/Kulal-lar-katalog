@@ -258,3 +258,63 @@ export function buildVariantPlan<
 
   return { toCreate, toRemove, desiredKeys };
 }
+
+export type VariantInPlaceUpdate = {
+  id: string;
+  surface: Surface;
+  feature3D: boolean;
+  featureRec: boolean;
+  code: string;
+};
+
+/** Aynı ölçü+kalite için yüzey değişiminde silip yeniden oluşturmak yerine yerinde güncelle. */
+export function reconcileVariantPlan<
+  T extends {
+    id: string;
+    size: string;
+    quality: Quality;
+    _count?: { orderLines: number };
+  },
+>(
+  toCreate: {
+    familyId: string;
+    size: string;
+    surface: Surface;
+    quality: Quality;
+    feature3D: boolean;
+    featureRec: boolean;
+    code: string;
+  }[],
+  toRemove: T[]
+) {
+  const pairedRemoveIds = new Set<string>();
+  const toUpdate: VariantInPlaceUpdate[] = [];
+  const remainingCreate = [...toCreate];
+
+  for (const remove of toRemove) {
+    if ((remove._count?.orderLines ?? 0) > 0) continue;
+
+    const matchIdx = remainingCreate.findIndex(
+      (create) =>
+        create.size === remove.size && create.quality === remove.quality
+    );
+    if (matchIdx === -1) continue;
+
+    const create = remainingCreate[matchIdx]!;
+    toUpdate.push({
+      id: remove.id,
+      surface: create.surface,
+      feature3D: create.feature3D,
+      featureRec: create.featureRec,
+      code: create.code,
+    });
+    pairedRemoveIds.add(remove.id);
+    remainingCreate.splice(matchIdx, 1);
+  }
+
+  return {
+    toCreate: remainingCreate,
+    toRemove: toRemove.filter((variant) => !pairedRemoveIds.has(variant.id)),
+    toUpdate,
+  };
+}
