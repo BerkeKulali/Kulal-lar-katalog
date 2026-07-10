@@ -132,7 +132,7 @@ export function FamilySurfaceEditor({
           <p className="mb-2 text-xs font-semibold text-zinc-400">
             Yüzeyler (tüm seçili ölçüler için) *
           </p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {surfaceOptions.map((opt) => (
               <button
                 key={opt.id}
@@ -167,7 +167,7 @@ export function FamilySurfaceEditor({
                 <p className="mb-2 text-xs font-bold tracking-wider">
                   {size.toUpperCase()}
                 </p>
-                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {surfaceOptions.map((opt) => (
                     <button
                       key={opt.id}

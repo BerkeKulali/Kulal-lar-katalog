@@ -490,6 +490,7 @@ export default function AdminFamiliesPage() {
         </div>
 
         <FamilySurfaceEditor
+          key={brandSlug}
           brandSlug={brandSlug}
           mode={createMode}
           onModeChange={setCreateMode}
@@ -688,6 +689,7 @@ export default function AdminFamiliesPage() {
               </div>
 
               <FamilySurfaceEditor
+                key={editBrandSlug}
                 brandSlug={editBrandSlug}
                 mode={editMode}
                 onModeChange={setEditMode}
