@@ -46,3 +46,12 @@ export function variantIdentityKey(parts: {
 }) {
   return `${parts.size}|${parts.surface}|${parts.quality}|${parts.feature3D ? 1 : 0}|${parts.featureRec ? 1 : 0}`;
 }
+
+/** Matrix planlama: özellik bayrakları aile düzeyinde güncellenir, varyant eşleşmesi buna göre yapılmaz. */
+export function variantMatrixKey(parts: {
+  size: string;
+  surface: string;
+  quality: string;
+}) {
+  return `${parts.size}|${parts.surface}|${parts.quality}`;
+}

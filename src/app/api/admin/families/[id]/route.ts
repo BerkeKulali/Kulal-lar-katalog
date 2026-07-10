@@ -320,6 +320,25 @@ export async function PATCH(request: Request, context: RouteContext) {
         });
       }
 
+      if (toRemove.length > 0) {
+        await tx.productVariant.deleteMany({
+          where: { id: { in: toRemove.map((v) => v.id) } },
+        });
+      }
+
+      if (toCreate.length > 0) {
+        const createRows = toCreate.map((row) => {
+          const pack = normalizedPackaging[row.size] ?? {};
+          return {
+            ...row,
+            palletM2: pack.palletM2 ?? null,
+            boxM2: pack.boxM2 ?? null,
+            truckM2: pack.truckM2 ?? null,
+          };
+        });
+        await tx.productVariant.createMany({ data: createRows });
+      }
+
       if (features !== undefined) {
         await tx.productVariant.updateMany({
           where: { familyId: family.id },
@@ -349,25 +368,6 @@ export async function PATCH(request: Request, context: RouteContext) {
             },
           });
         }
-      }
-
-      if (toCreate.length > 0) {
-        const createRows = toCreate.map((row) => {
-          const pack = normalizedPackaging[row.size] ?? {};
-          return {
-            ...row,
-            palletM2: pack.palletM2 ?? null,
-            boxM2: pack.boxM2 ?? null,
-            truckM2: pack.truckM2 ?? null,
-          };
-        });
-        await tx.productVariant.createMany({ data: createRows });
-      }
-
-      if (toRemove.length > 0) {
-        await tx.productVariant.deleteMany({
-          where: { id: { in: toRemove.map((v) => v.id) } },
-        });
       }
 
       for (const [size, pack] of Object.entries(normalizedPackaging)) {

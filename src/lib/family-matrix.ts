@@ -1,7 +1,7 @@
 import { normalizeSize, getSizesForBrand, getSurfacesForBrand } from "@/lib/constants";
 import {
   normalizeProductFeatures,
-  variantIdentityKey,
+  variantMatrixKey,
   type ProductFeatureFlags,
 } from "@/lib/product-features";
 import { toSurface } from "@/lib/surface";
@@ -215,23 +215,15 @@ export function buildVariantPlan<
   for (const [size, surfaces] of Object.entries(matrix)) {
     for (const surface of surfaces) {
       for (const quality of ALL_QUALITIES) {
-        const key = variantIdentityKey({
-          size,
-          surface,
-          quality,
-          feature3D: normalizedFeatures.feature3D,
-          featureRec: normalizedFeatures.featureRec,
-        });
+        const key = variantMatrixKey({ size, surface, quality });
         desiredKeys.add(key);
 
         const exists = existing.some(
           (v) =>
-            variantIdentityKey({
+            variantMatrixKey({
               size: v.size,
               surface: v.surface,
               quality: v.quality,
-              feature3D: v.feature3D,
-              featureRec: v.featureRec,
             }) === key
         );
 
@@ -256,12 +248,10 @@ export function buildVariantPlan<
   }
 
   const toRemove = existing.filter((v) => {
-    const key = variantIdentityKey({
+    const key = variantMatrixKey({
       size: v.size,
       surface: v.surface,
       quality: v.quality,
-      feature3D: v.feature3D,
-      featureRec: v.featureRec,
     });
     return !desiredKeys.has(key);
   });
