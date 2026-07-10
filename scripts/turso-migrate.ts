@@ -27,6 +27,22 @@ async function getApplied(client: ReturnType<typeof createClient>) {
   return new Set(rows.rows.map((r) => String(r.name)));
 }
 
+async function ensureVariantFeatureColumns(client: ReturnType<typeof createClient>) {
+  const cols = await client.execute(`PRAGMA table_info("ProductVariant")`);
+  const names = new Set(cols.rows.map((r) => String(r.name)));
+
+  if (!names.has("feature3D")) {
+    await client.execute(
+      `ALTER TABLE "ProductVariant" ADD COLUMN "feature3D" INTEGER NOT NULL DEFAULT 0`
+    );
+  }
+  if (!names.has("featureRec")) {
+    await client.execute(
+      `ALTER TABLE "ProductVariant" ADD COLUMN "featureRec" INTEGER NOT NULL DEFAULT 0`
+    );
+  }
+}
+
 async function listMigrationDirs() {
   const entries = await readdir(migrationsRoot, { withFileTypes: true });
   return entries
@@ -60,6 +76,9 @@ async function main() {
     }
 
     console.log(`Uygulaniyor: ${dir}`);
+    if (dir === "20260710140000_variant_features") {
+      await ensureVariantFeatureColumns(client);
+    }
     await client.executeMultiple(sql);
     await client.execute({
       sql: `INSERT INTO "_turso_migrations" ("name") VALUES (?)`,
