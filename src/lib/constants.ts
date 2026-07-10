@@ -28,6 +28,8 @@ export const SURFACES = [
   "ANTISLIP",
   "R10",
   "R11",
+  "THREE_D",
+  "REC",
 ] as const;
 
 export const SURFACE_LABELS: Record<string, string> = {
@@ -40,10 +42,13 @@ export const SURFACE_LABELS: Record<string, string> = {
   ANTISLIP: "Antislip",
   R10: "R10 — Antislip R10",
   R11: "R11 — Antislip R11",
+  THREE_D: "3D",
+  REC: "REC — Rektifiye",
 };
 
 const BRAND_EXTRA_SURFACES: Record<string, readonly string[]> = {
-  bien: ["GLS"],
+  bien: ["GLS", "THREE_D", "REC"],
+  qua: ["THREE_D", "REC"],
   gural: ["SGR", "GLS", "SOFT_ANTISLIP", "ANTISLIP", "R10", "R11"],
 };
 

@@ -60,17 +60,27 @@ function normalizeFamilyName(name: string) {
 /** BIEN / QUA RENK sütununu katalog yüzey koduna çevirir */
 export function parseSupplierRenkToSurface(renk: string): Surface {
   const direct = parseSurface(renk);
-  if (direct && ["MAT", "SLP", "FLP"].includes(direct)) {
+  if (
+    direct &&
+    ["MAT", "SLP", "FLP", "GLS", "THREE_D", "REC"].includes(direct)
+  ) {
     return direct;
   }
 
   const v = renk.toUpperCase();
+
+  if (/\bREC\b/.test(v)) {
+    return "REC";
+  }
 
   if (/FULL.*(LAP|PARLAK)|PARLAK\s*3D|SIRDAN\s*PARLAK|SIDAN\s*PARLAK/i.test(v)) {
     return "FLP";
   }
   if (/SEMI.*LAP|SEMİ.*LAP|SEMİ\s*3D/i.test(v)) {
     return "SLP";
+  }
+  if (/\b3D\b/.test(v)) {
+    return "THREE_D";
   }
   if (/MAT.*PARLAK/i.test(v)) {
     return "MAT";

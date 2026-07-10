@@ -22,6 +22,8 @@ enum Surface {
   ANTISLIP
   R10
   R11
+  THREE_D
+  REC
 }
 
 enum OrderStatus {

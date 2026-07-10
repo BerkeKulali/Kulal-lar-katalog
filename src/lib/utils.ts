@@ -84,6 +84,8 @@ export function parseSurface(
   | "ANTISLIP"
   | "R10"
   | "R11"
+  | "THREE_D"
+  | "REC"
   | null {
   const v = value.trim().toUpperCase();
   const key = v.replace(/[\s-]+/g, "_");
@@ -96,14 +98,20 @@ export function parseSurface(
     key === "SOFT_ANTISLIP" ||
     key === "ANTISLIP" ||
     key === "R10" ||
-    key === "R11"
+    key === "R11" ||
+    key === "THREE_D" ||
+    key === "3D" ||
+    key === "REC"
   )
-    return key as ReturnType<typeof parseSurface>;
+    return (key === "3D" ? "THREE_D" : key) as ReturnType<typeof parseSurface>;
   if (v.includes("SOFT") && v.includes("ANTI")) return "SOFT_ANTISLIP";
   if (v.includes("ANTISLIP") && v.includes("R11")) return "R11";
   if (v.includes("ANTISLIP") && v.includes("R10")) return "R10";
   if (/\bR11\b/.test(v)) return "R11";
   if (/\bR10\b/.test(v)) return "R10";
+  if (/\bREC\b/.test(v)) return "REC";
+  if (/\b3D\b/.test(v) || v.includes("ÜÇ BOYUT") || v.includes("UC BOYUT"))
+    return "THREE_D";
   if (v.includes("ANTISLIP") || v.includes("ANTI SLIP") || v.includes("ANTI-SLIP"))
     return "ANTISLIP";
   if (v.includes("SUGAR") || v.includes("SGR")) return "SGR";

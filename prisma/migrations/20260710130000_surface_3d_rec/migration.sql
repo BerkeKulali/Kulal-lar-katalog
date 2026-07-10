@@ -1,0 +1,1 @@
+-- BIEN / QUA yüzey kodları: 3D (THREE_D) ve REC (rektifiye). SQLite enum = TEXT.
