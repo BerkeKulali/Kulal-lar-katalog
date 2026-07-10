@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { AppShell } from "@/components/AppShell";
-import { BrandHeaderMark } from "@/components/BrandHeaderMark";
 import { CatalogSizeHeader } from "@/components/CatalogSizeHeader";
 import { DeviceGate } from "@/components/DeviceGate";
+import { OlcuCatalogWithSearch } from "@/components/OlcuCatalogWithSearch";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SyncedProductList } from "@/components/SyncedProductList";
 import { getSizeLayout, normalizeSize } from "@/lib/constants";
 import { getCatalogFamiliesGroupedByBrand } from "@/lib/catalog";
 import { kaliteFilterLabel, kaliteQuery, parseKaliteFilter } from "@/lib/utils";
@@ -45,52 +44,28 @@ export default async function SizeCatalogPage({
           backHref="/katalog"
           backLabel="Markalar"
           size={size}
-          qualityLabel={`${kaliteFilterLabel(kaliteFilter)} KALİTE`}
         />
 
-        <section className="mb-6 flex justify-center gap-3 px-5">
+        <section className="catalog-quality-row mb-2 mt-2 flex flex-wrap justify-center gap-2 px-5">
           {(["ALL", "FIRST", "END"] as const).map((filter) => (
             <Link
               key={filter}
               href={`/katalog/olcu/${size}?${kaliteQuery(filter)}`}
-              className={`catalog-picker-chip${kaliteFilter === filter ? " catalog-picker-chip--active" : ""}`}
+              className={`catalog-picker-chip catalog-quality-chip${kaliteFilter === filter ? " catalog-picker-chip--active" : ""}`}
             >
               {kaliteFilterLabel(filter)}
             </Link>
           ))}
         </section>
 
-        {groups.length === 0 ? (
-          <p className="px-5 text-center text-sm text-zinc-500">
-            Bu ölçüde henüz ürün bulunamadı.
-          </p>
-        ) : (
-          <div className="space-y-12 px-5">
-            {groups.map((group) => (
-              <section key={group.brand.id}>
-                <div className="mb-4 flex items-center gap-3">
-                  <BrandHeaderMark
-                    brandSlug={group.brand.slug}
-                    brandName={group.brand.name}
-                  />
-                  <h2 className="text-sm font-semibold tracking-[0.2em] text-zinc-500">
-                    {group.brand.name}
-                  </h2>
-                </div>
-                <div className={gridClass}>
-                  <SyncedProductList
-                    families={group.families}
-                    brandSlug={group.brand.slug}
-                    size={size}
-                    aspect={layout.aspect}
-                    quality={qualityForQuery}
-                    kaliteQuery={kaliteQuery(kaliteFilter)}
-                  />
-                </div>
-              </section>
-            ))}
-          </div>
-        )}
+        <OlcuCatalogWithSearch
+          groups={groups}
+          size={size}
+          aspect={layout.aspect}
+          gridClass={gridClass}
+          quality={qualityForQuery}
+          kaliteQuery={kaliteQuery(kaliteFilter)}
+        />
       </AppShell>
     </DeviceGate>
   );

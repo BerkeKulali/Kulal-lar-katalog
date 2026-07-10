@@ -17,19 +17,33 @@ export function CatalogSizeHeader({
   brandSlug?: string;
   brandName?: string;
 }) {
+  const hasBrandMark = Boolean(brandSlug || brandName);
+
+  const main = (
+    <div className="catalog-size-header-main text-center">
+      <Link href={backHref} className="catalog-back-link">
+        ← {backLabel ?? "Ölçüler"}
+      </Link>
+      <p className="catalog-size-title">{formatSizeDisplay(size)}</p>
+      {qualityLabel && (
+        <p className="catalog-size-quality">{qualityLabel}</p>
+      )}
+    </div>
+  );
+
+  if (!hasBrandMark) {
+    return (
+      <header className="catalog-size-header catalog-size-header--solo pb-2 pt-1">
+        {main}
+      </header>
+    );
+  }
+
   return (
     <header className="catalog-size-header pb-2 pt-1">
       <div className="catalog-size-header-grid">
         <BrandHeaderMark brandSlug={brandSlug} brandName={brandName} />
-        <div className="catalog-size-header-main text-center">
-          <Link href={backHref} className="catalog-back-link">
-            ← {backLabel ?? "Ölçüler"}
-          </Link>
-          <p className="catalog-size-title">{formatSizeDisplay(size)}</p>
-          {qualityLabel && (
-            <p className="catalog-size-quality">{qualityLabel}</p>
-          )}
-        </div>
+        {main}
         <div className="catalog-size-header-spacer" aria-hidden />
       </div>
     </header>

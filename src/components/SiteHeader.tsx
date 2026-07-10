@@ -58,16 +58,16 @@ export function SiteHeader({ rightSlot }: { rightSlot?: React.ReactNode }) {
   return (
     <header className="site-header relative z-[60] pb-3 pt-2">
       {actorSession && (
-        <div className="absolute left-0 top-3 z-[60] max-w-[12.5rem] text-xs leading-none text-zinc-200">
+        <div className="site-header-actor mb-2 max-w-full truncate text-xs leading-none text-zinc-200 sm:absolute sm:mb-0 sm:left-0 sm:top-3 sm:max-w-[12.5rem]">
           <span className="mr-1 text-zinc-400">
             {actorSession.actorType === "dealer" ? "Bayi:" : "Plasiyer:"}
           </span>
-          <span className="inline-block max-w-[8.8rem] truncate font-semibold align-bottom text-white">
+          <span className="inline-block max-w-[8.8rem] truncate font-semibold align-bottom text-white sm:max-w-[8.8rem]">
             {actorSession.actorName}
           </span>
         </div>
       )}
-      <div className="absolute right-0 top-2 z-[60] flex items-center gap-3">
+      <div className="absolute right-0 top-2 z-[60] flex items-center gap-3 sm:top-2">
         <nav className="flex items-center gap-3">
           <details className="relative z-[60]">
             <summary className="theme-icon-button flex h-9 w-9 cursor-pointer list-none items-center justify-center border text-xs [&::-webkit-details-marker]:hidden">
@@ -97,7 +97,7 @@ export function SiteHeader({ rightSlot }: { rightSlot?: React.ReactNode }) {
           {rightSlot ?? <ThemeToggle />}
         </nav>
       </div>
-      <div className="flex justify-center px-[4.75rem]">
+      <div className="flex justify-center px-14 pt-1 sm:px-[4.75rem] sm:pt-0">
         <KulalilarLogo theme={theme} />
       </div>
     </header>

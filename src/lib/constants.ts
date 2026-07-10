@@ -48,7 +48,7 @@ const BRAND_EXTRA_SURFACES: Record<string, readonly string[]> = {
 };
 
 const BRAND_EXTRA_SIZES: Record<string, readonly string[]> = {
-  bien: ["45x45", "50x50"],
+  bien: ["45x45", "50x50", "61x61", "120x180"],
 };
 
 /** Markanın kullanabileceği ölçüler */
@@ -111,12 +111,14 @@ export const SIZE_LAYOUT: Record<
   "40x120": { columns: 2, perPage: 6, aspect: "3/1" },
   "45x45": { columns: 2, perPage: 4, aspect: "1/1" },
   "50x50": { columns: 2, perPage: 4, aspect: "1/1" },
+  "61x61": { columns: 2, perPage: 4, aspect: "1/1" },
   "60x60": { columns: 2, perPage: 4, aspect: "1/1" },
   "60x120": { columns: 2, perPage: 6, aspect: "2/1" },
   "80x160": { columns: 2, perPage: 6, aspect: "2/1" },
   "80x80": { columns: 2, perPage: 6, aspect: "1/1" },
   "100x100": { columns: 2, perPage: 4, aspect: "1/1" },
   "120x120": { columns: 2, perPage: 4, aspect: "1/1" },
+  "120x180": { columns: 2, perPage: 6, aspect: "3/2" },
 };
 
 export const DEFAULT_LAYOUT = { columns: 1 as const, perPage: 4, aspect: "1/1" };

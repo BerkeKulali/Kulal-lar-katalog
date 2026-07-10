@@ -160,6 +160,20 @@ html {
   margin-bottom: 0.25rem;
 }
 
+.catalog-size-header--solo {
+  padding: 0 1.25rem;
+}
+
+.catalog-size-header--solo .catalog-size-header-main {
+  width: 100%;
+}
+
+.catalog-quality-chip {
+  min-width: 4.5rem;
+  padding: 0.625rem 1.25rem;
+  font-size: 0.8125rem;
+}
+
 .catalog-size-header-grid,
 .catalog-brand-bar .catalog-size-header-grid {
   display: grid;
@@ -267,6 +281,20 @@ html {
   .product-detail-title {
     font-size: clamp(1rem, 4.8vw, 1.1rem);
     letter-spacing: 0.05em;
+  }
+
+  .catalog-quality-chip {
+    min-width: 3.75rem;
+    padding: 0.5625rem 1rem;
+    font-size: 0.75rem;
+  }
+
+  .catalog-quality-row {
+    gap: 0.5rem;
+  }
+
+  .site-header-actor {
+    padding-right: 5.5rem;
   }
 }
 
