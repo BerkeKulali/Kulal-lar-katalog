@@ -55,7 +55,10 @@ async function main() {
       const newPassword = generatePassword();
       await prisma.adminUser.update({
         where: { id: user.id },
-        data: { password: hashPassword(newPassword) },
+        data: {
+          password: hashPassword(newPassword),
+          passwordChangedAt: new Date(),
+        },
       });
       console.log(`★ ${user.email} — YENİ ŞİFRE: ${newPassword}`);
       console.log("  (Bu şifreyi güvenli bir yere kaydedin; tekrar gösterilmeyecek)");

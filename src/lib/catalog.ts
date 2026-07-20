@@ -12,13 +12,16 @@ import type { CatalogAudience } from "@/lib/catalog-audience";
 export type { PriceSummary };
 export { buildPriceSummary };
 
-const HIDDEN_BRAND_SLUGS = ["kale"] as const;
-const DEALER_HIDDEN_BRAND_SLUGS = ["bien", "qua"] as const;
-
-function hiddenBrandSlugsForAudience(audience: CatalogAudience) {
-  return audience === "dealer"
-    ? [...HIDDEN_BRAND_SLUGS, ...DEALER_HIDDEN_BRAND_SLUGS]
-    : [...HIDDEN_BRAND_SLUGS];
+/**
+ * Marka görünürlüğü artık veritabanında (Brand.isVisible / visibleToDealers).
+ * Daha önce bu kural üç ayrı yerde koda gömülüydü ve birini güncellemeyi
+ * unutmak kolaydı.
+ */
+export function brandVisibilityFilter(audience: CatalogAudience) {
+  return {
+    isVisible: true,
+    ...(audience === "dealer" ? { visibleToDealers: true } : {}),
+  };
 }
 
 const catalogCacheOptions = {
@@ -32,7 +35,7 @@ async function _getBrandBySlug(slug: string, audience: CatalogAudience = "defaul
   return prisma.brand.findFirst({
     where: {
       slug,
-      NOT: { slug: { in: hiddenBrandSlugsForAudience(audience) } },
+      ...brandVisibilityFilter(audience),
     },
   });
 }
@@ -42,9 +45,7 @@ export const getBrandBySlug = cache(_getBrandBySlug);
 
 export const getBrands = cache(async (audience: CatalogAudience = "default") => {
   return prisma.brand.findMany({
-    where: {
-      slug: { notIn: hiddenBrandSlugsForAudience(audience) },
-    },
+    where: brandVisibilityFilter(audience),
     orderBy: { sortOrder: "asc" },
   });
 });
@@ -149,7 +150,7 @@ async function _getCatalogFamiliesGroupedByBrand(
   audience: CatalogAudience = "default"
 ) {
   const brands = await prisma.brand.findMany({
-    where: { slug: { notIn: hiddenBrandSlugsForAudience(audience) } },
+    where: brandVisibilityFilter(audience),
     orderBy: { sortOrder: "asc" },
   });
 
@@ -180,7 +181,6 @@ async function _getFamilyDetail(
   const brand = await _getBrandBySlug(brandSlug, audience);
   if (!brand) return null;
 
-  const normalized = normalizeSize(size);
   const family = await prisma.productFamily.findFirst({
     where: { brandId: brand.id, slug: familySlug, isActive: true },
     include: {
@@ -283,7 +283,7 @@ async function _getGlobalSearchCatalog(
   const families = await prisma.productFamily.findMany({
     where: {
       isActive: true,
-      brand: { slug: { notIn: hiddenBrandSlugsForAudience(audience) } },
+      brand: brandVisibilityFilter(audience),
     },
     include: {
       brand: true,

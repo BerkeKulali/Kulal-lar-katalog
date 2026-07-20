@@ -11,24 +11,13 @@ import {
   DEVICE_TOKEN_COOKIE,
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
+  deviceTokenCookieOptions,
+  isPublicPath,
 } from "@/lib/device-cookie";
 import {
   DEVICE_NOT_AUTHORIZED,
   isDeviceAuthorized,
 } from "@/lib/device-lock";
-
-function isPublicPath(pathname: string) {
-  return (
-    pathname === "/kurulum" ||
-    pathname.startsWith("/api") ||
-    pathname.startsWith("/_next") ||
-    pathname === "/favicon.ico" ||
-    pathname === "/manifest.json" ||
-    pathname.startsWith("/logos/") ||
-    pathname.startsWith("/icons/") ||
-    pathname === "/sw.js"
-  );
-}
 
 function clearDeviceCookies(response: NextResponse) {
   const opts = { path: "/", maxAge: 0 };
@@ -43,10 +32,8 @@ function clearDeviceCookies(response: NextResponse) {
 
 function setDeviceAuthCookie(response: NextResponse, deviceToken: string) {
   response.cookies.set(DEVICE_AUTH_COOKIE, deviceToken, {
-    path: "/",
+    ...deviceTokenCookieOptions(),
     maxAge: DEVICE_AUTH_MAX_AGE,
-    sameSite: "lax",
-    httpOnly: true,
   });
 }
 
@@ -61,12 +48,10 @@ export default async function proxy(request: NextRequest) {
     actorType === "salesperson" ||
     actorType === "salesperson-pending";
 
-  if (
-    actorType === "dealer" &&
-    (pathname.startsWith("/katalog/bien") || pathname.startsWith("/katalog/qua"))
-  ) {
-    return NextResponse.redirect(new URL("/katalog/gural", request.url));
-  }
+  // Marka görünürlüğü artık veritabanında (Brand.isVisible / visibleToDealers)
+  // ve katalog sayfalarında uygulanıyor. Buradaki slug'a gömülü yönlendirme
+  // kaldırıldı; middleware'de DB sorgusu yapmamak için kontrol sayfa
+  // seviyesinde kalıyor.
 
   const adminBlock = enforceAdminAccess(request);
   if (adminBlock) return adminBlock;
@@ -96,8 +81,7 @@ export default async function proxy(request: NextRequest) {
       // force=1 test amaçlıdır; production'da yalnızca admin oturumu varken çalışır.
       const forceSetup =
         request.nextUrl.searchParams.get("force") === "1" &&
-        (process.env.NODE_ENV !== "production" ||
-          Boolean(request.cookies.get("kulalilar_admin")?.value));
+        (process.env.NODE_ENV !== "production" || hasValidAdminSession);
       if (forceSetup) {
         return NextResponse.next();
       }

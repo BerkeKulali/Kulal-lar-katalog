@@ -3,7 +3,8 @@ import os from "os";
 
 /** Tablet / LAN üzerinden dev: JS yüklenmesi için gerekli (Next.js 16+) */
 function lanDevOrigins(): string[] {
-  const hosts = new Set(["localhost", "127.0.0.1", "192.168.1.10"]);
+  // Ağ arayüzlerinden otomatik algılanır; ek origin için ALLOWED_DEV_ORIGINS.
+  const hosts = new Set(["localhost", "127.0.0.1"]);
   try {
     for (const iface of Object.values(os.networkInterfaces())) {
       if (!iface) continue;

@@ -5,7 +5,6 @@ import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { guralPackagingForSize } from "@/lib/gural-packaging";
 import { endPriceFromFirst, variantCode } from "@/lib/prices";
 import {
-  DEFAULT_PRODUCT_FEATURES,
   normalizeProductFeatures,
   parseFeaturesFromText,
   type ProductFeatureFlags,

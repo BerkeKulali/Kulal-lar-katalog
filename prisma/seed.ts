@@ -287,16 +287,36 @@ async function main() {
 
   const brands = await Promise.all([
     prisma.brand.create({
-      data: { name: "QUA SERAMİK", slug: "qua", logoText: "QUA", sortOrder: 0 },
+      // Bayilere kapalı, plasiyerlere açık.
+      data: {
+        name: "QUA SERAMİK",
+        slug: "qua",
+        logoText: "QUA",
+        sortOrder: 0,
+        visibleToDealers: false,
+      },
     }),
     prisma.brand.create({
-      data: { name: "BIEN", slug: "bien", logoText: "BIEN", sortOrder: 1 },
+      data: {
+        name: "BIEN",
+        slug: "bien",
+        logoText: "BIEN",
+        sortOrder: 1,
+        visibleToDealers: false,
+      },
     }),
     prisma.brand.create({
       data: { name: "GÜRAL", slug: "gural", logoText: "GÜRAL", sortOrder: 2 },
     }),
     prisma.brand.create({
-      data: { name: "KALE", slug: "kale", logoText: "KALE", sortOrder: 3 },
+      // Katalogda hiç görünmez.
+      data: {
+        name: "KALE",
+        slug: "kale",
+        logoText: "KALE",
+        sortOrder: 3,
+        isVisible: false,
+      },
     }),
   ]);
 
@@ -316,6 +336,7 @@ async function main() {
       email: "admin@kulalilar.com",
       name: "Süper Admin",
       password: hashPassword(seedAdminPassword),
+      passwordChangedAt: new Date(),
       role: "SUPER",
     },
   });
@@ -325,6 +346,7 @@ async function main() {
       email: "qua@kulalilar.com",
       name: "QUA Sorumlusu",
       password: hashPassword(process.env.SEED_QUA_PASSWORD ?? "qua123"),
+      passwordChangedAt: new Date(),
       role: "BRAND_MANAGER",
       brandId: brands[0].id,
     },

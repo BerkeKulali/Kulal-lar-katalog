@@ -4,21 +4,28 @@ import type { AdminPermission } from "@/lib/admin-permissions";
 import { hasPermission } from "@/lib/admin-permissions";
 import {
   ADMIN_SESSION_COOKIE,
-  verifyAdminSessionValue,
+  isSessionCurrent,
+  verifyAdminSessionClaims,
 } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 
 export async function getAdminSession() {
   const cookieStore = await cookies();
-  const adminId = verifyAdminSessionValue(
+  const claims = verifyAdminSessionClaims(
     cookieStore.get(ADMIN_SESSION_COOKIE)?.value
   );
-  if (!adminId) return null;
+  if (!claims) return null;
 
-  return prisma.adminUser.findUnique({
-    where: { id: adminId },
+  const admin = await prisma.adminUser.findUnique({
+    where: { id: claims.adminId },
     include: { brand: true },
   });
+  if (!admin) return null;
+
+  // Şifre değiştiyse eldeki cookie (30 günlük "beni hatırla" dahil) geçersizdir.
+  if (!isSessionCurrent(claims, admin.passwordChangedAt)) return null;
+
+  return admin;
 }
 
 export async function requireAdmin() {

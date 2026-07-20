@@ -10,6 +10,7 @@ import {
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
   deviceCookieOptions,
+  deviceTokenCookieOptions,
 } from "@/lib/device-cookie";
 import { finalizeApprovedSalespersonRequest } from "@/lib/device-access";
 
@@ -31,12 +32,11 @@ export async function POST() {
       salesperson: { id: salesperson.id, name: salesperson.name },
     });
     const opts = deviceCookieOptions();
-    response.cookies.set(DEVICE_TOKEN_COOKIE, device.token, opts);
+    const tokenOpts = deviceTokenCookieOptions();
+    response.cookies.set(DEVICE_TOKEN_COOKIE, device.token, tokenOpts);
     response.cookies.set(DEVICE_AUTH_COOKIE, device.token, {
-      path: "/",
+      ...tokenOpts,
       maxAge: DEVICE_AUTH_MAX_AGE,
-      sameSite: "lax",
-      httpOnly: true,
     });
     response.cookies.set(SALESPERSON_ID_COOKIE, salesperson.id, opts);
     response.cookies.set(SALESPERSON_NAME_COOKIE, salesperson.name, opts);

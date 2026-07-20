@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
+import { touchDevice } from "@/lib/device-activity";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
@@ -8,7 +9,6 @@ export const dynamic = "force-dynamic";
 
 const MAX_ITEMS = 200;
 const MAX_COUNT_PER_ITEM = 500;
-const LAST_SEEN_THROTTLE_MS = 10 * 60 * 1000;
 
 type Incoming = { familyId?: unknown; count?: unknown };
 
@@ -34,18 +34,7 @@ export async function POST(request: Request) {
   }
 
   // Gerçek etkileşimde geldiği için "son görülme" için güvenilir bir sinyal.
-  // Yalnızca gerçekten eskiyse (throttle) tek koşullu yazım yapar.
-  try {
-    await prisma.device.updateMany({
-      where: {
-        token: deviceToken,
-        lastSeenAt: { lt: new Date(Date.now() - LAST_SEEN_THROTTLE_MS) },
-      },
-      data: { lastSeenAt: new Date() },
-    });
-  } catch {
-    // takip güncellemesi kritik değil; sayacı bloklamaz
-  }
+  await touchDevice(deviceToken);
 
   const body = await request.json().catch(() => null);
   const rawItems: Incoming[] = Array.isArray(body?.items) ? body.items : [];

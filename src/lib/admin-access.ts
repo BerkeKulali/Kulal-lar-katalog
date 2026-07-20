@@ -1,9 +1,12 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import {
+  ADMIN_SESSION_COOKIE,
+  verifyAdminSessionValue,
+} from "@/lib/admin-session";
 import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
 
 export const ADMIN_GATE_COOKIE = "kulalilar-admin-gate";
-const ADMIN_SESSION_COOKIE = "kulalilar_admin";
 const ADMIN_GATE_MAX_AGE = 60 * 60 * 24 * 30;
 
 export function isAdminPath(pathname: string) {
@@ -14,8 +17,15 @@ export function isTabletSession(request: NextRequest) {
   return Boolean(request.cookies.get(DEVICE_TOKEN_COOKIE)?.value);
 }
 
+/**
+ * Yalnızca cookie'nin VARLIĞINA değil, HMAC imzasına ve son kullanma tarihine
+ * bakar. Aksi halde kayıtlı bir tablet çöp bir cookie yazarak aşağıdaki
+ * "tabletler admin paneline erişemez" korumasını atlatabiliyordu.
+ */
 function hasAdminSession(request: NextRequest) {
-  return Boolean(request.cookies.get(ADMIN_SESSION_COOKIE)?.value);
+  return Boolean(
+    verifyAdminSessionValue(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)
+  );
 }
 
 function gateCookieOptions() {

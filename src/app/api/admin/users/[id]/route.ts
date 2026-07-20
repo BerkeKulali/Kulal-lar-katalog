@@ -72,6 +72,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     name?: string;
     email?: string;
     password?: string;
+    passwordChangedAt?: Date;
     role?: AdminRole;
     permissions?: string | null;
     brand?: { connect: { id: string } } | { disconnect: true };
@@ -114,6 +115,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
     data.password = hashPassword(password);
+    // Şifre değişti: kullanıcının eldeki tüm oturum cookie'leri geçersizleşir.
+    data.passwordChangedAt = new Date();
   }
 
   const nextRole =

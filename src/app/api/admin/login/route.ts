@@ -5,6 +5,8 @@ import {
   ADMIN_SESSION_MAX_AGE,
   ADMIN_SESSION_REMEMBER_MAX_AGE,
   createAdminSessionValue,
+  isSessionSecretConfigured,
+  SESSION_SECRET_MISSING,
 } from "@/lib/admin-session";
 import {
   DEVICE_ACTOR_TYPE_COOKIE,
@@ -19,6 +21,14 @@ import { prisma } from "@/lib/prisma";
 import { checkRateLimit, clearRateLimit, clientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
+  if (!isSessionSecretConfigured()) {
+    console.error(SESSION_SECRET_MISSING);
+    return NextResponse.json(
+      { error: "Sunucu yapılandırması eksik; yöneticinize başvurun." },
+      { status: 503 }
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const email = String(body?.email ?? "").trim().toLowerCase();
   const password = String(body?.password ?? "");
@@ -54,6 +64,8 @@ export async function POST(request: Request) {
   clearRateLimit(rateKey);
 
   // Geçiş dönemi: düz metin saklanan şifreyi ilk başarılı girişte hash'le.
+  // Şifre DEĞİŞMEDİĞİ için passwordChangedAt'e dokunulmaz; aksi halde az önce
+  // üretilen oturum anında geçersizleşirdi.
   if (!isHashedPassword(user.password)) {
     await prisma.adminUser.update({
       where: { id: user.id },
@@ -66,7 +78,12 @@ export async function POST(request: Request) {
     : ADMIN_SESSION_MAX_AGE;
 
   const cookieStore = await cookies();
-  cookieStore.set(ADMIN_SESSION_COOKIE, createAdminSessionValue(user.id, maxAge), {
+  const sessionValue = createAdminSessionValue(
+    user.id,
+    maxAge,
+    user.passwordChangedAt
+  );
+  cookieStore.set(ADMIN_SESSION_COOKIE, sessionValue, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

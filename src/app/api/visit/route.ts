@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
+import { touchDevice } from "@/lib/device-activity";
 import { prisma } from "@/lib/prisma";
 
 export async function POST() {
@@ -18,20 +19,15 @@ export async function POST() {
     return NextResponse.json({ error: "Cihaz bulunamadı" }, { status: 404 });
   }
 
-  const now = new Date();
+  await prisma.siteVisit.create({
+    data: {
+      deviceId: device.id,
+      salespersonId: device.salespersonId,
+    },
+  });
 
-  await prisma.$transaction([
-    prisma.siteVisit.create({
-      data: {
-        deviceId: device.id,
-        salespersonId: device.salespersonId,
-      },
-    }),
-    prisma.device.update({
-      where: { id: device.id },
-      data: { lastSeenAt: now },
-    }),
-  ]);
+  // Ziyaret kaydı gerçek bir açılış demek; throttle uygulanmaz.
+  await touchDevice(deviceToken, { force: true });
 
   return NextResponse.json({ ok: true });
 }

@@ -11,7 +11,13 @@ export async function GET() {
   const brands = await prisma.brand.findMany({
     where: admin.brandId ? { id: admin.brandId } : undefined,
     orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true, slug: true },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      isVisible: true,
+      visibleToDealers: true,
+    },
   });
 
   return NextResponse.json({ brands });

@@ -145,6 +145,7 @@ export async function POST(request: Request) {
       name,
       email,
       password: hashPassword(password),
+      passwordChangedAt: new Date(),
       role,
       permissions: permissionsJson,
       ...(role === "BRAND_MANAGER" && brandId

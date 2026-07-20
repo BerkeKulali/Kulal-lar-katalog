@@ -116,9 +116,25 @@ export function parseSurface(
   return null;
 }
 
+const ORDER_SUFFIX_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+/**
+ * `SIP-<YYYYMMDDHHMMSS>-<6 karakter>` — saniye hassasiyeti tek başına yeterli
+ * değildi (aynı saniyedeki iki sipariş çakışabiliyordu). Sonek 32^6 (~1 milyar)
+ * olasılık verir; çağıran taraf ayrıca unique çakışmasında yeniden dener.
+ * Karışabilen karakterler (I, O, 0, 1) alfabede yok.
+ */
 export function generateOrderNumber() {
   const now = new Date();
   const stamp = now.toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
-  const rand = Math.floor(Math.random() * 900 + 100);
-  return `SIP-${stamp}-${rand}`;
+
+  let suffix = "";
+  for (let i = 0; i < 6; i += 1) {
+    suffix +=
+      ORDER_SUFFIX_ALPHABET[
+        Math.floor(Math.random() * ORDER_SUFFIX_ALPHABET.length)
+      ];
+  }
+
+  return `SIP-${stamp}-${suffix}`;
 }

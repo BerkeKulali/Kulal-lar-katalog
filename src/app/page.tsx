@@ -22,9 +22,20 @@ export default async function HomePage() {
     getActiveAnnouncements(),
     getGlobalSearchCatalog(audience),
   ]);
+  // Duyurular, o izleyiciye kapalı markaların adını içeriyorsa gizlenir.
+  // (Önceden metinde "qua" geçmesi koda gömülü olarak filtreleniyordu; artık
+  // kural veritabanındaki marka görünürlüğünden türetiliyor.)
+  const visibleBrandNames = new Set(
+    brands.map((brand) => brand.name.toLowerCase())
+  );
+  const allBrands = await getBrands("default");
+  const hiddenBrandNames = allBrands
+    .map((brand) => brand.name.toLowerCase())
+    .filter((name) => !visibleBrandNames.has(name));
+
   const visibleAnnouncements = announcements.filter((item) => {
     const text = `${item.title} ${item.body ?? ""}`.toLowerCase();
-    return !text.includes("qua");
+    return !hiddenBrandNames.some((name) => text.includes(name));
   });
 
   const lastUpdate = new Intl.DateTimeFormat("tr-TR", {

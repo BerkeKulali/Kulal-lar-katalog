@@ -45,23 +45,39 @@ export async function registerTabletForSalesperson(salespersonId: string) {
   });
 }
 
-export async function isDeviceAuthorized(deviceToken: string): Promise<boolean> {
+export type AuthorizedDevice = {
+  id: string;
+  salespersonId: string | null;
+};
+
+/**
+ * Token geçerli ve cihaz hâlâ yetkiliyse cihaz kaydını döner, aksi halde null.
+ * Yetki kuralı: plasiyerin tablet kilidi varsa yalnızca kilitli cihaz geçerlidir.
+ */
+export async function getAuthorizedDevice(
+  deviceToken: string
+): Promise<AuthorizedDevice | null> {
   const device = await prisma.device.findUnique({
     where: { token: deviceToken },
     select: {
       id: true,
+      salespersonId: true,
       salesperson: {
         select: { lockedDeviceId: true },
       },
     },
   });
 
-  if (!device) return false;
+  if (!device) return null;
 
   const lockId = device.salesperson?.lockedDeviceId;
-  if (!lockId) return true;
+  if (lockId && lockId !== device.id) return null;
 
-  return lockId === device.id;
+  return { id: device.id, salespersonId: device.salespersonId };
+}
+
+export async function isDeviceAuthorized(deviceToken: string): Promise<boolean> {
+  return (await getAuthorizedDevice(deviceToken)) !== null;
 }
 
 export async function unlockSalespersonTablet(salespersonId: string) {

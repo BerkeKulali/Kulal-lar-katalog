@@ -4,13 +4,16 @@ import { create } from "zustand";
 import {
   DEVICE_ACTOR_NAME_COOKIE,
   DEVICE_ACTOR_TYPE_COOKIE,
-  DEVICE_TOKEN_COOKIE,
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
 } from "@/lib/device-cookie";
 
+/**
+ * Cihaz token'ı BİLEREK burada tutulmaz: httpOnly cookie olduğu için JS'ten
+ * okunamaz ve okunmasına gerek de yok — sunucu her istekte cookie'den doğrular.
+ * Buradaki alanlar yalnızca arayüzde gösterim içindir.
+ */
 type DeviceData = {
-  deviceToken: string;
   salespersonId: string | null;
   salespersonName: string;
   actorType: string;
@@ -18,7 +21,6 @@ type DeviceData = {
 };
 
 type DeviceState = {
-  deviceToken: string | null;
   salespersonId: string | null;
   salespersonName: string | null;
   actorType: string | null;
@@ -36,18 +38,20 @@ function readCookie(name: string): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-/** Tarayıcı cookie'lerinden cihaz bilgisini oku (kurulum middleware ile yapılır) */
+/**
+ * Tarayıcı cookie'lerinden cihaz bilgisini oku (kurulum middleware ile yapılır).
+ * Kurulum sinyali olarak actorType kullanılır; cihaz token'ı httpOnly olduğu
+ * için JS'ten görünmez.
+ */
 export function readDeviceFromCookies(): DeviceData | null {
-  const deviceToken = readCookie(DEVICE_TOKEN_COOKIE);
+  const actorType = readCookie(DEVICE_ACTOR_TYPE_COOKIE);
+  if (!actorType) return null;
+
   const salespersonId = readCookie(SALESPERSON_ID_COOKIE);
   const salespersonName = readCookie(SALESPERSON_NAME_COOKIE);
-  const actorType = readCookie(DEVICE_ACTOR_TYPE_COOKIE) ?? "salesperson";
   const actorName = readCookie(DEVICE_ACTOR_NAME_COOKIE) ?? salespersonName ?? "";
 
-  if (!deviceToken) return null;
-
   return {
-    deviceToken,
     salespersonId: salespersonId ?? null,
     salespersonName: salespersonName ?? "",
     actorType,
@@ -56,7 +60,6 @@ export function readDeviceFromCookies(): DeviceData | null {
 }
 
 export const useDeviceStore = create<DeviceState>()((set) => ({
-  deviceToken: null,
   salespersonId: null,
   salespersonName: null,
   actorType: null,
@@ -69,7 +72,6 @@ export const useDeviceStore = create<DeviceState>()((set) => ({
     }),
   clearDevice: () =>
     set({
-      deviceToken: null,
       salespersonId: null,
       salespersonName: null,
       actorType: null,

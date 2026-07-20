@@ -12,6 +12,7 @@ import {
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
   deviceCookieOptions,
+  deviceTokenCookieOptions,
 } from "@/lib/device-cookie";
 import { registerTabletForSalesperson } from "@/lib/device-lock";
 
@@ -28,13 +29,12 @@ export async function registerTabletAction(formData: FormData) {
 
     const cookieStore = await cookies();
     const opts = deviceCookieOptions();
+    const tokenOpts = deviceTokenCookieOptions();
 
-    cookieStore.set(DEVICE_TOKEN_COOKIE, device.token, opts);
+    cookieStore.set(DEVICE_TOKEN_COOKIE, device.token, tokenOpts);
     cookieStore.set(DEVICE_AUTH_COOKIE, device.token, {
-      path: "/",
+      ...tokenOpts,
       maxAge: DEVICE_AUTH_MAX_AGE,
-      sameSite: "lax",
-      httpOnly: true,
     });
     cookieStore.set(SALESPERSON_ID_COOKIE, salesperson.id, opts);
     cookieStore.set(SALESPERSON_NAME_COOKIE, salesperson.name, opts);

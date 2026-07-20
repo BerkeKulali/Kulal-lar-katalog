@@ -9,6 +9,7 @@ import {
   SALESPERSON_ID_COOKIE,
   SALESPERSON_NAME_COOKIE,
   deviceCookieOptions,
+  deviceTokenCookieOptions,
 } from "@/lib/device-cookie";
 import { createDealerDeviceAccess } from "@/lib/device-access";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
@@ -38,12 +39,14 @@ export async function POST(request: Request) {
     });
     const opts = deviceCookieOptions();
 
-    response.cookies.set(DEVICE_TOKEN_COOKIE, device.token, opts);
+    response.cookies.set(
+      DEVICE_TOKEN_COOKIE,
+      device.token,
+      deviceTokenCookieOptions()
+    );
     response.cookies.set(DEVICE_AUTH_COOKIE, device.token, {
-      path: "/",
+      ...deviceTokenCookieOptions(),
       maxAge: DEVICE_AUTH_MAX_AGE,
-      sameSite: "lax",
-      httpOnly: true,
     });
     response.cookies.set(DEVICE_ACTOR_TYPE_COOKIE, "dealer", opts);
     response.cookies.set(DEVICE_ACTOR_NAME_COOKIE, normalizedDealerName, opts);

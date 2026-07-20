@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    env:
+      # Prisma client üretimi ve tip kontrolü için yeterli; gerçek veritabanına
+      # bağlanılmaz (testler saf mantık üzerinde çalışır).
+      DATABASE_URL: "file:./dev.db"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # postinstall zaten prisma generate çalıştırır (src/generated/prisma).
+      - name: Bağımlılıkları kur
+        run: npm ci
+
+      - name: Tip kontrolü
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint src
+
+      - name: Testler
+        run: npm test

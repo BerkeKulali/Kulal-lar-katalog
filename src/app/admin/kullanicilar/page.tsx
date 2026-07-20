@@ -13,6 +13,50 @@ import type { AdminRole } from "@/generated/prisma/client";
 
 type Brand = { id: string; name: string; slug: string };
 
+function togglePermission(
+  list: AdminPermission[],
+  setList: (next: AdminPermission[]) => void,
+  perm: AdminPermission
+) {
+  setList(
+    list.includes(perm) ? list.filter((p) => p !== perm) : [...list, perm]
+  );
+}
+
+/**
+ * Modül seviyesinde tanımlı: daha önce ana component'ın içinde tanımlıydı ve
+ * her render'da yeni bir component tipi ürettiği için checkbox'lar yeniden
+ * mount oluyordu (odak ve geçici durum kayboluyordu).
+ */
+function PermissionCheckboxes({
+  selected,
+  onChange,
+  disabled,
+}: {
+  selected: AdminPermission[];
+  onChange: (next: AdminPermission[]) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {ADMIN_PERMISSIONS.map((perm) => (
+        <label
+          key={perm}
+          className={`flex items-center gap-2 text-xs ${disabled ? "opacity-50" : ""}`}
+        >
+          <input
+            type="checkbox"
+            checked={disabled || selected.includes(perm)}
+            disabled={disabled}
+            onChange={() => togglePermission(selected, onChange, perm)}
+          />
+          {PERMISSION_LABELS[perm]}
+        </label>
+      ))}
+    </div>
+  );
+}
+
 type AdminRow = {
   id: string;
   email: string;
@@ -98,16 +142,6 @@ export default function AdminUsersPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  function togglePermission(
-    list: AdminPermission[],
-    setList: (next: AdminPermission[]) => void,
-    perm: AdminPermission
-  ) {
-    setList(
-      list.includes(perm) ? list.filter((p) => p !== perm) : [...list, perm]
-    );
-  }
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -218,35 +252,6 @@ export default function AdminUsersPage() {
     setMessage(`"${user.name}" silindi`);
     if (editingId === user.id) cancelEdit();
     await loadData();
-  }
-
-  function PermissionCheckboxes({
-    selected,
-    onChange,
-    disabled,
-  }: {
-    selected: AdminPermission[];
-    onChange: (next: AdminPermission[]) => void;
-    disabled?: boolean;
-  }) {
-    return (
-      <div className="grid gap-2 sm:grid-cols-2">
-        {ADMIN_PERMISSIONS.map((perm) => (
-          <label
-            key={perm}
-            className={`flex items-center gap-2 text-xs ${disabled ? "opacity-50" : ""}`}
-          >
-            <input
-              type="checkbox"
-              checked={disabled || selected.includes(perm)}
-              disabled={disabled}
-              onChange={() => togglePermission(selected, onChange, perm)}
-            />
-            {PERMISSION_LABELS[perm]}
-          </label>
-        ))}
-      </div>
-    );
   }
 
   return (

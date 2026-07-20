@@ -18,9 +18,7 @@ export default function CartPage() {
   const removeItem = useCartStore((s) => s.removeItem);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const clear = useCartStore((s) => s.clear);
-  const salespersonId = useDeviceStore((s) => s.salespersonId);
   const salespersonName = useDeviceStore((s) => s.salespersonName);
-  const deviceToken = useDeviceStore((s) => s.deviceToken);
 
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
@@ -50,20 +48,14 @@ export default function CartPage() {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // Fiyat ve ürün etiketi sunucuda DB'den üretilir; buradan gönderilmez.
         body: JSON.stringify({
           dealerName: dealerName.trim(),
           notes: notes.trim() || undefined,
-          salespersonId,
-          deviceToken,
-          items: items.map((item) => {
-            const badges = featureBadges(normalizeProductFeatures(item));
-            return {
-              variantId: item.variantId,
-              quantityM2: item.quantityM2,
-              unitPriceSnapshot: item.price,
-              productLabel: `${item.familyName} ${item.size.toUpperCase()} ${item.surface} ${qualityLabel(item.quality as "FIRST" | "END")}${badges.length ? ` ${badges.join(" ")}` : ""}`,
-            };
-          }),
+          items: items.map((item) => ({
+            variantId: item.variantId,
+            quantityM2: item.quantityM2,
+          })),
         }),
       });
 

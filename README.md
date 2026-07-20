@@ -6,12 +6,34 @@ Tablet odaklı seramik katalog uygulaması (PWA).
 
 ```bash
 npm install
+cp .env.example .env      # SESSION_SECRET'ı mutlaka doldurun
 npm run db:migrate
 npm run db:seed
 npm run dev
 ```
 
 Tarayıcıda: http://localhost:3000
+
+### Zorunlu ortam değişkenleri
+
+| Değişken | Neden gerekli |
+|----------|---------------|
+| `DATABASE_URL` | Veritabanı bağlantısı |
+| `SESSION_SECRET` | Admin oturum cookie'sinin HMAC imzası (min. 32 karakter). Yoksa admin girişi 503 döner. |
+| `ADMIN_ACCESS_KEY` | Production'da admin paneli kapısı. Yoksa panel tamamen kapalıdır. |
+| `CLOUDINARY_*` | Ürün görselleri |
+
+Tam liste ve açıklamalar için `.env.example`.
+
+## Testler
+
+```bash
+npm test           # tek seferlik
+npm run test:watch # izleme modu
+```
+
+Testler `src/**/*.test.ts` altında; öncelik fiyat/ölçü/yüzey ayrıştırma gibi
+saf mantıkta (hatası sessiz veri bozulmasına yol açan yerler).
 
 ## İlk kullanım
 
@@ -75,7 +97,18 @@ npm run db:seed
 | `CLOUDINARY_API_KEY` | Cloudinary |
 | `CLOUDINARY_API_SECRET` | Cloudinary |
 
-4. Deploy — build komutu otomatik: `prisma generate && prisma migrate deploy && next build`
+Ayrıca `SESSION_SECRET` ve `ADMIN_ACCESS_KEY` eklemeyi unutmayın (yukarıdaki
+zorunlu değişkenler tablosuna bakın).
+
+4. Deploy — build komutu otomatik: `prisma generate && tsx scripts/turso-migrate.ts && next build`
+
+> **Migration runner hakkında:** Turso üzerinde `prisma migrate deploy` yerine
+> elle yazılmış `scripts/turso-migrate.ts` kullanılıyor. Uygulanan migration'lar
+> `_turso_migrations` tablosunda tutulur ve klasör adına göre sırayla çalışır.
+> Bu runner **transaction/rollback garantisi vermez** — yarıda kalan bir
+> migration veritabanını tutarsız bırakabilir. Şema değiştiren deploy'lardan
+> önce `npm run db:migrate:turso` komutunu ayrıca çalıştırıp sonucu doğrulamak
+> ve `backups/` altındaki güncel yedeği elde tutmak önerilir.
 
 Alternatif (CLI): `npx vercel` (ilk seferde env’leri sorar)
 

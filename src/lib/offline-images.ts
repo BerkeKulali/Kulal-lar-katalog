@@ -2,6 +2,12 @@ import { optimizeCatalogImage } from "@/lib/image-url";
 import { tileImageProfile } from "@/lib/tile-image-profile";
 import type { SyncFamilyRow, SyncVariantRow } from "@/lib/sync-types";
 
+/**
+ * Görsel cache adı. public/sw.js içindeki IMAGE_CACHE ile aynı olmalı;
+ * ikisi de aynı cache'e yazıyor.
+ */
+export const IMAGE_CACHE_NAME = "kulalilar-images-v1";
+
 export function isWifiConnection() {
   if (typeof navigator === "undefined") return false;
   const conn = (
@@ -75,7 +81,7 @@ export async function cacheImages(
 ) {
   if (!("caches" in window)) return [];
 
-  const cache = await caches.open("kulalilar-images-v1");
+  const cache = await caches.open(IMAGE_CACHE_NAME);
   let done = 0;
   const cachedKeys: string[] = [];
 

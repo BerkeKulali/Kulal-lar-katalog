@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { AppShell } from "@/components/AppShell";
 import { BrandCatalogPicker } from "@/components/BrandCatalogPicker";
@@ -18,7 +18,13 @@ export default async function BrandSizePage({
   const { brand: brandSlug } = await params;
   const audience = await getCatalogAudienceFromCookies();
   const brand = await getBrandBySlug(brandSlug, audience);
-  if (!brand) notFound();
+  if (!brand) {
+    // Marka var ama bu izleyiciye kapalıysa 404 yerine kataloğa yönlendir
+    // (bayiye kapalı markalar bu yolla gizlenir).
+    const existsForAnyone = await getBrandBySlug(brandSlug, "default");
+    if (existsForAnyone) redirect("/katalog");
+    notFound();
+  }
 
   const { sizes, qualities } = await getBrandSizeCatalog(brand.id, brand.slug);
 

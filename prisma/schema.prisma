@@ -54,6 +54,10 @@ model Brand {
   slug      String          @unique
   logoText  String?
   sortOrder Int             @default(0)
+  /** false ise marka katalogda hiç görünmez (her izleyici için gizli). */
+  isVisible Boolean         @default(true)
+  /** false ise marka yalnızca plasiyerlere görünür, bayilere kapalıdır. */
+  visibleToDealers Boolean  @default(true)
   families  ProductFamily[]
   admins    AdminUser[]
   createdAt DateTime        @default(now())
@@ -220,6 +224,8 @@ model AdminUser {
   email     String    @unique
   name      String
   password  String
+  /** Şifre her değiştiğinde güncellenir; eski oturum cookie'lerini geçersizler. */
+  passwordChangedAt DateTime @default(now())
   role      AdminRole @default(BRAND_MANAGER)
   brandId   String?
   brand     Brand?    @relation(fields: [brandId], references: [id])
