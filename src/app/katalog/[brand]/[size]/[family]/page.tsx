@@ -76,6 +76,7 @@ export default async function ProductDetailPage({
             boxM2: v.boxM2,
             truckM2: v.truckM2,
             stockLines: showStock ? v.stockLines : [],
+            stockUpdatedAt: showStock ? v.stockUpdatedAt : null,
           }))}
           initialSize={size}
           initialQuality={initialQuality}

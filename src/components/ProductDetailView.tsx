@@ -32,7 +32,24 @@ type Variant = {
   truckM2: number | null;
   imageUrl: string | null;
   stockLines: { id: string; label: string; quantityM2: number }[];
+  stockUpdatedAt: string | null;
 };
+
+const STOCK_UPDATED_FMT = new Intl.DateTimeFormat("tr-TR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Europe/Istanbul",
+});
+
+function formatStockUpdated(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return STOCK_UPDATED_FMT.format(d);
+}
 
 function parseQtyM2(text: string): number {
   const trimmed = text.trim().replace(",", ".");
@@ -350,15 +367,10 @@ export function ProductDetailView({
               </div>
             </div>
 
-            {canShowStock && selected.stockLines.length > 0 && (
-              <div className="product-detail-stock-lines">
-                {selected.stockLines.map((line) => (
-                  <p key={line.id} className="product-detail-stock-line">
-                    <span>{line.label}</span>
-                    <span>{formatStock(line.quantityM2)}</span>
-                  </p>
-                ))}
-              </div>
+            {canShowStock && formatStockUpdated(selected.stockUpdatedAt) && (
+              <p className="product-detail-stock-updated">
+                Stok güncellendi: {formatStockUpdated(selected.stockUpdatedAt)}
+              </p>
             )}
           </div>
 

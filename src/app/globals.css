@@ -552,6 +552,14 @@ button.catalog-picker-chip:not(.catalog-picker-chip--disabled):hover {
   border: 1px solid var(--product-detail-panel-border);
 }
 
+.product-detail-stock-updated {
+  margin-top: 0.75rem;
+  text-align: center;
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  color: var(--app-muted);
+}
+
 .product-detail-actions {
   margin-top: 1.25rem;
   padding: 0 1.25rem;

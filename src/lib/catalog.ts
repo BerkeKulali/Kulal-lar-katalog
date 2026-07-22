@@ -212,6 +212,13 @@ async function _getFamilyDetail(
       label: l.label,
       quantityM2: l.quantityM2,
     })),
+    // Stok satırlarının en son güncellenme zamanı (import/manuel sabitleme).
+    stockUpdatedAt:
+      v.stockLines.length > 0
+        ? new Date(
+            Math.max(...v.stockLines.map((l) => l.updatedAt.getTime()))
+          ).toISOString()
+        : null,
   }));
 
   return {
