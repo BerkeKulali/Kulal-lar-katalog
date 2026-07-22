@@ -1,12 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getActiveFamilyIds } from "@/lib/active-families";
-import { getSalespersonShowStock } from "@/lib/salesperson-stock";
 
-export async function buildCatalogSync(
-  since?: Date,
-  salespersonId?: string | null,
-  isAdmin = false
-) {
+export async function buildCatalogSync(since?: Date, showStock = false) {
   const settings = await prisma.appSettings.findUnique({
     where: { id: "default" },
   });
@@ -60,10 +55,6 @@ export async function buildCatalogSync(
   const t1 = variantImageMax._max.imageUpdatedAt?.getTime() ?? 0;
   const t2 = familyImageMax._max.imageUpdatedAt?.getTime() ?? 0;
   const imageCatalogVersion = new Date(Math.max(t1, t2)).toISOString();
-  // Admin girişinde stok her zaman görünür (kontrol/doğrulama için).
-  const showStock = isAdmin
-    ? true
-    : await getSalespersonShowStock(salespersonId);
 
   return {
     priceListVersion,

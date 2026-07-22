@@ -17,6 +17,7 @@ export async function GET() {
           label: true,
           registeredAt: true,
           lastSeenAt: true,
+          showStock: true,
         },
       },
     },

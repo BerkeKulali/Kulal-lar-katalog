@@ -105,6 +105,19 @@ async function ensureVariantNetsisCodesTable(
   }
 }
 
+/** Device.showStock kolonunu idempotent ekler. */
+async function ensureDeviceShowStockColumn(
+  client: ReturnType<typeof createClient>
+) {
+  const cols = await client.execute(`PRAGMA table_info("Device")`);
+  const names = new Set(cols.rows.map((r) => String(r.name)));
+  if (!names.has("showStock")) {
+    await client.execute(
+      `ALTER TABLE "Device" ADD COLUMN "showStock" BOOLEAN NOT NULL DEFAULT false`
+    );
+  }
+}
+
 async function listMigrationDirs() {
   const entries = await readdir(migrationsRoot, { withFileTypes: true });
   return entries
@@ -147,6 +160,8 @@ async function main() {
     } else if (dir === "20260722150000_variant_netsis_codes_table") {
       // Idempotent tablo geçişi; ham DROP COLUMN tekrarını atla.
       await ensureVariantNetsisCodesTable(client);
+    } else if (dir === "20260722160000_device_show_stock") {
+      await ensureDeviceShowStockColumn(client);
     } else {
       await client.executeMultiple(sql);
     }

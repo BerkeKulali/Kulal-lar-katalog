@@ -19,6 +19,7 @@ type DealerItem = {
     label: string | null;
     registeredAt: string;
     lastSeenAt: string;
+    showStock: boolean;
   } | null;
 };
 
@@ -81,6 +82,31 @@ export default function AdminDealersPage() {
     }
 
     setMessage(`"${data.dealerName ?? item.dealerName}" kaydı silindi`);
+    await loadData();
+  }
+
+  async function toggleStock(item: DealerItem) {
+    if (!item.device) return;
+    const next = !item.device.showStock;
+    setActionId(item.id);
+    setError(null);
+    setMessage(null);
+    const res = await fetch(`/api/admin/dealers/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ showStock: next }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setActionId(null);
+
+    if (!res.ok) {
+      setError(data.error ?? "Stok ayarı güncellenemedi");
+      return;
+    }
+
+    setMessage(
+      `"${item.dealerName}" için stok gösterimi ${next ? "açıldı" : "kapatıldı"}`
+    );
     await loadData();
   }
 
@@ -161,7 +187,34 @@ export default function AdminDealersPage() {
               </p>
             )}
 
-            <div className="mt-3">
+            {item.device && (
+              <p className="mt-2 text-zinc-500">
+                Stok gösterimi:{" "}
+                <span
+                  className={
+                    item.device.showStock ? "text-emerald-400" : "text-zinc-400"
+                  }
+                >
+                  {item.device.showStock ? "Açık" : "Kapalı"}
+                </span>
+              </p>
+            )}
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {item.device && (
+                <button
+                  type="button"
+                  onClick={() => toggleStock(item)}
+                  disabled={actionId === item.id}
+                  className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
+                >
+                  {actionId === item.id
+                    ? "..."
+                    : item.device.showStock
+                      ? "Stok gösterimini kapat"
+                      : "Stok gösterimini aç"}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => removeDealer(item)}

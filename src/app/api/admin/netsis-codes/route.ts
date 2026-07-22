@@ -12,7 +12,7 @@ const CODE_QUERY_CHUNK = 100;
 
 /** Netsis kodu atama ekranı için varyant listesi. Yetki: stock. */
 export async function GET(request: Request) {
-  const auth = await requireAdminPermission("stock");
+  const auth = await requireAdminPermission("netsis");
   if (!auth.admin) return auth.response;
   const admin = auth.admin;
 
@@ -120,7 +120,7 @@ type SaveEntry = { variantId: string; codes: string[] };
  * Benzersizlik çakışmaları satır bazında raporlanır.
  */
 export async function POST(request: Request) {
-  const auth = await requireAdminPermission("stock");
+  const auth = await requireAdminPermission("netsis");
   if (!auth.admin) return auth.response;
   const admin = auth.admin;
 

@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getAdminSession } from "@/lib/admin-auth";
-import { SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
-import { getSalespersonShowStock } from "@/lib/salesperson-stock";
+import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
+import { resolveStockVisibility } from "@/lib/stock-visibility";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const salespersonId = (await cookies()).get(SALESPERSON_ID_COOKIE)?.value;
-  // Admin girişinde stok her zaman görünür; aksi halde plasiyer yetkisi.
+  const cookieStore = await cookies();
+  const salespersonId = cookieStore.get(SALESPERSON_ID_COOKIE)?.value;
+  const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
   const admin = await getAdminSession();
-  const showStock = admin ? true : await getSalespersonShowStock(salespersonId);
+  const showStock = await resolveStockVisibility({
+    isAdmin: Boolean(admin),
+    salespersonId,
+    deviceToken,
+  });
 
   return NextResponse.json({ showStock });
 }

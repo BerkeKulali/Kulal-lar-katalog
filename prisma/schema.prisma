@@ -166,6 +166,8 @@ model Device {
   salespersonId      String?
   salesperson        Salesperson? @relation(fields: [salespersonId], references: [id])
   lockForSalesperson Salesperson? @relation("SalespersonDeviceLock")
+  /** Bayi cihazları için stok görünürlüğü. Varsayılan kapalı; admin açar. */
+  showStock          Boolean      @default(false)
   label              String?
   registeredAt       DateTime     @default(now())
   lastSeenAt         DateTime     @default(now())

@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 export default async function AdminNetsisPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/login");
-  if (!hasPermission(admin, "stock")) redirect("/admin");
+  if (!hasPermission(admin, "netsis")) redirect("/admin");
 
   // Süper admin markaya göre filtreleyebilsin; marka yöneticisi kendi markasında sabit.
   const brands = admin.brandId

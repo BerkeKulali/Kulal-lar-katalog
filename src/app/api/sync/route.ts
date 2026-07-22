@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
 import { touchDevice } from "@/lib/device-activity";
 import { getAdminSession } from "@/lib/admin-auth";
+import { resolveStockVisibility } from "@/lib/stock-visibility";
 import { buildCatalogSync } from "@/lib/sync-server";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +24,13 @@ export async function GET(request: Request) {
   // Mevcut sync çağrısına binen, throttle'lı "son görülme" heartbeat'i.
   await touchDevice(deviceToken);
 
-  // Admin cookie'si olmayan ziyaretçilerde DB'ye gitmeden null döner.
+  // Stok görünürlüğü tek noktadan: admin / plasiyer / bayi.
   const admin = await getAdminSession();
-  const payload = await buildCatalogSync(since, salespersonId, Boolean(admin));
+  const showStock = await resolveStockVisibility({
+    isAdmin: Boolean(admin),
+    salespersonId,
+    deviceToken,
+  });
+  const payload = await buildCatalogSync(since, showStock);
   return NextResponse.json(payload);
 }
