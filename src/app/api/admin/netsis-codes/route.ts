@@ -26,12 +26,12 @@ export async function GET(request: Request) {
         // BRAND_MANAGER yalnızca kendi markasını görür/düzenler.
         brandId: admin.brandId ?? brandId,
       },
-      ...(onlyUnset ? { netsisStockCode: null } : {}),
+      ...(onlyUnset ? { netsisCodes: { none: {} } } : {}),
       ...(q
         ? {
             OR: [
               { code: { contains: q } },
-              { netsisStockCode: { contains: q } },
+              { netsisCodes: { some: { code: { contains: q.toUpperCase() } } } },
               { family: { name: { contains: q } } },
             ],
           }
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
       feature3D: true,
       featureRec: true,
       code: true,
-      netsisStockCode: true,
+      netsisCodes: { select: { code: true }, orderBy: { code: "asc" } },
       family: {
         select: { name: true, brand: { select: { name: true } } },
       },
@@ -60,29 +60,27 @@ export async function GET(request: Request) {
     take: 1000,
   });
 
-  const items = variants.map((v) => {
-    const badges = featureBadges(v);
-    return {
-      id: v.id,
-      brandName: v.family.brand.name,
-      familyName: v.family.name,
-      size: v.size.toUpperCase(),
-      surface: surfaceDisplayLabel(v.surface),
-      quality: qualityLabel(v.quality),
-      features: badges.join(" "),
-      code: v.code,
-      netsisStockCode: v.netsisStockCode,
-    };
-  });
+  const items = variants.map((v) => ({
+    id: v.id,
+    brandName: v.family.brand.name,
+    familyName: v.family.name,
+    size: v.size.toUpperCase(),
+    surface: surfaceDisplayLabel(v.surface),
+    quality: qualityLabel(v.quality),
+    features: featureBadges(v).join(" "),
+    code: v.code,
+    codes: v.netsisCodes.map((c) => c.code),
+  }));
 
   return NextResponse.json({ items });
 }
 
-type SaveEntry = { variantId: string; netsisStockCode: string | null };
+type SaveEntry = { variantId: string; codes: string[] };
 
 /**
- * Toplu Netsis kodu kaydı. Boş/whitespace kod → null (atamayı kaldırır).
- * Benzersizlik çakışmaları satır bazında raporlanır; kalanlar yine de yazılır.
+ * Toplu Netsis kodu kaydı. Her varyant için kod KÜMESİ yeniden yazılır
+ * (gönderilen liste neyse o kalır; boş liste tüm kodları kaldırır).
+ * Benzersizlik çakışmaları satır bazında raporlanır.
  */
 export async function POST(request: Request) {
   const auth = await requireAdminPermission("stock");
@@ -97,11 +95,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
   }
 
-  // Normalize + istek içi çakışma kontrolü (aynı kod iki varyanta verilemez).
-  const entries: SaveEntry[] = [];
-  const seenCodes = new Map<string, string>();
   const conflicts: { variantId: string; code: string; reason: string }[] = [];
 
+  // Normalize + istek içi çakışma kontrolü (aynı kod iki varyanta verilemez).
+  const entries: SaveEntry[] = [];
+  const codeOwner = new Map<string, string>();
   for (const raw of rawEntries) {
     const variantId =
       typeof (raw as { variantId?: unknown })?.variantId === "string"
@@ -109,26 +107,29 @@ export async function POST(request: Request) {
         : "";
     if (!variantId) continue;
 
-    const codeRaw = (raw as { netsisStockCode?: unknown })?.netsisStockCode;
-    const code =
-      typeof codeRaw === "string" && codeRaw.trim()
-        ? codeRaw.trim().toUpperCase()
-        : null;
+    const rawCodes = (raw as { codes?: unknown })?.codes;
+    const codes: string[] = [];
+    const seen = new Set<string>();
+    if (Array.isArray(rawCodes)) {
+      for (const c of rawCodes) {
+        const code = typeof c === "string" ? c.trim().toUpperCase() : "";
+        if (!code || seen.has(code)) continue;
+        seen.add(code);
 
-    if (code) {
-      const prev = seenCodes.get(code);
-      if (prev && prev !== variantId) {
-        conflicts.push({
-          variantId,
-          code,
-          reason: "Aynı kod bu istekte birden fazla varyanta verildi",
-        });
-        continue;
+        const owner = codeOwner.get(code);
+        if (owner && owner !== variantId) {
+          conflicts.push({
+            variantId,
+            code,
+            reason: "Aynı kod bu istekte birden fazla varyanta verildi",
+          });
+          continue;
+        }
+        codeOwner.set(code, variantId);
+        codes.push(code);
       }
-      seenCodes.set(code, variantId);
     }
-
-    entries.push({ variantId, netsisStockCode: code });
+    entries.push({ variantId, codes });
   }
 
   // Marka kapsamı: yalnızca yetkili olunan varyantlar güncellenebilir.
@@ -147,16 +148,46 @@ export async function POST(request: Request) {
     if (!ownedIds.has(entry.variantId)) {
       conflicts.push({
         variantId: entry.variantId,
-        code: entry.netsisStockCode ?? "",
+        code: entry.codes.join(", "),
         reason: "Bu varyanta erişim yetkiniz yok",
       });
       continue;
     }
 
     try {
-      await prisma.productVariant.update({
-        where: { id: entry.variantId },
-        data: { netsisStockCode: entry.netsisStockCode },
+      await prisma.$transaction(async (tx) => {
+        // Başka varyantlara ait kodları çakışma olarak ayıkla; kalanları yaz.
+        const clashes = await tx.variantNetsisCode.findMany({
+          where: {
+            code: { in: entry.codes },
+            variantId: { not: entry.variantId },
+          },
+          select: { code: true },
+        });
+        const blocked = new Set(clashes.map((c) => c.code));
+        for (const code of entry.codes) {
+          if (blocked.has(code)) {
+            conflicts.push({
+              variantId: entry.variantId,
+              code,
+              reason: "Bu Netsis kodu başka bir varyanta atanmış",
+            });
+          }
+        }
+        const finalCodes = entry.codes.filter((c) => !blocked.has(c));
+
+        // Kod kümesini yeniden yaz.
+        await tx.variantNetsisCode.deleteMany({
+          where: { variantId: entry.variantId },
+        });
+        if (finalCodes.length > 0) {
+          await tx.variantNetsisCode.createMany({
+            data: finalCodes.map((code) => ({
+              code,
+              variantId: entry.variantId,
+            })),
+          });
+        }
       });
       saved++;
     } catch (err) {
@@ -166,8 +197,8 @@ export async function POST(request: Request) {
       ) {
         conflicts.push({
           variantId: entry.variantId,
-          code: entry.netsisStockCode ?? "",
-          reason: "Bu Netsis kodu başka bir varyanta atanmış",
+          code: entry.codes.join(", "),
+          reason: "Netsis kodu çakışması",
         });
         continue;
       }

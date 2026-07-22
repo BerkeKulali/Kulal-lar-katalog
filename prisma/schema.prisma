@@ -103,8 +103,8 @@ model ProductVariant {
   feature3D     Boolean       @default(false)
   featureRec    Boolean       @default(false)
   code          String?
-  /** Netsis stok kodu — stok importunda eşleşme anahtarı. Global benzersiz. */
-  netsisStockCode String?     @unique
+  /** Netsis stok kodları — bir varyantın birden çok kodu olabilir. */
+  netsisCodes   VariantNetsisCode[]
   price          Int?
   palletM2      Float?
   boxM2         Float?
@@ -120,6 +120,17 @@ model ProductVariant {
 
   @@unique([familyId, size, surface, quality, feature3D, featureRec])
   @@index([familyId, size])
+}
+
+model VariantNetsisCode {
+  id        String         @id @default(cuid())
+  /** Netsis stok kodu — global benzersiz; tek bir varyanta işaret eder. */
+  code      String         @unique
+  variantId String
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  createdAt DateTime       @default(now())
+
+  @@index([variantId])
 }
 
 model StockLine {

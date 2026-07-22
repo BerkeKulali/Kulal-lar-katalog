@@ -12,11 +12,11 @@ const NETSIS_STOCK_LABEL = "Netsis";
 /**
  * Netsis stok içe aktarımı.
  *
- * Eşleşme YALNIZCA ProductVariant.netsisStockCode ile yapılır (eski `code`
- * alanı kullanılmaz). Her Netsis kodu tek bir bakiye taşır; eşleşen varyantın
- * stok satırları bu tek değere göre yeniden yazılır. Bakiye 0 ise stok 0 m²
- * olarak yazılır (satır silinmez) — böylece Netsis'te tükenen ürünler
- * katalogda da tükenmiş görünür.
+ * Eşleşme YALNIZCA atanmış Netsis kodları (VariantNetsisCode) ile yapılır;
+ * eski `code` alanı kullanılmaz. Bir varyantın birden çok kodu olabilir, bu
+ * durumda bu kodların bakiyeleri toplanır ve varyantın stok satırı bu toplama
+ * göre yeniden yazılır. Bakiye 0 ise stok 0 m² olarak yazılır (satır silinmez)
+ * — böylece Netsis'te tükenen ürünler katalogda da tükenmiş görünür.
  */
 export async function POST(request: Request) {
   const admin = await requireAdmin();
@@ -62,50 +62,55 @@ export async function POST(request: Request) {
 
   const codes = [...balances.keys()];
 
-  // netsisStockCode ile eşleşen aktif varyantlar (marka kapsamı korunur).
-  const variants = await prisma.productVariant.findMany({
+  // Netsis kodları → varyant. Bir varyantın birden çok kodu olabilir; marka
+  // kapsamı korunur.
+  const codeRows = await prisma.variantNetsisCode.findMany({
     where: {
-      netsisStockCode: { in: codes },
-      isActive: true,
-      ...(admin.brandId ? { family: { brandId: admin.brandId } } : {}),
+      code: { in: codes },
+      variant: {
+        isActive: true,
+        ...(admin.brandId ? { family: { brandId: admin.brandId } } : {}),
+      },
     },
-    select: { id: true, netsisStockCode: true },
+    select: { code: true, variantId: true },
   });
 
   const variantByCode = new Map(
-    variants
-      .filter((v) => v.netsisStockCode)
-      .map((v) => [v.netsisStockCode!.toUpperCase(), v])
+    codeRows.map((r) => [r.code.toUpperCase(), r.variantId])
   );
 
+  // Bakiyeleri varyant bazında topla (aynı varyanta ait birden çok kod eklenir).
+  const balanceByVariant = new Map<string, number>();
   for (const code of codes) {
-    const variant = variantByCode.get(code);
-    if (!variant) {
+    const variantId = variantByCode.get(code);
+    if (!variantId) {
       results.unmatchedCodes.push(code);
       continue;
     }
+    results.matchedCodes++;
+    balanceByVariant.set(
+      variantId,
+      (balanceByVariant.get(variantId) ?? 0) + (balances.get(code) ?? 0)
+    );
+  }
 
-    const quantityM2 = Math.round((balances.get(code) ?? 0) * 100) / 100;
+  for (const [variantId, rawQty] of balanceByVariant) {
+    const quantityM2 = Math.round(rawQty * 100) / 100;
 
-    // Tek bakiye = tek stok satırı. Önceki satırları silip yeniden yazarak
-    // hem eski çok-etiketli kayıtları temizler hem de 0'ı 0 olarak yazar.
+    // Tek stok satırı. Önceki satırları silip yeniden yazarak hem eski
+    // çok-etiketli kayıtları temizler hem de 0'ı 0 olarak yazar.
     await prisma.$transaction(async (tx) => {
-      await tx.stockLine.deleteMany({ where: { variantId: variant.id } });
+      await tx.stockLine.deleteMany({ where: { variantId } });
       await tx.stockLine.create({
-        data: {
-          variantId: variant.id,
-          label: NETSIS_STOCK_LABEL,
-          quantityM2,
-        },
+        data: { variantId, label: NETSIS_STOCK_LABEL, quantityM2 },
       });
       await tx.productVariant.update({
-        where: { id: variant.id },
+        where: { id: variantId },
         data: { updatedAt: new Date() },
       });
     });
 
     results.variantsUpdated++;
-    results.matchedCodes++;
     results.stockLinesWritten++;
     if (quantityM2 === 0) results.zeroBalanceUpdated++;
   }

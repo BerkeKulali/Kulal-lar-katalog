@@ -63,6 +63,48 @@ async function ensureVariantNetsisColumn(
   );
 }
 
+/**
+ * netsisStockCode tek-kolonunu VariantNetsisCode tablosuna geçirir.
+ * Idempotent: tablo/index varsa atlar, veri taşımayı yalnızca eski kolon
+ * hâlâ varken yapar, kolonu yalnızca varsa düşürür.
+ */
+async function ensureVariantNetsisCodesTable(
+  client: ReturnType<typeof createClient>
+) {
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS "VariantNetsisCode" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "code" TEXT NOT NULL,
+      "variantId" TEXT NOT NULL,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "VariantNetsisCode_variantId_fkey" FOREIGN KEY ("variantId") REFERENCES "ProductVariant" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    )
+  `);
+  await client.execute(
+    `CREATE UNIQUE INDEX IF NOT EXISTS "VariantNetsisCode_code_key" ON "VariantNetsisCode"("code")`
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS "VariantNetsisCode_variantId_idx" ON "VariantNetsisCode"("variantId")`
+  );
+
+  const cols = await client.execute(`PRAGMA table_info("ProductVariant")`);
+  const names = new Set(cols.rows.map((r) => String(r.name)));
+  if (names.has("netsisStockCode")) {
+    await client.execute(`
+      INSERT INTO "VariantNetsisCode" ("id", "code", "variantId")
+      SELECT lower(hex(randomblob(12))), "netsisStockCode", "id"
+      FROM "ProductVariant"
+      WHERE "netsisStockCode" IS NOT NULL AND TRIM("netsisStockCode") <> ''
+    `);
+    await client.execute(
+      `DROP INDEX IF EXISTS "ProductVariant_netsisStockCode_key"`
+    );
+    await client.execute(
+      `ALTER TABLE "ProductVariant" DROP COLUMN "netsisStockCode"`
+    );
+  }
+}
+
 async function listMigrationDirs() {
   const entries = await readdir(migrationsRoot, { withFileTypes: true });
   return entries
@@ -102,6 +144,9 @@ async function main() {
     if (dir === "20260721140000_variant_netsis_stock_code") {
       // Idempotent kolon+index ekleme; ham ADD COLUMN tekrarını atla.
       await ensureVariantNetsisColumn(client);
+    } else if (dir === "20260722150000_variant_netsis_codes_table") {
+      // Idempotent tablo geçişi; ham DROP COLUMN tekrarını atla.
+      await ensureVariantNetsisCodesTable(client);
     } else {
       await client.executeMultiple(sql);
     }

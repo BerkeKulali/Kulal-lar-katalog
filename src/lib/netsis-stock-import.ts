@@ -108,7 +108,24 @@ export function parseNetsisStockRows(
   return { parsed, errors };
 }
 
-// --- Netsis "Stok Kodu + Bakiye" ile eşleşen import (netsisStockCode) ---
+/**
+ * Kullanıcının tek kutuya girdiği çoklu Netsis kodunu ayrıştırır.
+ * Virgül, boşluk, noktalı virgül veya satır sonuyla ayrılabilir.
+ * Büyük harfe çevirir, tekrarları temizler, sırayı korur.
+ */
+export function parseNetsisCodesInput(raw: string): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const part of raw.split(/[\s,;]+/)) {
+    const code = part.trim().toUpperCase();
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    result.push(code);
+  }
+  return result;
+}
+
+// --- Netsis "Stok Kodu + Bakiye" ile eşleşen import (VariantNetsisCode) ---
 
 const STOCK_CODE_KEYS = [
   "stok kodu",

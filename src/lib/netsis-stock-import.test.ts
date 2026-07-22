@@ -2,8 +2,37 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   parseNetsisBalanceRows,
+  parseNetsisCodesInput,
   parseStockQuantity,
 } from "@/lib/netsis-stock-import";
+
+describe("parseNetsisCodesInput", () => {
+  it("virgül / boşluk / satır sonuyla ayrılmış kodları böler", () => {
+    assert.deepEqual(parseNetsisCodesInput("GRS1, GRS2"), ["GRS1", "GRS2"]);
+    assert.deepEqual(parseNetsisCodesInput("GRS1 GRS2"), ["GRS1", "GRS2"]);
+    assert.deepEqual(parseNetsisCodesInput("GRS1;GRS2\nGRS3"), [
+      "GRS1",
+      "GRS2",
+      "GRS3",
+    ]);
+  });
+
+  it("büyük harfe çevirir ve boşlukları temizler", () => {
+    assert.deepEqual(parseNetsisCodesInput("  grs1 , grs1-d "), [
+      "GRS1",
+      "GRS1-D",
+    ]);
+  });
+
+  it("tekrarları temizler, sırayı korur", () => {
+    assert.deepEqual(parseNetsisCodesInput("A, B, A, c, B"), ["A", "B", "C"]);
+  });
+
+  it("boş girdide boş dizi döner", () => {
+    assert.deepEqual(parseNetsisCodesInput(""), []);
+    assert.deepEqual(parseNetsisCodesInput("   ,  ; "), []);
+  });
+});
 
 describe("parseStockQuantity", () => {
   it("düz sayıları okur", () => {
