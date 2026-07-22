@@ -18,13 +18,32 @@ export async function GET(request: Request) {
   const brandId = searchParams.get("brandId")?.trim() || undefined;
   const onlyUnset = searchParams.get("onlyUnset") === "1";
 
+  try {
+    return await listVariants({ adminBrandId: admin.brandId, brandId, q, onlyUnset });
+  } catch (err) {
+    console.error("GET /api/admin/netsis-codes failed:", err);
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Liste yüklenemedi" },
+      { status: 500 }
+    );
+  }
+}
+
+async function listVariants(opts: {
+  adminBrandId: string | null;
+  brandId: string | undefined;
+  q: string;
+  onlyUnset: boolean;
+}) {
+  const { adminBrandId, brandId, q, onlyUnset } = opts;
+
   const variants = await prisma.productVariant.findMany({
     where: {
       isActive: true,
       family: {
         isActive: true,
         // BRAND_MANAGER yalnızca kendi markasını görür/düzenler.
-        brandId: admin.brandId ?? brandId,
+        brandId: adminBrandId ?? brandId,
       },
       ...(onlyUnset ? { netsisCodes: { none: {} } } : {}),
       ...(q
