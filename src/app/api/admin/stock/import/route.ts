@@ -5,9 +5,13 @@ import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { hasAnyPermission } from "@/lib/admin-permissions";
 import { parseNetsisBalanceRows } from "@/lib/netsis-stock-import";
 import { prisma } from "@/lib/prisma";
+import { chunk } from "@/lib/utils";
 
 /** Netsis stok içe aktarımında yazılan tek stok satırının etiketi. */
 const NETSIS_STOCK_LABEL = "Netsis";
+
+/** Turso parametre limitini aşmamak için IN sorguları bu boyutta parçalanır. */
+const STOCK_CODE_QUERY_CHUNK = 100;
 
 /**
  * Netsis stok içe aktarımı.
@@ -63,21 +67,23 @@ export async function POST(request: Request) {
   const codes = [...balances.keys()];
 
   // Netsis kodları → varyant. Bir varyantın birden çok kodu olabilir; marka
-  // kapsamı korunur.
-  const codeRows = await prisma.variantNetsisCode.findMany({
-    where: {
-      code: { in: codes },
-      variant: {
-        isActive: true,
-        ...(admin.brandId ? { family: { brandId: admin.brandId } } : {}),
+  // kapsamı korunur. Sorgu, Turso parametre limitini aşmamak için parçalanır.
+  const variantByCode = new Map<string, string>();
+  for (const codeChunk of chunk(codes, STOCK_CODE_QUERY_CHUNK)) {
+    const codeRows = await prisma.variantNetsisCode.findMany({
+      where: {
+        code: { in: codeChunk },
+        variant: {
+          isActive: true,
+          ...(admin.brandId ? { family: { brandId: admin.brandId } } : {}),
+        },
       },
-    },
-    select: { code: true, variantId: true },
-  });
-
-  const variantByCode = new Map(
-    codeRows.map((r) => [r.code.toUpperCase(), r.variantId])
-  );
+      select: { code: true, variantId: true },
+    });
+    for (const r of codeRows) {
+      variantByCode.set(r.code.toUpperCase(), r.variantId);
+    }
+  }
 
   // Bakiyeleri varyant bazında topla (aynı varyanta ait birden çok kod eklenir).
   const balanceByVariant = new Map<string, number>();

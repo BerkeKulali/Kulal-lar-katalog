@@ -4,8 +4,11 @@ import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { surfaceDisplayLabel } from "@/lib/constants";
 import { featureBadges } from "@/lib/product-features";
 import { prisma } from "@/lib/prisma";
-import { qualityLabel } from "@/lib/utils";
+import { chunk, qualityLabel } from "@/lib/utils";
 import { Prisma } from "@/generated/prisma/client";
+
+/** Turso parametre limitini aşmamak için IN sorguları bu boyutta parçalanır. */
+const CODE_QUERY_CHUNK = 100;
 
 /** Netsis kodu atama ekranı için varyant listesi. Yetki: stock. */
 export async function GET(request: Request) {
@@ -71,13 +74,28 @@ async function listVariants(opts: {
       feature3D: true,
       featureRec: true,
       code: true,
-      netsisCodes: { select: { code: true }, orderBy: { code: "asc" } },
       family: {
         select: { name: true, brand: { select: { name: true } } },
       },
     },
     take: 1000,
   });
+
+  // Netsis kodları ayrı ve parçalı çekilir: ilişkinin tek sorguda yüklenmesi
+  // Turso'nun parametre (IN listesi) limitini aşıyordu.
+  const codesByVariant = new Map<string, string[]>();
+  for (const idChunk of chunk(variants.map((v) => v.id), CODE_QUERY_CHUNK)) {
+    const rows = await prisma.variantNetsisCode.findMany({
+      where: { variantId: { in: idChunk } },
+      select: { variantId: true, code: true },
+      orderBy: { code: "asc" },
+    });
+    for (const r of rows) {
+      const list = codesByVariant.get(r.variantId) ?? [];
+      list.push(r.code);
+      codesByVariant.set(r.variantId, list);
+    }
+  }
 
   const items = variants.map((v) => ({
     id: v.id,
@@ -88,7 +106,7 @@ async function listVariants(opts: {
     quality: qualityLabel(v.quality),
     features: featureBadges(v).join(" "),
     code: v.code,
-    codes: v.netsisCodes.map((c) => c.code),
+    codes: codesByVariant.get(v.id) ?? [],
   }));
 
   return NextResponse.json({ items });
@@ -152,15 +170,17 @@ export async function POST(request: Request) {
   }
 
   // Marka kapsamı: yalnızca yetkili olunan varyantlar güncellenebilir.
-  const ids = entries.map((e) => e.variantId);
-  const owned = await prisma.productVariant.findMany({
-    where: {
-      id: { in: ids },
-      ...(admin.brandId ? { family: { brandId: admin.brandId } } : {}),
-    },
-    select: { id: true },
-  });
-  const ownedIds = new Set(owned.map((v) => v.id));
+  const ownedIds = new Set<string>();
+  for (const idChunk of chunk(entries.map((e) => e.variantId), CODE_QUERY_CHUNK)) {
+    const owned = await prisma.productVariant.findMany({
+      where: {
+        id: { in: idChunk },
+        ...(admin.brandId ? { family: { brandId: admin.brandId } } : {}),
+      },
+      select: { id: true },
+    });
+    for (const v of owned) ownedIds.add(v.id);
+  }
 
   let saved = 0;
   for (const entry of entries) {

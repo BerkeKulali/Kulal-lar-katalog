@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  chunk,
   generateOrderNumber,
   parseKaliteFilter,
   parseQuality,
@@ -8,6 +9,24 @@ import {
   slugify,
   sortQualities,
 } from "@/lib/utils";
+
+describe("chunk", () => {
+  it("diziyi eşit parçalara böler", () => {
+    assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+  });
+
+  it("boyut diziden büyükse tek parça döner", () => {
+    assert.deepEqual(chunk([1, 2], 10), [[1, 2]]);
+  });
+
+  it("boş dizi için boş sonuç", () => {
+    assert.deepEqual(chunk([], 3), []);
+  });
+
+  it("tam bölünürse artık parça olmaz", () => {
+    assert.deepEqual(chunk([1, 2, 3, 4], 2), [[1, 2], [3, 4]]);
+  });
+});
 
 describe("slugify", () => {
   it("Türkçe karakterleri ASCII'ye indirger", () => {
