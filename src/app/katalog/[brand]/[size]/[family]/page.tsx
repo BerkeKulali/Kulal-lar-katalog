@@ -9,6 +9,7 @@ import { FamilyClickTracker } from "@/components/FamilyClickTracker";
 import { ProductDetailView } from "@/components/ProductDetailView";
 import { SiteHeader } from "@/components/SiteHeader";
 import { formatSizeLabel, normalizeSize } from "@/lib/constants";
+import { getAdminSession } from "@/lib/admin-auth";
 import { getFamilyDetail } from "@/lib/catalog";
 import { SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
 import { getSalespersonShowStock } from "@/lib/salesperson-stock";
@@ -32,8 +33,12 @@ export default async function ProductDetailPage({
   const detail = await getFamilyDetail(brandSlug, size, familySlug, audience);
   if (!detail) notFound();
 
+  // Admin girişi varken stok her zaman görünür (kontrol/doğrulama için);
+  // aksi halde plasiyerin showStock yetkisine bakılır. Admin cookie'si
+  // olmayan ziyaretçilerde getAdminSession DB'ye gitmeden null döner.
   const salespersonId = (await cookies()).get(SALESPERSON_ID_COOKIE)?.value;
-  const showStock = await getSalespersonShowStock(salespersonId);
+  const admin = await getAdminSession();
+  const showStock = admin ? true : await getSalespersonShowStock(salespersonId);
 
   const { family, brand, sizes, allVariants } = detail;
 
