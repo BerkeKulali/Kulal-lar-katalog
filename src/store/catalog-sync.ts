@@ -212,6 +212,9 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
         );
       },
     }),
-    { name: "kulalilar-catalog-sync-v2", skipHydration: true }
+    // v3: Önceki sürümde admin senkronunda stok 0'a kısılıp localStorage'a
+    // yazılıyordu. Sürümü yükseltmek bu bayat önbelleği geçersiz kılar; herkes
+    // düzeltilmiş stok mantığıyla temiz bir tam senkron alır.
+    { name: "kulalilar-catalog-sync-v3", skipHydration: true }
   )
 );
