@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
 import { touchDevice } from "@/lib/device-activity";
+import { getAdminSession } from "@/lib/admin-auth";
 import { buildCatalogSync } from "@/lib/sync-server";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,8 @@ export async function GET(request: Request) {
   // Mevcut sync çağrısına binen, throttle'lı "son görülme" heartbeat'i.
   await touchDevice(deviceToken);
 
-  const payload = await buildCatalogSync(since, salespersonId);
+  // Admin cookie'si olmayan ziyaretçilerde DB'ye gitmeden null döner.
+  const admin = await getAdminSession();
+  const payload = await buildCatalogSync(since, salespersonId, Boolean(admin));
   return NextResponse.json(payload);
 }
