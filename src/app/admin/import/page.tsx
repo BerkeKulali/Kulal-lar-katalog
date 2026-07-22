@@ -878,16 +878,32 @@ function SupplierCsvImportForm({
   );
 }
 
+type StockImportResult = {
+  variantsUpdated: number;
+  zeroBalanceUpdated: number;
+  stockLinesWritten: number;
+  matchedCodes: number;
+  totalCodes: number;
+  unmatchedCodes: string[];
+  errors: string[];
+};
+
+function emptyStockResult(errors: string[]): StockImportResult {
+  return {
+    variantsUpdated: 0,
+    zeroBalanceUpdated: 0,
+    stockLinesWritten: 0,
+    matchedCodes: 0,
+    totalCodes: 0,
+    unmatchedCodes: [],
+    errors,
+  };
+}
+
 function StockImportForm() {
   const [file, setFile] = useState<File | null>(null);
-  const [mode, setMode] = useState("replace");
   const [pending, setPending] = useState(false);
-  const [result, setResult] = useState<{
-    variantsUpdated: number;
-    stockLinesWritten: number;
-    skippedCodes: string[];
-    errors: string[];
-  } | null>(null);
+  const [result, setResult] = useState<StockImportResult | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleStockSubmit(e: FormEvent) {
@@ -907,18 +923,12 @@ function StockImportForm() {
     const backup = await createPreImportBackup("netsis-stock");
     if (!backup.ok) {
       setLoading(false);
-      setResult({
-        variantsUpdated: 0,
-        stockLinesWritten: 0,
-        skippedCodes: [],
-        errors: [backup.error ?? "Yedek alınamadı"],
-      });
+      setResult(emptyStockResult([backup.error ?? "Yedek alınamadı"]));
       return;
     }
 
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("mode", mode);
 
     const res = await fetch("/api/admin/stock/import", {
       method: "POST",
@@ -929,12 +939,7 @@ function StockImportForm() {
     setLoading(false);
 
     if (!res.ok) {
-      setResult({
-        variantsUpdated: 0,
-        stockLinesWritten: 0,
-        skippedCodes: [],
-        errors: [data.error ?? "Hata"],
-      });
+      setResult(emptyStockResult([data.error ?? "Hata"]));
       return;
     }
 
@@ -943,6 +948,15 @@ function StockImportForm() {
 
   return (
     <form onSubmit={handleStockSubmit} className="space-y-4">
+      <p className="text-xs text-zinc-500">
+        Eşleşme yalnızca varyantlara atanmış{" "}
+        <strong className="text-zinc-300">Netsis stok kodu</strong> ile yapılır.
+        Kod atamak için{" "}
+        <Link href="/admin/netsis" className="underline hover:text-white">
+          Netsis kod eşleştirme
+        </Link>{" "}
+        ekranını kullanın. Bakiye 0 olan ürünlerin stoğu da 0 olarak yazılır.
+      </p>
       <input
         type="file"
         accept=".xlsx,.xls,.csv"
@@ -952,14 +966,6 @@ function StockImportForm() {
         }}
         className="block w-full text-sm"
       />
-      <select
-        value={mode}
-        onChange={(e) => setMode(e.target.value)}
-        className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm"
-      >
-        <option value="replace">Eşleşen ürünlerde stoku tamamen yenile</option>
-        <option value="upsert">Özellik etiketine göre güncelle / ekle</option>
-      </select>
       {pending && file && (
         <ImportConfirmPanel
           title="Netsis stok içe aktarmayı onaylayın"
@@ -971,12 +977,8 @@ function StockImportForm() {
             Dosya: <strong>{file.name}</strong>
           </p>
           <p>
-            Mod:{" "}
-            <strong>
-              {mode === "replace"
-                ? "Eşleşen ürünlerde stoku tamamen yenile"
-                : "Özellik etiketine göre güncelle / ekle"}
-            </strong>
+            Eşleşen varyantların stoğu Netsis bakiyesiyle{" "}
+            <strong>tamamen yenilenir</strong> (0 dahil).
           </p>
         </ImportConfirmPanel>
       )}
@@ -991,15 +993,25 @@ function StockImportForm() {
       {result && (
         <div className="mt-6 space-y-2 text-sm">
           <p className="text-green-400">
-            {result.variantsUpdated} ürün · {result.stockLinesWritten} stok satırı
-            güncellendi
+            {result.matchedCodes}/{result.totalCodes} kod eşleşti ·{" "}
+            {result.variantsUpdated} ürün güncellendi
+            {result.zeroBalanceUpdated > 0 && (
+              <span className="text-zinc-400">
+                {" "}
+                ({result.zeroBalanceUpdated} tanesi 0 stok)
+              </span>
+            )}
           </p>
-          {result.skippedCodes.length > 0 && (
-            <p className="text-xs text-amber-400">
-              Eşleşmeyen kodlar ({result.skippedCodes.length}):{" "}
-              {result.skippedCodes.slice(0, 8).join(", ")}
-              {result.skippedCodes.length > 8 ? "…" : ""}
-            </p>
+          {result.unmatchedCodes.length > 0 && (
+            <details className="text-xs text-amber-400">
+              <summary className="cursor-pointer">
+                Eşleşmeyen kodlar ({result.unmatchedCodes.length}) — bu kodlara
+                sahip varyant yok
+              </summary>
+              <p className="mt-1 max-h-48 overflow-y-auto break-words text-amber-300/80">
+                {result.unmatchedCodes.join(", ")}
+              </p>
+            </details>
           )}
           {result.errors.length > 0 && (
             <ul className="max-h-48 overflow-y-auto text-xs text-red-400">

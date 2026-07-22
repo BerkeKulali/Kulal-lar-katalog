@@ -43,6 +43,26 @@ async function ensureVariantFeatureColumns(client: ReturnType<typeof createClien
   }
 }
 
+/**
+ * netsisStockCode kolonu ve benzersiz index'ini idempotent ekler.
+ * Yarıda kalan bir migration'da (kolon var, index yok gibi) tekrar
+ * çalıştırıldığında hata vermemesi için varlık kontrolü yapar.
+ */
+async function ensureVariantNetsisColumn(
+  client: ReturnType<typeof createClient>
+) {
+  const cols = await client.execute(`PRAGMA table_info("ProductVariant")`);
+  const names = new Set(cols.rows.map((r) => String(r.name)));
+  if (!names.has("netsisStockCode")) {
+    await client.execute(
+      `ALTER TABLE "ProductVariant" ADD COLUMN "netsisStockCode" TEXT`
+    );
+  }
+  await client.execute(
+    `CREATE UNIQUE INDEX IF NOT EXISTS "ProductVariant_netsisStockCode_key" ON "ProductVariant"("netsisStockCode")`
+  );
+}
+
 async function listMigrationDirs() {
   const entries = await readdir(migrationsRoot, { withFileTypes: true });
   return entries
@@ -79,7 +99,12 @@ async function main() {
     if (dir === "20260710140000_variant_features") {
       await ensureVariantFeatureColumns(client);
     }
-    await client.executeMultiple(sql);
+    if (dir === "20260721140000_variant_netsis_stock_code") {
+      // Idempotent kolon+index ekleme; ham ADD COLUMN tekrarını atla.
+      await ensureVariantNetsisColumn(client);
+    } else {
+      await client.executeMultiple(sql);
+    }
     await client.execute({
       sql: `INSERT INTO "_turso_migrations" ("name") VALUES (?)`,
       args: [dir],

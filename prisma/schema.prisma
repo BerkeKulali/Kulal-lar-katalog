@@ -103,7 +103,9 @@ model ProductVariant {
   feature3D     Boolean       @default(false)
   featureRec    Boolean       @default(false)
   code          String?
-  price         Int?
+  /** Netsis stok kodu — stok importunda eşleşme anahtarı. Global benzersiz. */
+  netsisStockCode String?     @unique
+  price          Int?
   palletM2      Float?
   boxM2         Float?
   truckM2       Float?

@@ -108,6 +108,85 @@ export function parseNetsisStockRows(
   return { parsed, errors };
 }
 
+// --- Netsis "Stok Kodu + Bakiye" ile eşleşen import (netsisStockCode) ---
+
+const STOCK_CODE_KEYS = [
+  "stok kodu",
+  "stok_kodu",
+  "stokkodu",
+  "netsis kodu",
+  "netsis_kodu",
+  ...CODE_KEYS,
+];
+
+const BALANCE_KEYS = [
+  "bakiye",
+  "balance",
+  "sipariş alınabilir",
+  "siparis alinabilir",
+  "genel toplam (1. kalite)",
+  "genel toplam",
+  "genel_toplam",
+  "miktar",
+  "stok",
+  "quantity",
+];
+
+export type NetsisBalanceRow = {
+  code: string;
+  quantityM2: number;
+  rowNum: number;
+};
+
+export type ParsedNetsisBalances = {
+  /** code → toplam bakiye (0 dahil). Kod büyük harfe normalize edilir. */
+  balances: Map<string, number>;
+  errors: string[];
+};
+
+/**
+ * "Stok Kodu" ve "Bakiye" sütunlu Netsis dökümünü ayrıştırır.
+ * - Bakiye 0 olan satırlar KORUNUR (stok sıfıra çekilebilsin diye).
+ * - Aynı kod birden çok kez geçerse bakiyeler toplanır.
+ * - Boş/kodsuz satırlar hata olarak raporlanır.
+ */
+export function parseNetsisBalanceRows(
+  rows: Record<string, unknown>[]
+): ParsedNetsisBalances {
+  const balances = new Map<string, number>();
+  const errors: string[] = [];
+
+  for (const [index, row] of rows.entries()) {
+    const rowNum = index + 2;
+    const codeRaw = pickColumn(row, STOCK_CODE_KEYS);
+    const code = codeRaw != null ? String(codeRaw).trim().toUpperCase() : "";
+    if (!code) {
+      // Tamamen boş satırları sessizce atla; yalnızca bakiyesi olup kodu
+      // olmayan satırları hata say.
+      const balanceRaw = pickColumn(row, BALANCE_KEYS);
+      if (balanceRaw != null && String(balanceRaw).trim() !== "") {
+        errors.push(`Satır ${rowNum}: Stok kodu boş`);
+      }
+      continue;
+    }
+
+    const balanceRaw = pickColumn(row, BALANCE_KEYS);
+    // Boş bakiye 0 kabul edilir (Netsis bazen boş bırakır).
+    const quantity =
+      balanceRaw == null || String(balanceRaw).trim() === ""
+        ? 0
+        : parseStockQuantity(balanceRaw);
+    if (quantity == null) {
+      errors.push(`Satır ${rowNum}: Geçersiz bakiye (${String(balanceRaw)})`);
+      continue;
+    }
+
+    balances.set(code, (balances.get(code) ?? 0) + quantity);
+  }
+
+  return { balances, errors };
+}
+
 export function aggregateStockRows(rows: NetsisStockRow[]) {
   const byCode = new Map<string, Map<string, number>>();
 

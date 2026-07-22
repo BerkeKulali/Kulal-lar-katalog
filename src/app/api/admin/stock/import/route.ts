@@ -3,12 +3,21 @@ import * as XLSX from "xlsx";
 import { requireAdmin } from "@/lib/admin-auth";
 import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { hasAnyPermission } from "@/lib/admin-permissions";
-import {
-  aggregateStockRows,
-  parseNetsisStockRows,
-} from "@/lib/netsis-stock-import";
+import { parseNetsisBalanceRows } from "@/lib/netsis-stock-import";
 import { prisma } from "@/lib/prisma";
 
+/** Netsis stok içe aktarımında yazılan tek stok satırının etiketi. */
+const NETSIS_STOCK_LABEL = "Netsis";
+
+/**
+ * Netsis stok içe aktarımı.
+ *
+ * Eşleşme YALNIZCA ProductVariant.netsisStockCode ile yapılır (eski `code`
+ * alanı kullanılmaz). Her Netsis kodu tek bir bakiye taşır; eşleşen varyantın
+ * stok satırları bu tek değere göre yeniden yazılır. Bakiye 0 ise stok 0 m²
+ * olarak yazılır (satır silinmez) — böylece Netsis'te tükenen ürünler
+ * katalogda da tükenmiş görünür.
+ */
 export async function POST(request: Request) {
   const admin = await requireAdmin();
   if (!admin) {
@@ -23,7 +32,6 @@ export async function POST(request: Request) {
 
   const formData = await request.formData();
   const file = formData.get("file");
-  const mode = (formData.get("mode") as string) ?? "replace";
 
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Dosya gerekli" }, { status: 400 });
@@ -36,81 +44,60 @@ export async function POST(request: Request) {
     defval: "",
   });
 
-  const { parsed, errors: parseErrors } = parseNetsisStockRows(rows);
-  const aggregated = aggregateStockRows(parsed);
+  const { balances, errors: parseErrors } = parseNetsisBalanceRows(rows);
 
   const results = {
     variantsUpdated: 0,
+    zeroBalanceUpdated: 0,
     stockLinesWritten: 0,
-    skippedCodes: [] as string[],
+    matchedCodes: 0,
+    totalCodes: balances.size,
+    unmatchedCodes: [] as string[],
     errors: [...parseErrors],
   };
 
-  const codes = [...aggregated.keys()];
-  if (codes.length === 0) {
+  if (balances.size === 0) {
     return NextResponse.json(results);
   }
 
+  const codes = [...balances.keys()];
+
+  // netsisStockCode ile eşleşen aktif varyantlar (marka kapsamı korunur).
   const variants = await prisma.productVariant.findMany({
     where: {
-      code: { in: codes },
+      netsisStockCode: { in: codes },
       isActive: true,
       ...(admin.brandId ? { family: { brandId: admin.brandId } } : {}),
     },
-    select: { id: true, code: true },
+    select: { id: true, netsisStockCode: true },
   });
 
   const variantByCode = new Map(
     variants
-      .filter((v) => v.code)
-      .map((v) => [v.code!.toUpperCase(), v])
+      .filter((v) => v.netsisStockCode)
+      .map((v) => [v.netsisStockCode!.toUpperCase(), v])
   );
 
   for (const code of codes) {
     const variant = variantByCode.get(code);
     if (!variant) {
-      results.skippedCodes.push(code);
+      results.unmatchedCodes.push(code);
       continue;
     }
 
-    const labelMap = aggregated.get(code)!;
-    const lines = [...labelMap.entries()].map(([label, quantityM2]) => ({
-      label,
-      quantityM2: Math.round(quantityM2 * 100) / 100,
-    }));
+    const quantityM2 = Math.round((balances.get(code) ?? 0) * 100) / 100;
 
+    // Tek bakiye = tek stok satırı. Önceki satırları silip yeniden yazarak
+    // hem eski çok-etiketli kayıtları temizler hem de 0'ı 0 olarak yazar.
     await prisma.$transaction(async (tx) => {
-      if (mode === "replace") {
-        await tx.stockLine.deleteMany({ where: { variantId: variant.id } });
-        await tx.stockLine.createMany({
-          data: lines.map((line) => ({
-            variantId: variant.id,
-            label: line.label,
-            quantityM2: line.quantityM2,
-          })),
-        });
-      } else {
-        for (const line of lines) {
-          const existing = await tx.stockLine.findFirst({
-            where: { variantId: variant.id, label: line.label },
-          });
-          if (existing) {
-            await tx.stockLine.update({
-              where: { id: existing.id },
-              data: { quantityM2: line.quantityM2 },
-            });
-          } else {
-            await tx.stockLine.create({
-              data: {
-                variantId: variant.id,
-                label: line.label,
-                quantityM2: line.quantityM2,
-              },
-            });
-          }
-        }
-      }
-
+      await tx.stockLine.deleteMany({ where: { variantId: variant.id } });
+      await tx.stockLine.create({
+        data: {
+          variantId: variant.id,
+          label: NETSIS_STOCK_LABEL,
+          quantityM2,
+        },
+      });
       await tx.productVariant.update({
         where: { id: variant.id },
         data: { updatedAt: new Date() },
@@ -118,7 +105,9 @@ export async function POST(request: Request) {
     });
 
     results.variantsUpdated++;
-    results.stockLinesWritten += lines.length;
+    results.matchedCodes++;
+    results.stockLinesWritten++;
+    if (quantityM2 === 0) results.zeroBalanceUpdated++;
   }
 
   if (results.variantsUpdated > 0) {

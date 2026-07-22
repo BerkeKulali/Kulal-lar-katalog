@@ -68,6 +68,11 @@ export const ADMIN_NAV: {
   { href: "/admin/gorseller", label: "Görsel yönetimi (Cloudinary)", permission: "images" },
   { href: "/admin/fiyatlar", label: "Fiyat listesi", permission: "prices" },
   { href: "/admin/stoklar", label: "Stok yönetimi", permission: "stock" },
+  {
+    href: "/admin/netsis",
+    label: "Netsis kod eşleştirme",
+    permission: "stock",
+  },
   { href: "/admin/siparisler", label: "Siparişler", permission: "orders" },
   { href: "/admin/import", label: "Excel import / export", permission: "import" },
 ];

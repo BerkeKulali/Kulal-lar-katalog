@@ -1,0 +1,100 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import {
+  parseNetsisBalanceRows,
+  parseStockQuantity,
+} from "@/lib/netsis-stock-import";
+
+describe("parseStockQuantity", () => {
+  it("düz sayıları okur", () => {
+    assert.equal(parseStockQuantity(802), 802);
+    assert.equal(parseStockQuantity("243"), 243);
+    assert.equal(parseStockQuantity("0"), 0);
+  });
+
+  it("nokta ondalık biçimini okur (Netsis örneği)", () => {
+    assert.equal(parseStockQuantity("1.452"), 1.452);
+    assert.equal(parseStockQuantity("2.834"), 2.834);
+  });
+
+  it("TR biçimi 2.656,80 = 2656.8", () => {
+    assert.equal(parseStockQuantity("2.656,80"), 2656.8);
+  });
+
+  it("virgül ondalık: 1,5 = 1.5", () => {
+    assert.equal(parseStockQuantity("1,5"), 1.5);
+  });
+
+  it("boş / negatif için null", () => {
+    assert.equal(parseStockQuantity(""), null);
+    assert.equal(parseStockQuantity(null), null);
+    assert.equal(parseStockQuantity("-5"), null);
+  });
+});
+
+describe("parseNetsisBalanceRows", () => {
+  it("Stok Kodu + Bakiye sütunlarını eşler", () => {
+    const { balances, errors } = parseNetsisBalanceRows([
+      { "Stok Kodu": "GRS0000002", "Stok İsmi": "MISHA", Bakiye: "802" },
+      { "Stok Kodu": "GRL91707369", Bakiye: "243" },
+    ]);
+    assert.equal(errors.length, 0);
+    assert.equal(balances.get("GRS0000002"), 802);
+    assert.equal(balances.get("GRL91707369"), 243);
+  });
+
+  it("bakiye 0 satırlarını korur (stok sıfırlanabilsin)", () => {
+    const { balances } = parseNetsisBalanceRows([
+      { "Stok Kodu": "BIP156XDBAB8-3D", Bakiye: "0" },
+    ]);
+    assert.equal(balances.get("BIP156XDBAB8-3D"), 0);
+    assert.ok(balances.has("BIP156XDBAB8-3D"));
+  });
+
+  it("kodu büyük harfe normalize eder", () => {
+    const { balances } = parseNetsisBalanceRows([
+      { "stok kodu": "grs000000221", bakiye: "1.452" },
+    ]);
+    assert.equal(balances.get("GRS000000221"), 1.452);
+  });
+
+  it("aynı kodun bakiyelerini toplar", () => {
+    const { balances } = parseNetsisBalanceRows([
+      { "Stok Kodu": "X1", Bakiye: "10" },
+      { "Stok Kodu": "X1", Bakiye: "5" },
+    ]);
+    assert.equal(balances.get("X1"), 15);
+  });
+
+  it("boş bakiyeyi 0 kabul eder", () => {
+    const { balances } = parseNetsisBalanceRows([
+      { "Stok Kodu": "X1", Bakiye: "" },
+    ]);
+    assert.equal(balances.get("X1"), 0);
+  });
+
+  it("kodsuz ama bakiyeli satırı hata sayar", () => {
+    const { balances, errors } = parseNetsisBalanceRows([
+      { "Stok Kodu": "", Bakiye: "50" },
+    ]);
+    assert.equal(balances.size, 0);
+    assert.equal(errors.length, 1);
+    assert.match(errors[0], /Stok kodu boş/);
+  });
+
+  it("tamamen boş satırı sessizce atlar", () => {
+    const { balances, errors } = parseNetsisBalanceRows([
+      { "Stok Kodu": "", Bakiye: "" },
+    ]);
+    assert.equal(balances.size, 0);
+    assert.equal(errors.length, 0);
+  });
+
+  it("geçersiz bakiyeyi hata sayar", () => {
+    const { errors } = parseNetsisBalanceRows([
+      { "Stok Kodu": "X1", Bakiye: "abc" },
+    ]);
+    assert.equal(errors.length, 1);
+    assert.match(errors[0], /Geçersiz bakiye/);
+  });
+});
