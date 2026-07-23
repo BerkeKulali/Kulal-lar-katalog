@@ -12,8 +12,13 @@ export function DeviceCookieSync() {
     fetch("/api/device/me", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data && typeof data.showStock === "boolean") {
-          useCatalogSyncStore.setState({ showStock: data.showStock });
+        if (!data) return;
+        const patch: { showStock?: boolean; salesEnabled?: boolean } = {};
+        if (typeof data.showStock === "boolean") patch.showStock = data.showStock;
+        if (typeof data.salesEnabled === "boolean")
+          patch.salesEnabled = data.salesEnabled;
+        if (Object.keys(patch).length > 0) {
+          useCatalogSyncStore.setState(patch);
         }
       })
       .catch(() => {});

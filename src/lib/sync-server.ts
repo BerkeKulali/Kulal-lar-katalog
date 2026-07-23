@@ -61,6 +61,7 @@ export async function buildCatalogSync(since?: Date, showStock = false) {
     imageCatalogVersion,
     serverTime: new Date().toISOString(),
     showStock,
+    salesEnabled: settings?.salesEnabled ?? true,
     variants: variants.map((v) => ({
       id: v.id,
       familyId: v.familyId,

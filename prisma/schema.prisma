@@ -266,6 +266,8 @@ model Announcement {
 model AppSettings {
   id                   String   @id @default("default")
   lastPriceListUpdate  DateTime @default(now())
+  /** Katalogdan satış (sepet/sipariş) açık mı? Kapalıyken sepet gizlenir. */
+  salesEnabled         Boolean  @default(true)
   updatedAt            DateTime @updatedAt
 }
 

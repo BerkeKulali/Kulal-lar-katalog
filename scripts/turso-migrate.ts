@@ -105,6 +105,19 @@ async function ensureVariantNetsisCodesTable(
   }
 }
 
+/** AppSettings.salesEnabled kolonunu idempotent ekler. */
+async function ensureAppSettingsSalesEnabledColumn(
+  client: ReturnType<typeof createClient>
+) {
+  const cols = await client.execute(`PRAGMA table_info("AppSettings")`);
+  const names = new Set(cols.rows.map((r) => String(r.name)));
+  if (!names.has("salesEnabled")) {
+    await client.execute(
+      `ALTER TABLE "AppSettings" ADD COLUMN "salesEnabled" BOOLEAN NOT NULL DEFAULT true`
+    );
+  }
+}
+
 /** Device.showStock kolonunu idempotent ekler. */
 async function ensureDeviceShowStockColumn(
   client: ReturnType<typeof createClient>
@@ -162,6 +175,8 @@ async function main() {
       await ensureVariantNetsisCodesTable(client);
     } else if (dir === "20260722160000_device_show_stock") {
       await ensureDeviceShowStockColumn(client);
+    } else if (dir === "20260722170000_app_settings_sales_enabled") {
+      await ensureAppSettingsSalesEnabledColumn(client);
     } else {
       await client.executeMultiple(sql);
     }

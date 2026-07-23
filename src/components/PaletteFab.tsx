@@ -2,9 +2,14 @@
 
 import Link from "next/link";
 import { useCartStore } from "@/store/cart";
+import { useCatalogSyncStore } from "@/store/catalog-sync";
 
 export function PaletteFab() {
   const count = useCartStore((s) => s.items.length);
+  const salesEnabled = useCatalogSyncStore((s) => s.salesEnabled);
+
+  // Satış kapalıyken sepet/sipariş erişimi gizlenir.
+  if (!salesEnabled) return null;
 
   return (
     <Link

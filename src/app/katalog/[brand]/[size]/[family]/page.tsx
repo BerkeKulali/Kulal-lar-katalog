@@ -10,7 +10,7 @@ import { ProductDetailView } from "@/components/ProductDetailView";
 import { SiteHeader } from "@/components/SiteHeader";
 import { formatSizeLabel, normalizeSize } from "@/lib/constants";
 import { getAdminSession } from "@/lib/admin-auth";
-import { getFamilyDetail } from "@/lib/catalog";
+import { getAppSettings, getFamilyDetail } from "@/lib/catalog";
 import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
 import { resolveStockVisibility } from "@/lib/stock-visibility";
 import { kaliteQuery, parseKaliteFilter } from "@/lib/utils";
@@ -38,11 +38,10 @@ export default async function ProductDetailPage({
   const salespersonId = cookieStore.get(SALESPERSON_ID_COOKIE)?.value;
   const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
   const admin = await getAdminSession();
-  const showStock = await resolveStockVisibility({
-    isAdmin: Boolean(admin),
-    salespersonId,
-    deviceToken,
-  });
+  const [showStock, settings] = await Promise.all([
+    resolveStockVisibility({ isAdmin: Boolean(admin), salespersonId, deviceToken }),
+    getAppSettings(),
+  ]);
 
   const { family, brand, sizes, allVariants } = detail;
 
@@ -66,6 +65,7 @@ export default async function ProductDetailPage({
           familyImageUrl={family.imageUrl}
           sizes={sizes}
           showStock={showStock}
+          salesEnabled={settings.salesEnabled ?? true}
           variants={allVariants.map((v) => ({
             id: v.id,
             size: v.size,

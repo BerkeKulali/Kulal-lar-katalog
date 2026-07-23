@@ -18,6 +18,7 @@ type CatalogSyncState = {
   priceListVersion: string | null;
   imageCatalogVersion: string | null;
   showStock: boolean;
+  salesEnabled: boolean;
   variants: Record<string, SyncVariantRow>;
   families: Record<string, SyncFamilyRow>;
   imageCache: Record<string, ImageCacheEntry>;
@@ -83,6 +84,7 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
       priceListVersion: null,
       imageCatalogVersion: null,
       showStock: true,
+      salesEnabled: true,
       variants: {},
       families: {},
       imageCache: {},
@@ -144,6 +146,7 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
             variants,
             families,
             showStock,
+            salesEnabled: payload.salesEnabled ?? true,
             lastSyncAt: payload.serverTime,
             priceListVersion: payload.priceListVersion,
             imageCatalogVersion: payload.imageCatalogVersion,

@@ -31,6 +31,7 @@ export type SyncPayload = {
   imageCatalogVersion: string;
   serverTime: string;
   showStock: boolean;
+  salesEnabled: boolean;
   variants: SyncVariantRow[];
   families: SyncFamilyRow[];
   isDelta: boolean;

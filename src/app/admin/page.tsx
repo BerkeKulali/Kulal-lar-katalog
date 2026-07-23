@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { AdminLogoutButton } from "@/components/admin/AdminLogoutButton";
+import { SalesToggle } from "@/components/admin/SalesToggle";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/admin-auth";
 import { ADMIN_NAV, formatAdminScope, getEffectivePermissions } from "@/lib/admin-permissions";
@@ -78,6 +79,10 @@ export default async function AdminDashboardPage() {
           <AdminLogoutButton />
         </div>
       </div>
+
+      {permissions.includes("orders") && (
+        <SalesToggle initialEnabled={settings?.salesEnabled ?? true} />
+      )}
 
       <div className="mb-4 grid grid-cols-3 gap-4">
         <div className="border border-zinc-800 p-4">

@@ -30,6 +30,15 @@ function isUniqueConstraintError(err: unknown): boolean {
 }
 
 export async function createOrder(input: CreateOrderInput) {
+  // 0) Satış kapalıysa hiçbir sipariş kabul edilmez (sunucu tarafı zorlama).
+  const settings = await prisma.appSettings.findUnique({
+    where: { id: "default" },
+    select: { salesEnabled: true },
+  });
+  if (settings && settings.salesEnabled === false) {
+    throw new OrderValidationError("Satış şu anda kapalı", 403);
+  }
+
   // 1) Cihaz doğrulaması — token yalnızca cookie'den gelir, gövdeden değil.
   if (!input.deviceToken) {
     throw new OrderValidationError("Cihaz kaydı bulunamadı", 401);

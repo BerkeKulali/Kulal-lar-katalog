@@ -106,6 +106,7 @@ export function ProductDetailView({
   initialSize,
   initialQuality,
   showStock: initialShowStock = true,
+  salesEnabled: initialSalesEnabled = true,
 }: {
   familyName: string;
   brandName: string;
@@ -115,6 +116,7 @@ export function ProductDetailView({
   initialSize: string;
   initialQuality?: "FIRST" | "END";
   showStock?: boolean;
+  salesEnabled?: boolean;
 }) {
   const addItem = useCartStore((s) => s.addItem);
   const getSyncedPrice = useCatalogSyncStore((s) => s.getSyncedPrice);
@@ -122,6 +124,7 @@ export function ProductDetailView({
     (s) => s.getFamilyStockForVariant
   );
   const syncedShowStock = useCatalogSyncStore((s) => s.showStock);
+  const syncedSalesEnabled = useCatalogSyncStore((s) => s.salesEnabled);
   const hasSyncData = useCatalogSyncStore(
     (s) => Object.keys(s.variants).length > 0
   );
@@ -218,6 +221,7 @@ export function ProductDetailView({
   const hasPrice = displayPrice != null && displayPrice > 0;
 
   const canShowStock = hasSyncData ? syncedShowStock : initialShowStock;
+  const salesEnabled = hasSyncData ? syncedSalesEnabled : initialSalesEnabled;
 
   const syncedStockTotal =
     canShowStock && selected && hasSyncData
@@ -374,6 +378,7 @@ export function ProductDetailView({
             )}
           </div>
 
+          {salesEnabled && (
           <div className="product-detail-actions">
             <div className="product-detail-qty-block">
               <div className="product-detail-qty-row">
@@ -432,6 +437,7 @@ export function ProductDetailView({
               {added ? "Sepete eklendi ✓" : "Sepete ekle"}
             </button>
           </div>
+          )}
         </>
       )}
 
@@ -514,7 +520,7 @@ export function ProductDetailView({
           </DetailSection>
         )}
 
-        {selected && (
+        {selected && salesEnabled && (
           <DetailSection title="SATIŞ">
             <DetailOption
               active={saleMode === "pallet"}
