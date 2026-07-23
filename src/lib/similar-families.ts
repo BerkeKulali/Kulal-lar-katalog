@@ -35,27 +35,35 @@ export async function getSimilarFamilies(
   familyId: string,
   audience?: CatalogAudience
 ): Promise<SimilarFamilyItem[]> {
-  const rows = await prisma.similarFamily.findMany({
-    where: {
-      familyId,
-      similarFamily: {
-        isActive: true,
-        ...(audience ? brandVisibilityFilter(audience) : {}),
+  let rows;
+  try {
+    rows = await prisma.similarFamily.findMany({
+      where: {
+        familyId,
+        similarFamily: {
+          isActive: true,
+          ...(audience ? brandVisibilityFilter(audience) : {}),
+        },
       },
-    },
-    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    include: {
-      similarFamily: {
-        include: {
-          brand: { select: { name: true, slug: true } },
-          variants: {
-            where: { isActive: true },
-            select: { size: true, quality: true, imageUrl: true },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      include: {
+        similarFamily: {
+          include: {
+            brand: { select: { name: true, slug: true } },
+            variants: {
+              where: { isActive: true },
+              select: { size: true, quality: true, imageUrl: true },
+            },
           },
         },
       },
-    },
-  });
+    });
+  } catch (err) {
+    // Benzer ürünler opsiyoneldir: sorgu hatası (ör. migration henüz
+    // uygulanmadıysa) katalogu çökertmesin.
+    console.error("getSimilarFamilies failed:", err);
+    return [];
+  }
 
   return rows
     .map(({ similarFamily: fam }) => {
