@@ -42,7 +42,9 @@ export async function getSimilarFamilies(
         familyId,
         similarFamily: {
           isActive: true,
-          ...(audience ? brandVisibilityFilter(audience) : {}),
+          // Görünürlük Brand alanlarında (isVisible / visibleToDealers);
+          // aileye değil, ilişkili markaya uygulanır.
+          ...(audience ? { brand: brandVisibilityFilter(audience) } : {}),
         },
       },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
