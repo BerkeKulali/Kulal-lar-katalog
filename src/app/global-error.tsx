@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { reportError } from "@/lib/report-error";
 
 /**
  * Root layout'un kendisi çökerse devreye girer. Bu noktada ThemeProvider ve
@@ -15,7 +16,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("Kritik uygulama hatası:", error);
+    reportError(error, { boundary: "global-error", digest: error.digest });
   }, [error]);
 
   return (

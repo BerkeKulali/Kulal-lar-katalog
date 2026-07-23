@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
+import { auditLog } from "@/lib/audit";
 import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 
@@ -37,6 +38,12 @@ export async function PATCH(request: Request) {
 
   // Katalog SSR ve sonraki sync'lerin taze değeri alması için.
   invalidateCatalogCache();
+
+  await auditLog(auth.admin, {
+    action: "settings.sales",
+    entityType: "settings",
+    summary: `Satış ${salesEnabled ? "açıldı" : "kapatıldı"}`,
+  });
 
   return NextResponse.json({ salesEnabled: settings.salesEnabled });
 }

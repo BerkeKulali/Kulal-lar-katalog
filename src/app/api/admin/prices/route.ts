@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import { prisma } from "@/lib/prisma";
 import { requireAdminPermission } from "@/lib/admin-auth";
+import { auditLog } from "@/lib/audit";
 import { normalizeSize } from "@/lib/constants";
 import {
   syncEndPriceForFirstVariant,
@@ -86,6 +87,13 @@ export async function POST(request: Request) {
     mode,
     admin
   );
+
+  await auditLog(admin, {
+    action: "price.import",
+    entityType: "price",
+    summary: `Excel fiyat import (${mode})`,
+    meta: results as unknown as Record<string, unknown>,
+  });
 
   return NextResponse.json(results);
 }
@@ -191,6 +199,12 @@ export async function PATCH(request: Request) {
       create: { id: "default", lastPriceListUpdate: new Date() },
     });
 
+    await auditLog(admin, {
+      action: "price.bulk",
+      entityType: "price",
+      summary: `Toplu fiyat: ${result.count} satır ${nextPrice} + KDV yapıldı`,
+    });
+
     return NextResponse.json({
       ok: true,
       updatedCount: result.count,
@@ -244,6 +258,15 @@ export async function PATCH(request: Request) {
     where: { id: "default" },
     update: { lastPriceListUpdate: new Date() },
     create: { id: "default", lastPriceListUpdate: new Date() },
+  });
+
+  await auditLog(admin, {
+    action: "price.update",
+    entityType: "variant",
+    entityId: variantId,
+    summary: `${variant.family.name} ${variant.size.toUpperCase()} ${variant.surface} fiyatı ${
+      nextPrice == null ? "kaldırıldı" : `${nextPrice} + KDV`
+    }`,
   });
 
   return NextResponse.json({

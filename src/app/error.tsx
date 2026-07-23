@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
+import { reportError } from "@/lib/report-error";
 
 /**
  * Katalog ve admin sayfaları için ortak hata ekranı.
@@ -16,7 +17,7 @@ export default function AppError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("Sayfa hatası:", error);
+    reportError(error, { boundary: "app-error", digest: error.digest });
   }, [error]);
 
   return (

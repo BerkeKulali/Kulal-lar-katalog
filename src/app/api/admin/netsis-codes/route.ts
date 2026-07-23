@@ -5,6 +5,7 @@ import { surfaceDisplayLabel } from "@/lib/constants";
 import { featureBadges } from "@/lib/product-features";
 import { prisma } from "@/lib/prisma";
 import { chunk, qualityLabel } from "@/lib/utils";
+import { auditLog } from "@/lib/audit";
 import { Prisma } from "@/generated/prisma/client";
 
 /** Turso parametre limitini aşmamak için IN sorguları bu boyutta parçalanır. */
@@ -245,7 +246,14 @@ export async function POST(request: Request) {
     }
   }
 
-  if (saved > 0) invalidateCatalogCache();
+  if (saved > 0) {
+    invalidateCatalogCache();
+    await auditLog(admin, {
+      action: "netsis.codes",
+      entityType: "family",
+      summary: `${saved} varyantın Netsis kodları güncellendi`,
+    });
+  }
 
   return NextResponse.json({ saved, conflicts });
 }

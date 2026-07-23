@@ -18,7 +18,11 @@ import {
 } from "@/lib/device-cookie";
 import { hashPassword, isHashedPassword, verifyPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
-import { checkRateLimit, clearRateLimit, clientIp } from "@/lib/rate-limit";
+import {
+  checkRateLimitShared,
+  clearRateLimitShared,
+  clientIp,
+} from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
   if (!isSessionSecretConfigured()) {
@@ -42,7 +46,10 @@ export async function POST(request: Request) {
   }
 
   const rateKey = `admin-login:${clientIp(request)}:${email}`;
-  const limit = checkRateLimit(rateKey, { max: 5, windowMs: 15 * 60 * 1000 });
+  const limit = await checkRateLimitShared(rateKey, {
+    max: 5,
+    windowMs: 15 * 60 * 1000,
+  });
   if (!limit.allowed) {
     return NextResponse.json(
       {
@@ -61,7 +68,7 @@ export async function POST(request: Request) {
     );
   }
 
-  clearRateLimit(rateKey);
+  await clearRateLimitShared(rateKey, 15 * 60 * 1000);
 
   // Geçiş dönemi: düz metin saklanan şifreyi ilk başarılı girişte hash'le.
   // Şifre DEĞİŞMEDİĞİ için passwordChangedAt'e dokunulmaz; aksi halde az önce

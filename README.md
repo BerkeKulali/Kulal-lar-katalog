@@ -123,6 +123,42 @@ Alternatif (CLI): `npx vercel` (ilk seferde env’leri sorar)
 - Kayıtlı tabletler (`/kurulum`) admin panele erişemez.
 - Canlıda `ADMIN_ACCESS_KEY` tanımlayın; giriş: `/admin/login?key=...` (bir kez, sonra cookie saklanır).
 
+## Operasyon / kurulum notları
+
+### Deploy'da migration otomasyonu (önerilir)
+
+Vercel → Settings → Build & Development Settings → **Build Command → Override**
+→ `npm run build`. Bu, her deploy'da `prisma generate && tsx
+scripts/turso-migrate.ts && next build` çalıştırır; migration'lar otomatik
+uygulanır ve "tablo yok" çökmeleri biter. `turso-migrate`, Turso yapılandırması
+yoksa güvenle atlar (yerel `npm run build` bozulmaz). `DATABASE_URL` +
+`DATABASE_AUTH_TOKEN`'ın Production build ortamında tanımlı olması gerekir.
+
+### Hata takibi (Sentry)
+
+`npx @sentry/wizard@latest -i nextjs` çalıştır (client/server/edge + source map
+kurulumunu otomatik yapar). Kurulumdan sonra manuel `catch` bloklarındaki
+`reportError` çağrılarını Sentry'ye bağlamak için bir kurulum dosyasında:
+
+```ts
+import * as Sentry from "@sentry/nextjs";
+import { setErrorSink } from "@/lib/report-error";
+setErrorSink((error, context) => Sentry.captureException(error, { extra: context }));
+```
+
+Kurulmadan da uygulama çalışır; `reportError` yapılandırılmış konsol logu üretir.
+
+### Dağıtık rate limit (Upstash)
+
+Upstash'ta ücretsiz Redis oluştur, `UPSTASH_REDIS_REST_URL` ve
+`UPSTASH_REDIS_REST_TOKEN`'ı Vercel env'ine ekle. Tanımlıysa admin login/kayıt
+oran sınırı tüm instance'lar arasında paylaşılır; tanımsızsa bellek-içine düşer.
+
+### Denetim izi
+
+Fiyat/stok/ürün/renk-tip/Netsis/satış gibi kritik işlemler `AdminAuditLog`'a
+yazılır. Admin panelde **Denetim izi** ("admins" yetkisi) ekranından görülür.
+
 ## Excel fiyat import
 
 Admin → Excel import/export → şablonu indir, düzenle, yükle.

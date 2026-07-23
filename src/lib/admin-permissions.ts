@@ -47,6 +47,7 @@ export const ADMIN_NAV: {
   permission: AdminPermission;
 }[] = [
   { href: "/admin/kullanicilar", label: "Admin kullanıcıları", permission: "admins" },
+  { href: "/admin/denetim", label: "Denetim izi", permission: "admins" },
   {
     href: "/admin/plasiyerler",
     label: "Plasiyerler (tablet kurulumu)",

@@ -3,7 +3,8 @@ import { cookies } from "next/headers";
 import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
 import { touchDevice } from "@/lib/device-activity";
 import { createOrder, OrderValidationError } from "@/lib/order-create";
-import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { checkRateLimitShared, clientIp } from "@/lib/rate-limit";
+import { reportError } from "@/lib/report-error";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export const dynamic = "force-dynamic";
  * - Plasiyer atfı cihaz kaydından gelir.
  */
 export async function POST(request: Request) {
-  const limit = checkRateLimit(`create-order:${clientIp(request)}`, {
+  const limit = await checkRateLimitShared(`create-order:${clientIp(request)}`, {
     max: 30,
     windowMs: 10 * 60 * 1000,
   });
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
     if (err instanceof OrderValidationError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
-    console.error("POST /api/orders failed:", err);
+    reportError(err, { route: "POST /api/orders" });
     return NextResponse.json(
       { error: "Sipariş oluşturulamadı" },
       { status: 500 }

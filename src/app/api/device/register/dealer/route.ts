@@ -12,10 +12,10 @@ import {
   deviceTokenCookieOptions,
 } from "@/lib/device-cookie";
 import { createDealerDeviceAccess } from "@/lib/device-access";
-import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { checkRateLimitShared, clientIp } from "@/lib/rate-limit";
 
 export async function POST(request: Request) {
-  const limit = checkRateLimit(`dealer-register:${clientIp(request)}`, {
+  const limit = await checkRateLimitShared(`dealer-register:${clientIp(request)}`, {
     max: 5,
     windowMs: 60 * 60 * 1000,
   });

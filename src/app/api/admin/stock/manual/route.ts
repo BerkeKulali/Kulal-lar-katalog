@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
+import { auditLog } from "@/lib/audit";
 import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 import { chunk } from "@/lib/utils";
@@ -73,7 +74,14 @@ export async function POST(request: Request) {
     updated++;
   }
 
-  if (updated > 0) invalidateCatalogCache();
+  if (updated > 0) {
+    invalidateCatalogCache();
+    await auditLog(admin, {
+      action: "stock.manual",
+      entityType: "stock",
+      summary: `${updated} ürünün stoğu ${quantityM2} m² olarak sabitlendi`,
+    });
+  }
 
   return NextResponse.json({ updated, skipped: variantIds.length - updated });
 }

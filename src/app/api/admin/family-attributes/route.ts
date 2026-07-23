@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
+import { auditLog } from "@/lib/audit";
 import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { prisma } from "@/lib/prisma";
 import {
@@ -105,7 +106,14 @@ export async function POST(request: Request) {
     saved += 1;
   }
 
-  if (saved > 0) invalidateCatalogCache();
+  if (saved > 0) {
+    invalidateCatalogCache();
+    await auditLog(admin, {
+      action: "family.attributes",
+      entityType: "family",
+      summary: `${saved} ürünün renk/tip bilgisi güncellendi`,
+    });
+  }
 
   return NextResponse.json({ saved });
 }

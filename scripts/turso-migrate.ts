@@ -5,12 +5,6 @@ import path from "node:path";
 
 const migrationsRoot = path.resolve(process.cwd(), "prisma/migrations");
 
-function requireEnv(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) throw new Error(`${name} eksik.`);
-  return value;
-}
-
 async function ensureMigrationsTable(client: ReturnType<typeof createClient>) {
   await client.execute(`
     CREATE TABLE IF NOT EXISTS "_turso_migrations" (
@@ -103,6 +97,35 @@ async function ensureVariantNetsisCodesTable(
       `ALTER TABLE "ProductVariant" DROP COLUMN "netsisStockCode"`
     );
   }
+}
+
+/** AdminAuditLog tablosunu ve index'lerini idempotent oluşturur. */
+async function ensureAdminAuditLogTable(
+  client: ReturnType<typeof createClient>
+) {
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS "AdminAuditLog" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "adminUserId" TEXT,
+      "adminName" TEXT NOT NULL,
+      "action" TEXT NOT NULL,
+      "entityType" TEXT,
+      "entityId" TEXT,
+      "summary" TEXT,
+      "meta" TEXT,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "AdminAuditLog_adminUserId_fkey" FOREIGN KEY ("adminUserId") REFERENCES "AdminUser" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    )
+  `);
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS "AdminAuditLog_createdAt_idx" ON "AdminAuditLog"("createdAt")`
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS "AdminAuditLog_action_createdAt_idx" ON "AdminAuditLog"("action", "createdAt")`
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS "AdminAuditLog_adminUserId_createdAt_idx" ON "AdminAuditLog"("adminUserId", "createdAt")`
+  );
 }
 
 /** FamilyClickEvent tablosunu ve index'lerini idempotent oluşturur. */
@@ -211,14 +234,26 @@ async function listMigrationDirs() {
 }
 
 async function main() {
-  const url = requireEnv("DATABASE_URL");
-  if (!url.startsWith("libsql://") && !url.startsWith("https://")) {
-    throw new Error(
-      `DATABASE_URL Turso olmali. Mevcut: ${url.slice(0, 20)}...`
+  // Build komutunun bir parçası olarak çalışabilir (npm run build). Turso
+  // yapılandırması yoksa (ör. yerel SQLite ile build) hata fırlatmak yerine
+  // sessizce ATLA — böylece `npm run build` her ortamda çalışır ve Vercel'de
+  // Turso env'i mevcutken migration otomatik uygulanır.
+  const url = process.env.DATABASE_URL?.trim();
+  const authToken = process.env.DATABASE_AUTH_TOKEN?.trim();
+
+  if (!url || (!url.startsWith("libsql://") && !url.startsWith("https://"))) {
+    console.log(
+      "turso-migrate: DATABASE_URL Turso değil; migration atlandı (yalnızca Turso'da uygulanır)."
     );
+    return;
+  }
+  if (!authToken) {
+    console.log(
+      "turso-migrate: DATABASE_AUTH_TOKEN yok; migration atlandı."
+    );
+    return;
   }
 
-  const authToken = requireEnv("DATABASE_AUTH_TOKEN");
   const client = createClient({ url, authToken });
 
   await ensureMigrationsTable(client);
@@ -254,6 +289,8 @@ async function main() {
       await ensureFamilyColorMaterialColumns(client);
     } else if (dir === "20260722200000_family_click_event") {
       await ensureFamilyClickEventTable(client);
+    } else if (dir === "20260723120000_admin_audit_log") {
+      await ensureAdminAuditLogTable(client);
     } else {
       await client.executeMultiple(sql);
     }

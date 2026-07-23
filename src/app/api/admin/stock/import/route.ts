@@ -3,6 +3,7 @@ import * as XLSX from "xlsx";
 import { requireAdmin } from "@/lib/admin-auth";
 import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { hasAnyPermission } from "@/lib/admin-permissions";
+import { auditLog } from "@/lib/audit";
 import { parseNetsisBalanceRows } from "@/lib/netsis-stock-import";
 import { prisma } from "@/lib/prisma";
 import { chunk } from "@/lib/utils";
@@ -127,6 +128,11 @@ export async function POST(request: Request) {
 
   if (results.variantsUpdated > 0) {
     invalidateCatalogCache();
+    await auditLog(admin, {
+      action: "stock.import",
+      entityType: "stock",
+      summary: `Netsis import: ${results.variantsUpdated} ürün güncellendi (${results.matchedCodes}/${results.totalCodes} kod, ${results.zeroBalanceUpdated} sıfır)`,
+    });
   }
 
   return NextResponse.json(results);

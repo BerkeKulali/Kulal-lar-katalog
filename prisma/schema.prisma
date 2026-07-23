@@ -299,6 +299,7 @@ model AdminUser {
   approvedOrders Order[]         @relation("OrderApprovedBy")
   orderLogs      OrderAdminLog[]
   accessRequests AccessRequest[] @relation("AccessRequestApprovedBy")
+  auditLogs      AdminAuditLog[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
@@ -311,6 +312,31 @@ model Announcement {
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+/**
+ * Admin denetim izi: kritik yönetim işlemlerinin (fiyat/stok/ürün/renk-tip/
+ * marka/netsis/satış vb.) kim tarafından ne zaman yapıldığını tutar.
+ */
+model AdminAuditLog {
+  id          String    @id @default(cuid())
+  adminUserId String?
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id], onDelete: SetNull)
+  adminName   String
+  /** Kısa işlem kodu: "price.update", "stock.import", "family.attributes" ... */
+  action      String
+  /** İlgili varlık tipi: "family" | "variant" | "brand" | "settings" ... */
+  entityType  String?
+  entityId    String?
+  /** İnsan-okur özet ("12 ürünün stoğu güncellendi" gibi). */
+  summary     String?
+  /** Ek ayrıntılar JSON (opsiyonel). */
+  meta        String?
+  createdAt   DateTime  @default(now())
+
+  @@index([createdAt])
+  @@index([action, createdAt])
+  @@index([adminUserId, createdAt])
 }
 
 model AppSettings {
