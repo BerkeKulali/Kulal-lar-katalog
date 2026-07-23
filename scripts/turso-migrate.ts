@@ -105,6 +105,35 @@ async function ensureVariantNetsisCodesTable(
   }
 }
 
+/** FamilyClickEvent tablosunu ve index'lerini idempotent oluşturur. */
+async function ensureFamilyClickEventTable(
+  client: ReturnType<typeof createClient>
+) {
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS "FamilyClickEvent" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "familyId" TEXT NOT NULL,
+      "deviceId" TEXT,
+      "salespersonId" TEXT,
+      "actorType" TEXT NOT NULL DEFAULT 'unknown',
+      "actorName" TEXT,
+      "count" INTEGER NOT NULL DEFAULT 1,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "FamilyClickEvent_familyId_fkey" FOREIGN KEY ("familyId") REFERENCES "ProductFamily" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT "FamilyClickEvent_salespersonId_fkey" FOREIGN KEY ("salespersonId") REFERENCES "Salesperson" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    )
+  `);
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS "FamilyClickEvent_familyId_createdAt_idx" ON "FamilyClickEvent"("familyId", "createdAt")`
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS "FamilyClickEvent_salespersonId_createdAt_idx" ON "FamilyClickEvent"("salespersonId", "createdAt")`
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS "FamilyClickEvent_createdAt_idx" ON "FamilyClickEvent"("createdAt")`
+  );
+}
+
 /** ProductFamily.color + materialType kolonlarını idempotent ekler. */
 async function ensureFamilyColorMaterialColumns(
   client: ReturnType<typeof createClient>
@@ -223,6 +252,8 @@ async function main() {
       await ensureSimilarFamilyTable(client);
     } else if (dir === "20260722190000_family_color_material") {
       await ensureFamilyColorMaterialColumns(client);
+    } else if (dir === "20260722200000_family_click_event") {
+      await ensureFamilyClickEventTable(client);
     } else {
       await client.executeMultiple(sql);
     }

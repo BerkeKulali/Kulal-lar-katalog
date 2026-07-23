@@ -58,6 +58,12 @@ export default function AdminClickStatsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link
+            href="/admin/istatistik/rapor"
+            className="text-xs text-zinc-500 hover:text-white"
+          >
+            Raporlar
+          </Link>
           <button
             type="button"
             onClick={() => loadData()}
@@ -104,7 +110,12 @@ export default function AdminClickStatsPage() {
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">
-                {item.familyName}
+                <Link
+                  href={`/admin/istatistik/rapor?familyId=${item.familyId}&dims=actor,date`}
+                  className="hover:underline"
+                >
+                  {item.familyName}
+                </Link>
                 {!item.isActive && (
                   <span className="ml-2 text-[10px] text-zinc-600">(pasif)</span>
                 )}

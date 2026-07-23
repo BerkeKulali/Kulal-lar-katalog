@@ -81,6 +81,7 @@ model ProductFamily {
   materialType   String?
   variants       ProductVariant[]
   clickStat      FamilyClickStat?
+  clickEvents    FamilyClickEvent[]
   similarOf      SimilarFamily[]  @relation("FamilyToSimilar")
   similarTo      SimilarFamily[]  @relation("SimilarToFamily")
   createdAt      DateTime         @default(now())
@@ -115,6 +116,30 @@ model FamilyClickStat {
   updatedAt DateTime      @updatedAt
 
   @@index([count])
+}
+
+/**
+ * Olay düzeyinde tıklama kaydı: hangi aileye, kim (bayi/plasiyer), ne zaman,
+ * kaç kez. Toplu gönderimde her aile için bir satır (sayı ile). Bayi/plasiyer
+ * ve tarih bazlı raporlar bundan üretilir.
+ */
+model FamilyClickEvent {
+  id            String        @id @default(cuid())
+  familyId      String
+  family        ProductFamily @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  deviceId      String?
+  salespersonId String?
+  salesperson   Salesperson?  @relation(fields: [salespersonId], references: [id], onDelete: SetNull)
+  /** "dealer" | "salesperson" | "unknown" */
+  actorType     String        @default("unknown")
+  /** Bayi adı veya plasiyer adı (o anki anlık kopya). */
+  actorName     String?
+  count         Int           @default(1)
+  createdAt     DateTime      @default(now())
+
+  @@index([familyId, createdAt])
+  @@index([salespersonId, createdAt])
+  @@index([createdAt])
 }
 
 model ProductVariant {
@@ -180,6 +205,7 @@ model Salesperson {
   accessRequests AccessRequest[]
   orders         Order[]
   visits         SiteVisit[]
+  clickEvents    FamilyClickEvent[]
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 }

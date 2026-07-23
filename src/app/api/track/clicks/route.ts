@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
+import {
+  DEVICE_ACTOR_NAME_COOKIE,
+  DEVICE_ACTOR_TYPE_COOKIE,
+  DEVICE_TOKEN_COOKIE,
+  SALESPERSON_ID_COOKIE,
+  SALESPERSON_NAME_COOKIE,
+} from "@/lib/device-cookie";
 import { touchDevice } from "@/lib/device-activity";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
@@ -20,10 +26,26 @@ type Incoming = { familyId?: unknown; count?: unknown };
 export async function POST(request: Request) {
   // Yalnızca kayıtlı cihazlar sayılır; hem kötüye kullanımı önler hem de
   // analitiği gerçek bayi/plasiyer kullanımıyla sınırlar.
-  const deviceToken = (await cookies()).get(DEVICE_TOKEN_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
   if (!deviceToken) {
     return NextResponse.json({ ok: true, skipped: true });
   }
+
+  // Aktör bilgisi (kim tıkladı) — event kaydı için.
+  const rawActorType = cookieStore.get(DEVICE_ACTOR_TYPE_COOKIE)?.value ?? "";
+  const actorType =
+    rawActorType === "dealer"
+      ? "dealer"
+      : rawActorType.startsWith("salesperson")
+        ? "salesperson"
+        : "unknown";
+  const salespersonId =
+    cookieStore.get(SALESPERSON_ID_COOKIE)?.value || null;
+  const actorName =
+    cookieStore.get(DEVICE_ACTOR_NAME_COOKIE)?.value ||
+    cookieStore.get(SALESPERSON_NAME_COOKIE)?.value ||
+    null;
 
   const limit = checkRateLimit(`track-clicks:${clientIp(request)}`, {
     max: 120,
@@ -58,19 +80,55 @@ export async function POST(request: Request) {
     select: { id: true },
   });
 
+  // Cihaz kimliği (event'e yazmak için) — tek sorgu.
+  const device = await prisma.device.findUnique({
+    where: { token: deviceToken },
+    select: { id: true },
+  });
+
+  const now = new Date();
+  const eventRows: {
+    familyId: string;
+    deviceId: string | null;
+    salespersonId: string | null;
+    actorType: string;
+    actorName: string | null;
+    count: number;
+    createdAt: Date;
+  }[] = [];
+
   let recorded = 0;
   for (const { id } of existing) {
     const inc = counts.get(id);
     if (!inc) continue;
     try {
+      // Hızlı sıralama için toplam sayaç.
       await prisma.familyClickStat.upsert({
         where: { familyId: id },
         create: { familyId: id, count: inc },
         update: { count: { increment: inc } },
       });
       recorded += 1;
+      // Kim/ne zaman kırılımı için olay satırı.
+      eventRows.push({
+        familyId: id,
+        deviceId: device?.id ?? null,
+        salespersonId,
+        actorType,
+        actorName,
+        count: inc,
+        createdAt: now,
+      });
     } catch {
       // tek bir ailenin yazımı başarısız olsa da diğerlerini bloklama
+    }
+  }
+
+  if (eventRows.length > 0) {
+    try {
+      await prisma.familyClickEvent.createMany({ data: eventRows });
+    } catch {
+      // event kaydı başarısız olsa da sayaç güncellenmiş olur; sessiz geç
     }
   }
 
