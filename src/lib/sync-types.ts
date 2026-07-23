@@ -24,6 +24,8 @@ export type SyncFamilyRow = {
   imageUpdatedAt: string | null;
   updatedAt: string;
   isActive: boolean;
+  color: string | null;
+  materialType: string | null;
 };
 
 export type SyncPayload = {

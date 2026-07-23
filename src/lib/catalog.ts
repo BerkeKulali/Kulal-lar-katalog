@@ -218,6 +218,8 @@ async function _getFamilyDetail(
       name: family.name,
       slug: family.slug,
       imageUrl: family.imageUrl,
+      color: family.color,
+      materialType: family.materialType,
     },
     brand: { id: brand.id, slug: brand.slug, name: brand.name },
     sizes: [...new Set(allVariants.map((v) => v.size))],
@@ -310,6 +312,8 @@ async function _getGlobalSearchCatalog(
         brandSlug: family.brand.slug,
         brandName: family.brand.name,
         imageUrl: family.imageUrl,
+        color: family.color,
+        materialType: family.materialType,
       },
       family.variants
     )

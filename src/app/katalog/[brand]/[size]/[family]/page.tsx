@@ -85,6 +85,8 @@ export default async function ProductDetailPage({
           initialSize={size}
           initialQuality={initialQuality}
           similar={similar}
+          color={family.color}
+          materialType={family.materialType}
         />
       </AppShell>
     </DeviceGate>

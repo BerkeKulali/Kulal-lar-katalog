@@ -89,6 +89,8 @@ export async function buildCatalogSync(since?: Date, showStock = false) {
       imageUpdatedAt: f.imageUpdatedAt?.toISOString() ?? null,
       updatedAt: f.updatedAt.toISOString(),
       isActive: f.isActive,
+      color: f.color,
+      materialType: f.materialType,
     })),
     isDelta: Boolean(since),
   };

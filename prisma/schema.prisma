@@ -75,6 +75,10 @@ model ProductFamily {
   imageUpdatedAt DateTime?
   sortOrder      Int              @default(0)
   isActive       Boolean          @default(true)
+  /** Önceden tanımlı renk kimliği (product-attributes.ts). */
+  color          String?
+  /** Önceden tanımlı görünüm/tip kimliği: mermer, ahsap, beton... */
+  materialType   String?
   variants       ProductVariant[]
   clickStat      FamilyClickStat?
   similarOf      SimilarFamily[]  @relation("FamilyToSimilar")

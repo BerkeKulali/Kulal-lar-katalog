@@ -7,6 +7,7 @@ import { HomeSearchSection } from "@/components/HomeSearchSection";
 import { SyncStatusLine } from "@/components/SyncStatusLine";
 import { SiteHeader } from "@/components/SiteHeader";
 import { formatSizeLabel } from "@/lib/constants";
+import { MATERIAL_TYPES } from "@/lib/product-attributes";
 import {
   getActiveAnnouncements,
   getAppSettings,
@@ -102,6 +103,26 @@ export default async function HomePage() {
           </div>
           <p className="mt-3 text-center text-[10px] text-zinc-600">
             Hızlı ölçü tüm markalarda arama yapar
+          </p>
+        </section>
+
+        <section className="mt-10 px-5">
+          <h2 className="mb-4 text-center text-xs font-semibold tracking-[0.3em] text-zinc-500">
+            TİPE GÖRE
+          </h2>
+          <div className="flex flex-wrap justify-center gap-3">
+            {MATERIAL_TYPES.map((m) => (
+              <Link
+                key={m.id}
+                href={`/arama?tip=${m.id}`}
+                className="catalog-size-chip catalog-filter-chip"
+              >
+                {m.label}
+              </Link>
+            ))}
+          </div>
+          <p className="mt-3 text-center text-[10px] text-zinc-600">
+            Mermer, ahşap, beton… tüm markalarda filtreler
           </p>
         </section>
         </HomeSearchSection>

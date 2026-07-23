@@ -72,6 +72,11 @@ export const ADMIN_NAV: {
     label: "Benzer ürünler",
     permission: "families",
   },
+  {
+    href: "/admin/renk-tip",
+    label: "Renk & Tip",
+    permission: "families",
+  },
   { href: "/admin/gorseller", label: "Görsel yönetimi (Cloudinary)", permission: "images" },
   { href: "/admin/fiyatlar", label: "Fiyat listesi", permission: "prices" },
   { href: "/admin/stoklar", label: "Stok yönetimi", permission: "stock" },

@@ -561,6 +561,34 @@ button.catalog-picker-chip:not(.catalog-picker-chip--disabled):hover {
   color: var(--app-muted);
 }
 
+.product-detail-attrs {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.product-detail-attr {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--app-muted);
+}
+
+.product-detail-attr-swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
 .product-detail-similar-btn {
   position: absolute;
   top: 0;
@@ -1037,6 +1065,20 @@ button.catalog-picker-chip:not(.catalog-picker-chip--disabled):hover {
 .catalog-size-chip:hover {
   border-color: var(--catalog-brand-border-hover);
   box-shadow: var(--catalog-brand-shadow-hover);
+}
+
+.catalog-size-chip--active {
+  border-color: var(--foreground);
+  background: var(--foreground);
+  color: var(--background);
+}
+
+/* Filtre çipleri biraz daha küçük ve daha az harf aralığı */
+.catalog-filter-chip {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  border-radius: 999px;
 }
 
 [data-theme="light"] .text-white {

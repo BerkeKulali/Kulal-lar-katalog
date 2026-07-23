@@ -105,6 +105,22 @@ async function ensureVariantNetsisCodesTable(
   }
 }
 
+/** ProductFamily.color + materialType kolonlarını idempotent ekler. */
+async function ensureFamilyColorMaterialColumns(
+  client: ReturnType<typeof createClient>
+) {
+  const cols = await client.execute(`PRAGMA table_info("ProductFamily")`);
+  const names = new Set(cols.rows.map((r) => String(r.name)));
+  if (!names.has("color")) {
+    await client.execute(`ALTER TABLE "ProductFamily" ADD COLUMN "color" TEXT`);
+  }
+  if (!names.has("materialType")) {
+    await client.execute(
+      `ALTER TABLE "ProductFamily" ADD COLUMN "materialType" TEXT`
+    );
+  }
+}
+
 /** SimilarFamily tablosunu ve index'lerini idempotent oluşturur. */
 async function ensureSimilarFamilyTable(
   client: ReturnType<typeof createClient>
@@ -205,6 +221,8 @@ async function main() {
       await ensureAppSettingsSalesEnabledColumn(client);
     } else if (dir === "20260722180000_similar_family") {
       await ensureSimilarFamilyTable(client);
+    } else if (dir === "20260722190000_family_color_material") {
+      await ensureFamilyColorMaterialColumns(client);
     } else {
       await client.executeMultiple(sql);
     }

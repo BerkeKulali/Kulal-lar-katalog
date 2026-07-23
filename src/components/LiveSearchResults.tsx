@@ -7,17 +7,22 @@ import {
   buildGlobalSearchItems,
   compareSearchItems,
   familyMatchesQuery,
+  itemMatchesAttributes,
   type GlobalSearchItem,
 } from "@/lib/search";
 import { useCatalogSyncStore } from "@/store/catalog-sync";
 
 export function LiveSearchResults({
   query,
+  color = null,
+  materialType = null,
   fallbackItems = [],
   className = "mt-8 catalog-grid-2 grid grid-cols-2 gap-6 px-5",
   showBrand = false,
 }: {
   query: string;
+  color?: string | null;
+  materialType?: string | null;
   fallbackItems?: GlobalSearchItem[];
   className?: string;
   showBrand?: boolean;
@@ -38,19 +43,24 @@ export function LiveSearchResults({
     return fallbackItems;
   }, [fallbackItems, families, hasSyncData, variants]);
 
+  const hasQuery = query.trim().length > 0;
+  const hasFilter = hasQuery || Boolean(color) || Boolean(materialType);
+
   const filtered = useMemo(() => {
-    if (!query.trim()) return [];
+    if (!hasFilter) return [];
     return items
       .filter((item) => familyMatchesQuery(item.name, item.codes, query))
+      .filter((item) => itemMatchesAttributes(item, color, materialType))
       .sort(compareSearchItems);
-  }, [items, query]);
+  }, [items, query, color, materialType, hasFilter]);
 
-  if (!query.trim()) return null;
+  if (!hasFilter) return null;
 
   return (
     <section className={className}>
       <p className="col-span-2 text-xs text-zinc-500">
-        &quot;{query.trim()}&quot; için {filtered.length} sonuç
+        {hasQuery ? `"${query.trim()}" için ` : ""}
+        {filtered.length} sonuç
       </p>
       {filtered.length === 0 ? (
         <p className="col-span-2 py-8 text-center text-sm text-zinc-500">

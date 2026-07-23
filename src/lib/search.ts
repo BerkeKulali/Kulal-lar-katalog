@@ -15,6 +15,8 @@ export type GlobalSearchItem = {
   size: string;
   prices: PriceSummary;
   codes: string[];
+  color: string | null;
+  materialType: string | null;
 };
 
 type SearchVariant = {
@@ -33,6 +35,8 @@ type SearchFamily = {
   brandSlug: string;
   brandName?: string;
   imageUrl?: string | null;
+  color?: string | null;
+  materialType?: string | null;
 };
 
 export function normalizeSearchQuery(query: string) {
@@ -48,6 +52,17 @@ export function familyMatchesQuery(
   if (!q) return true;
   if (familyName.toLowerCase().includes(q)) return true;
   return codes.some((code) => code.toLowerCase().includes(q));
+}
+
+/** Renk/tip filtresi. Boş filtre her şeyi geçirir. */
+export function itemMatchesAttributes(
+  item: Pick<GlobalSearchItem, "color" | "materialType">,
+  color?: string | null,
+  materialType?: string | null
+) {
+  if (color && item.color !== color) return false;
+  if (materialType && item.materialType !== materialType) return false;
+  return true;
 }
 
 export function sortSizes(sizes: string[]) {
@@ -105,6 +120,8 @@ export function buildFamilySearchItems(
         }))
       ),
       codes: allCodes,
+      color: family.color ?? null,
+      materialType: family.materialType ?? null,
     };
   });
 }
@@ -133,6 +150,8 @@ export function buildGlobalSearchItems(
         slug: family.slug,
         brandSlug: family.brandSlug,
         imageUrl: family.imageUrl,
+        color: family.color ?? null,
+        materialType: family.materialType ?? null,
       },
       familyVariants.map((v) => ({
         size: v.size,

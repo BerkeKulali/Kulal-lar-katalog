@@ -5,6 +5,11 @@ import Link from "next/link";
 import { TileImage } from "@/components/TileImage";
 import { useCartStore } from "@/store/cart";
 import { formatSizeDisplay, surfaceDisplayLabel } from "@/lib/constants";
+import {
+  colorHex,
+  colorLabel,
+  materialTypeLabel,
+} from "@/lib/product-attributes";
 import { featureBadges } from "@/lib/product-features";
 import { pickVariantDisplayImage, toImageCandidates } from "@/lib/product-image";
 import { useCatalogSyncStore } from "@/store/catalog-sync";
@@ -119,6 +124,8 @@ export function ProductDetailView({
   showStock: initialShowStock = true,
   salesEnabled: initialSalesEnabled = true,
   similar = [],
+  color = null,
+  materialType = null,
 }: {
   familyName: string;
   brandName: string;
@@ -130,6 +137,8 @@ export function ProductDetailView({
   showStock?: boolean;
   salesEnabled?: boolean;
   similar?: SimilarProduct[];
+  color?: string | null;
+  materialType?: string | null;
 }) {
   const addItem = useCartStore((s) => s.addItem);
   const getSyncedPrice = useCatalogSyncStore((s) => s.getSyncedPrice);
@@ -350,6 +359,24 @@ export function ProductDetailView({
                 </span>
               ))}
             </div>
+            {(materialTypeLabel(materialType) || colorLabel(color)) && (
+              <div className="product-detail-attrs">
+                {materialTypeLabel(materialType) && (
+                  <span className="product-detail-attr">
+                    {materialTypeLabel(materialType)}
+                  </span>
+                )}
+                {colorLabel(color) && (
+                  <span className="product-detail-attr">
+                    <span
+                      className="product-detail-attr-swatch"
+                      style={{ background: colorHex(color) ?? undefined }}
+                    />
+                    {colorLabel(color)}
+                  </span>
+                )}
+              </div>
+            )}
             {selected.code && (
               <p className="product-detail-code">{selected.code}</p>
             )}
