@@ -67,6 +67,11 @@ export const ADMIN_NAV: {
     label: "Tıklanma istatistiği",
     permission: "families",
   },
+  {
+    href: "/admin/benzer-urunler",
+    label: "Benzer ürünler",
+    permission: "families",
+  },
   { href: "/admin/gorseller", label: "Görsel yönetimi (Cloudinary)", permission: "images" },
   { href: "/admin/fiyatlar", label: "Fiyat listesi", permission: "prices" },
   { href: "/admin/stoklar", label: "Stok yönetimi", permission: "stock" },

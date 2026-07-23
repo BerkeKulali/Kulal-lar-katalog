@@ -77,11 +77,31 @@ model ProductFamily {
   isActive       Boolean          @default(true)
   variants       ProductVariant[]
   clickStat      FamilyClickStat?
+  similarOf      SimilarFamily[]  @relation("FamilyToSimilar")
+  similarTo      SimilarFamily[]  @relation("SimilarToFamily")
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
   @@unique([brandId, slug])
   @@index([brandId])
+}
+
+/**
+ * Benzer ürün ilişkisi (aile↔aile). Simetrik tutulur: her çift iki yönlü
+ * (A→B ve B→A) satır olarak yazılır, böylece okuma tek kolondan yapılır.
+ */
+model SimilarFamily {
+  id              String        @id @default(cuid())
+  familyId        String
+  family          ProductFamily @relation("FamilyToSimilar", fields: [familyId], references: [id], onDelete: Cascade)
+  similarFamilyId String
+  similarFamily   ProductFamily @relation("SimilarToFamily", fields: [similarFamilyId], references: [id], onDelete: Cascade)
+  sortOrder       Int           @default(0)
+  createdAt       DateTime      @default(now())
+
+  @@unique([familyId, similarFamilyId])
+  @@index([familyId])
+  @@index([similarFamilyId])
 }
 
 model FamilyClickStat {

@@ -560,6 +560,93 @@ button.catalog-picker-chip:not(.catalog-picker-chip--disabled):hover {
   color: var(--app-muted);
 }
 
+.product-detail-similar-btn {
+  margin: 0.75rem auto 0;
+  display: block;
+  border: 1px solid var(--foreground);
+  border-radius: 999px;
+  padding: 0.4rem 1.1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.product-detail-similar-btn:hover {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.product-detail-similar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.product-detail-similar-modal {
+  width: 100%;
+  max-width: 32rem;
+  max-height: 85vh;
+  overflow-y: auto;
+  border: 1px solid var(--app-border);
+  background: var(--app-main-bg);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.product-detail-similar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.product-detail-similar-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.product-detail-similar-close {
+  font-size: 1.125rem;
+  line-height: 1;
+  color: var(--app-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.product-detail-similar-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.product-detail-similar-card {
+  display: block;
+  text-decoration: none;
+  color: var(--foreground);
+}
+
+.product-detail-similar-name {
+  margin-top: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.product-detail-similar-brand {
+  font-size: 0.6875rem;
+  color: var(--app-muted);
+}
+
 .product-detail-actions {
   margin-top: 1.25rem;
   padding: 0 1.25rem;

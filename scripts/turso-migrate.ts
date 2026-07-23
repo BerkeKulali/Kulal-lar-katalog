@@ -105,6 +105,32 @@ async function ensureVariantNetsisCodesTable(
   }
 }
 
+/** SimilarFamily tablosunu ve index'lerini idempotent oluşturur. */
+async function ensureSimilarFamilyTable(
+  client: ReturnType<typeof createClient>
+) {
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS "SimilarFamily" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "familyId" TEXT NOT NULL,
+      "similarFamilyId" TEXT NOT NULL,
+      "sortOrder" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "SimilarFamily_familyId_fkey" FOREIGN KEY ("familyId") REFERENCES "ProductFamily" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT "SimilarFamily_similarFamilyId_fkey" FOREIGN KEY ("similarFamilyId") REFERENCES "ProductFamily" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    )
+  `);
+  await client.execute(
+    `CREATE UNIQUE INDEX IF NOT EXISTS "SimilarFamily_familyId_similarFamilyId_key" ON "SimilarFamily"("familyId", "similarFamilyId")`
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS "SimilarFamily_familyId_idx" ON "SimilarFamily"("familyId")`
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS "SimilarFamily_similarFamilyId_idx" ON "SimilarFamily"("similarFamilyId")`
+  );
+}
+
 /** AppSettings.salesEnabled kolonunu idempotent ekler. */
 async function ensureAppSettingsSalesEnabledColumn(
   client: ReturnType<typeof createClient>
@@ -177,6 +203,8 @@ async function main() {
       await ensureDeviceShowStockColumn(client);
     } else if (dir === "20260722170000_app_settings_sales_enabled") {
       await ensureAppSettingsSalesEnabledColumn(client);
+    } else if (dir === "20260722180000_similar_family") {
+      await ensureSimilarFamilyTable(client);
     } else {
       await client.executeMultiple(sql);
     }

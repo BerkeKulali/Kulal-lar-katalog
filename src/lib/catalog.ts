@@ -7,22 +7,11 @@ import type { Quality } from "@/generated/prisma/client";
 import { pickSizeListImage, toImageCandidates } from "@/lib/product-image";
 import { buildFamilySearchItems, type GlobalSearchItem } from "@/lib/search";
 import { CATALOG_TAG, CATALOG_REVALIDATE_SECONDS } from "@/lib/cache-tags";
-import type { CatalogAudience } from "@/lib/catalog-audience";
+import { brandVisibilityFilter, type CatalogAudience } from "@/lib/catalog-audience";
+import { getSimilarFamilies } from "@/lib/similar-families";
 
 export type { PriceSummary };
 export { buildPriceSummary };
-
-/**
- * Marka görünürlüğü artık veritabanında (Brand.isVisible / visibleToDealers).
- * Daha önce bu kural üç ayrı yerde koda gömülüydü ve birini güncellemeyi
- * unutmak kolaydı.
- */
-export function brandVisibilityFilter(audience: CatalogAudience) {
-  return {
-    isVisible: true,
-    ...(audience === "dealer" ? { visibleToDealers: true } : {}),
-  };
-}
 
 const catalogCacheOptions = {
   tags: [CATALOG_TAG],
@@ -221,6 +210,8 @@ async function _getFamilyDetail(
         : null,
   }));
 
+  const similar = await getSimilarFamilies(family.id, audience);
+
   return {
     family: {
       id: family.id,
@@ -231,6 +222,7 @@ async function _getFamilyDetail(
     brand: { id: brand.id, slug: brand.slug, name: brand.name },
     sizes: [...new Set(allVariants.map((v) => v.size))],
     allVariants,
+    similar,
   };
 }
 

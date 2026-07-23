@@ -43,7 +43,7 @@ export default async function ProductDetailPage({
     getAppSettings(),
   ]);
 
-  const { family, brand, sizes, allVariants } = detail;
+  const { family, brand, sizes, allVariants, similar } = detail;
 
   return (
     <DeviceGate>
@@ -84,6 +84,7 @@ export default async function ProductDetailPage({
           }))}
           initialSize={size}
           initialQuality={initialQuality}
+          similar={similar}
         />
       </AppShell>
     </DeviceGate>

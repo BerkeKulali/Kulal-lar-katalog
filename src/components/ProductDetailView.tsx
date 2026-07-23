@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FocusEvent, type ReactNode } from "react";
+import Link from "next/link";
 import { TileImage } from "@/components/TileImage";
 import { useCartStore } from "@/store/cart";
 import { formatSizeDisplay, surfaceDisplayLabel } from "@/lib/constants";
@@ -33,6 +34,16 @@ type Variant = {
   imageUrl: string | null;
   stockLines: { id: string; label: string; quantityM2: number }[];
   stockUpdatedAt: string | null;
+};
+
+export type SimilarProduct = {
+  id: string;
+  name: string;
+  slug: string;
+  brandSlug: string;
+  brandName: string;
+  size: string;
+  imageUrl: string | null;
 };
 
 const STOCK_UPDATED_FMT = new Intl.DateTimeFormat("tr-TR", {
@@ -107,6 +118,7 @@ export function ProductDetailView({
   initialQuality,
   showStock: initialShowStock = true,
   salesEnabled: initialSalesEnabled = true,
+  similar = [],
 }: {
   familyName: string;
   brandName: string;
@@ -117,6 +129,7 @@ export function ProductDetailView({
   initialQuality?: "FIRST" | "END";
   showStock?: boolean;
   salesEnabled?: boolean;
+  similar?: SimilarProduct[];
 }) {
   const addItem = useCartStore((s) => s.addItem);
   const getSyncedPrice = useCatalogSyncStore((s) => s.getSyncedPrice);
@@ -136,6 +149,7 @@ export function ProductDetailView({
   const [qtyText, setQtyText] = useState("");
   const [saleMode, setSaleMode] = useState<SaleMode>("m2");
   const [added, setAdded] = useState(false);
+  const [showSimilar, setShowSimilar] = useState(false);
 
   const variantsForSize = useMemo(
     () => variants.filter((v) => v.size === size),
@@ -340,6 +354,16 @@ export function ProductDetailView({
               <p className="product-detail-code">{selected.code}</p>
             )}
 
+            {similar.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowSimilar(true)}
+                className="product-detail-similar-btn"
+              >
+                Benzer ürünler ({similar.length})
+              </button>
+            )}
+
             <div className="product-detail-stats product-detail-stats--pack">
               {canShowStock && (
                 <div className="product-detail-stat">
@@ -542,6 +566,65 @@ export function ProductDetailView({
             </DetailOption>
           </DetailSection>
         )}
+      </div>
+
+      {showSimilar && (
+        <SimilarProductsModal
+          items={similar}
+          onClose={() => setShowSimilar(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function SimilarProductsModal({
+  items,
+  onClose,
+}: {
+  items: SimilarProduct[];
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="product-detail-similar-overlay"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="product-detail-similar-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="product-detail-similar-head">
+          <p className="product-detail-similar-title">Benzer ürünler</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="product-detail-similar-close"
+            aria-label="Kapat"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="product-detail-similar-grid">
+          {items.map((item) => (
+            <Link
+              key={item.id}
+              href={`/katalog/${item.brandSlug}/${item.size}/${item.slug}`}
+              onClick={onClose}
+              className="product-detail-similar-card"
+            >
+              <TileImage
+                src={item.imageUrl}
+                alt={item.name}
+                size={item.size}
+                context="list"
+              />
+              <p className="product-detail-similar-name">{item.name}</p>
+              <p className="product-detail-similar-brand">{item.brandName}</p>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
