@@ -1,40 +1,12 @@
 import { prisma } from "@/lib/prisma";
+import {
+  parseDimensions,
+  type ReportFilters,
+  type ReportResult,
+} from "@/lib/click-report-shared";
 
-export type ReportDimension = "product" | "date" | "actor";
-
-export const REPORT_DIMENSIONS: ReportDimension[] = ["product", "date", "actor"];
-
-export const DIMENSION_LABELS: Record<ReportDimension, string> = {
-  product: "Ürün",
-  date: "Tarih",
-  actor: "Bayi / Plasiyer",
-};
-
-export type ReportFilters = {
-  from: Date;
-  to: Date;
-  familyId?: string | null;
-  actorType?: "dealer" | "salesperson" | null;
-  salespersonId?: string | null;
-  actorQuery?: string | null;
-  dimensions: ReportDimension[];
-  adminBrandId: string | null;
-};
-
-export type ReportRow = {
-  product: string | null;
-  date: string | null;
-  actor: string | null;
-  actorType: string | null;
-  count: number;
-};
-
-export type ReportResult = {
-  dimensions: ReportDimension[];
-  rows: ReportRow[];
-  total: number;
-  truncated: boolean;
-};
+// Saf tip/etiket/yardımcılar istemcinin de kullanabilmesi için ayrı dosyada.
+export * from "@/lib/click-report-shared";
 
 const MAX_EVENTS = 50_000;
 const ISTANBUL = "Europe/Istanbul";
@@ -55,12 +27,6 @@ function actorLabel(actorType: string, actorName: string | null): string {
   if (actorType === "dealer") return "Bilinmeyen bayi";
   if (actorType === "salesperson") return "Bilinmeyen plasiyer";
   return "Bilinmeyen";
-}
-
-export function actorTypeLabel(actorType: string | null): string {
-  if (actorType === "dealer") return "Bayi";
-  if (actorType === "salesperson") return "Plasiyer";
-  return "—";
 }
 
 /** URL parametrelerinden rapor filtrelerini üretir (varsayılan: son 30 gün). */
@@ -104,12 +70,6 @@ export function parseReportFilters(
   };
 }
 
-export function parseDimensions(raw: string | null | undefined): ReportDimension[] {
-  const parts = (raw ?? "").split(",").map((s) => s.trim());
-  const dims = REPORT_DIMENSIONS.filter((d) => parts.includes(d));
-  return dims.length > 0 ? dims : ["product"];
-}
-
 export async function buildClickReport(
   filters: ReportFilters
 ): Promise<ReportResult> {
@@ -146,7 +106,13 @@ export async function buildClickReport(
   const dims = filters.dimensions;
   const groups = new Map<
     string,
-    { product: string | null; date: string | null; actor: string | null; actorType: string | null; count: number }
+    {
+      product: string | null;
+      date: string | null;
+      actor: string | null;
+      actorType: string | null;
+      count: number;
+    }
   >();
 
   let total = 0;
@@ -165,7 +131,7 @@ export async function buildClickReport(
     const actorType = dims.includes("actor") ? ev.actorType : null;
 
     const key = [product ?? "", date ?? "", actor ?? "", actorType ?? ""].join(
-      ""
+      "|"
     );
     const existing = groups.get(key);
     if (existing) {

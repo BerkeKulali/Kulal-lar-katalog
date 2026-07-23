@@ -7,7 +7,7 @@ import {
   REPORT_DIMENSIONS,
   type ReportDimension,
   type ReportResult,
-} from "@/lib/click-report";
+} from "@/lib/click-report-shared";
 
 type Salesperson = { id: string; name: string };
 
