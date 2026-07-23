@@ -57,7 +57,8 @@ function pickColumn(row: Record<string, unknown>, keys: string[]): unknown {
  */
 export function parseStockQuantity(raw: unknown): number | null {
   if (raw === null || raw === undefined || raw === "") return null;
-  if (typeof raw === "number" && Number.isFinite(raw)) return raw >= 0 ? raw : null;
+  // Negatif stok (ör. Netsis'te fazla satış) kabul edilir.
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
   const s = String(raw).trim().replace(/\s/g, "");
   if (!s) return null;
 
@@ -82,7 +83,7 @@ export function parseStockQuantity(raw: unknown): number | null {
   }
 
   const n = Number(normalized);
-  return Number.isFinite(n) && n >= 0 ? n : null;
+  return Number.isFinite(n) ? n : null;
 }
 
 export type NetsisStockRow = {

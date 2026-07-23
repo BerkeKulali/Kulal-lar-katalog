@@ -44,8 +44,12 @@ export async function POST(request: Request) {
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: "array" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  // raw: false → hücreler görüntülenen metin olarak gelir. "1.241" gibi Türkçe
+  // binlik ayıraçlı değerler SheetJS tarafından 1.241 sayısına dönüştürülmeden
+  // korunur; parseStockQuantity Türkçe biçimi doğru çözer.
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
     defval: "",
+    raw: false,
   });
 
   const { balances, errors: parseErrors } = parseNetsisBalanceRows(rows);

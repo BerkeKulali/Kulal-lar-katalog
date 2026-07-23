@@ -61,10 +61,15 @@ describe("parseStockQuantity", () => {
     assert.equal(parseStockQuantity("1,5"), 1.5);
   });
 
-  it("boş / negatif için null", () => {
+  it("boş değer için null", () => {
     assert.equal(parseStockQuantity(""), null);
     assert.equal(parseStockQuantity(null), null);
-    assert.equal(parseStockQuantity("-5"), null);
+  });
+
+  it("negatif stoku kabul eder (fazla satış)", () => {
+    assert.equal(parseStockQuantity("-5"), -5);
+    assert.equal(parseStockQuantity(-12), -12);
+    assert.equal(parseStockQuantity("-1.241"), -1241);
   });
 });
 

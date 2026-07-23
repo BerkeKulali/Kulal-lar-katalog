@@ -31,13 +31,14 @@ export async function POST(request: Request) {
   if (variantIds.length === 0) {
     return NextResponse.json({ error: "Ürün seçilmedi" }, { status: 400 });
   }
-  if (!Number.isFinite(quantity) || quantity < 0) {
+  if (!Number.isFinite(quantity)) {
     return NextResponse.json(
-      { error: "Geçerli bir stok miktarı girin (0 veya üzeri)" },
+      { error: "Geçerli bir stok miktarı girin" },
       { status: 400 }
     );
   }
-  if (quantity > MAX_QUANTITY_M2) {
+  // Negatif stok (fazla satış) kabul edilir; yalnızca aşırı büyüklüğü sınırla.
+  if (Math.abs(quantity) > MAX_QUANTITY_M2) {
     return NextResponse.json({ error: "Miktar çok büyük" }, { status: 400 });
   }
 
