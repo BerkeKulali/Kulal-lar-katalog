@@ -7,7 +7,7 @@ import { HomeSearchSection } from "@/components/HomeSearchSection";
 import { SyncStatusLine } from "@/components/SyncStatusLine";
 import { SiteHeader } from "@/components/SiteHeader";
 import { formatSizeLabel } from "@/lib/constants";
-import { MATERIAL_TYPES } from "@/lib/product-attributes";
+import { HOME_COLORS, HOME_MATERIAL_TYPES } from "@/lib/product-attributes";
 import {
   getActiveAnnouncements,
   getAppSettings,
@@ -111,7 +111,7 @@ export default async function HomePage() {
             TİPE GÖRE
           </h2>
           <div className="flex flex-wrap justify-center gap-3">
-            {MATERIAL_TYPES.map((m) => (
+            {HOME_MATERIAL_TYPES.map((m) => (
               <Link
                 key={m.id}
                 href={`/arama?tip=${m.id}`}
@@ -123,6 +123,30 @@ export default async function HomePage() {
           </div>
           <p className="mt-3 text-center text-[10px] text-zinc-600">
             Mermer, ahşap, beton… tüm markalarda filtreler
+          </p>
+        </section>
+
+        <section className="mt-10 px-5">
+          <h2 className="mb-4 text-center text-xs font-semibold tracking-[0.3em] text-zinc-500">
+            RENGE GÖRE
+          </h2>
+          <div className="flex flex-wrap justify-center gap-3">
+            {HOME_COLORS.map((c) => (
+              <Link
+                key={c.id}
+                href={`/arama?renk=${c.id}`}
+                className="catalog-size-chip catalog-filter-chip inline-flex items-center gap-1.5"
+              >
+                <span
+                  className="inline-block h-3 w-3 rounded-full border border-black/20"
+                  style={{ background: c.hex }}
+                />
+                {c.label}
+              </Link>
+            ))}
+          </div>
+          <p className="mt-3 text-center text-[10px] text-zinc-600">
+            Renge göre tüm markalarda filtreler
           </p>
         </section>
         </HomeSearchSection>

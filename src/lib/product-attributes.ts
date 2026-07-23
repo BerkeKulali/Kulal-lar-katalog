@@ -36,6 +36,18 @@ export const COLORS: ColorOption[] = [
 const MATERIAL_BY_ID = new Map(MATERIAL_TYPES.map((m) => [m.id, m]));
 const COLOR_BY_ID = new Map(COLORS.map((c) => [c.id, c]));
 
+/**
+ * Anasayfada gösterilen sade alt kümeler (tam liste arama sayfası çiplerinde).
+ * Sıra buradaki dizilime göredir.
+ */
+export const HOME_MATERIAL_TYPES: MaterialType[] = ["mermer", "dogaltas", "ahsap", "beton"]
+  .map((id) => MATERIAL_BY_ID.get(id))
+  .filter((m): m is MaterialType => Boolean(m));
+
+export const HOME_COLORS: ColorOption[] = ["siyah", "beyaz", "bej", "gri"]
+  .map((id) => COLOR_BY_ID.get(id))
+  .filter((c): c is ColorOption => Boolean(c));
+
 export function isMaterialType(id: string | null | undefined): boolean {
   return Boolean(id && MATERIAL_BY_ID.has(id));
 }
