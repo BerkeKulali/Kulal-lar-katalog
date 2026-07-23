@@ -41,9 +41,16 @@ describe("parseStockQuantity", () => {
     assert.equal(parseStockQuantity("0"), 0);
   });
 
-  it("nokta ondalık biçimini okur (Netsis örneği)", () => {
-    assert.equal(parseStockQuantity("1.452"), 1.452);
-    assert.equal(parseStockQuantity("2.834"), 2.834);
+  it("nokta binlik ayıracıdır (Netsis Türkçe biçimi)", () => {
+    assert.equal(parseStockQuantity("1.241"), 1241);
+    assert.equal(parseStockQuantity("2.834"), 2834);
+    assert.equal(parseStockQuantity("12.345"), 12345);
+    assert.equal(parseStockQuantity("1.234.567"), 1234567);
+  });
+
+  it("noktadan sonra 3 hane yoksa ondalık kabul eder", () => {
+    assert.equal(parseStockQuantity("1.5"), 1.5);
+    assert.equal(parseStockQuantity("1.02"), 1.02);
   });
 
   it("TR biçimi 2.656,80 = 2656.8", () => {
@@ -84,7 +91,7 @@ describe("parseNetsisBalanceRows", () => {
     const { balances } = parseNetsisBalanceRows([
       { "stok kodu": "grs000000221", bakiye: "1.452" },
     ]);
-    assert.equal(balances.get("GRS000000221"), 1.452);
+    assert.equal(balances.get("GRS000000221"), 1452);
   });
 
   it("aynı kodun bakiyelerini toplar", () => {

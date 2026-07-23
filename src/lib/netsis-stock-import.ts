@@ -46,22 +46,39 @@ function pickColumn(row: Record<string, unknown>, keys: string[]): unknown {
   return undefined;
 }
 
-/** TR/EN Excel sayıları: 2.656,80 · 2656.80 · 2,656.80 */
+/**
+ * Netsis/Excel sayısı → number. Netsis TÜRKÇE biçim kullanır:
+ *   nokta = binlik ayıracı, virgül = ondalık.
+ *   "1.241" = 1241 · "2.656,80" = 2656.8 · "1,5" = 1.5 · "56" = 56
+ *
+ * Nokta-only durumu belirsiz (binlik mi ondalık mı). Türkçe binlik grupları
+ * tam 3 hanedir; noktadan sonraki her grup 3 haneyse binlik kabul edilir
+ * (nokta silinir), aksi halde ondalık kabul edilir.
+ */
 export function parseStockQuantity(raw: unknown): number | null {
   if (raw === null || raw === undefined || raw === "") return null;
-  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw >= 0 ? raw : null;
   const s = String(raw).trim().replace(/\s/g, "");
   if (!s) return null;
 
   let normalized = s;
-  if (normalized.includes(",") && normalized.includes(".")) {
-    if (normalized.lastIndexOf(",") > normalized.lastIndexOf(".")) {
-      normalized = normalized.replace(/\./g, "").replace(",", ".");
-    } else {
-      normalized = normalized.replace(/,/g, "");
-    }
-  } else if (normalized.includes(",")) {
-    normalized = normalized.replace(",", ".");
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+
+  if (hasComma && hasDot) {
+    // Türkçe: nokta binlik, virgül ondalık.
+    normalized = s.replace(/\./g, "").replace(",", ".");
+  } else if (hasComma) {
+    // Virgül ondalık.
+    normalized = s.replace(",", ".");
+  } else if (hasDot) {
+    // Nokta-only: binlik mi ondalık mı?
+    const parts = s.split(".");
+    const groupsAfterFirst = parts.slice(1);
+    const looksLikeThousands =
+      groupsAfterFirst.length > 0 &&
+      groupsAfterFirst.every((p) => /^\d{3}$/.test(p));
+    normalized = looksLikeThousands ? parts.join("") : s;
   }
 
   const n = Number(normalized);
