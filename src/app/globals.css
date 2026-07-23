@@ -561,22 +561,71 @@ button.catalog-picker-chip:not(.catalog-picker-chip--disabled):hover {
 }
 
 .product-detail-similar-btn {
-  margin: 0.75rem auto 0;
-  display: block;
-  border: 1px solid var(--foreground);
-  border-radius: 999px;
-  padding: 0.4rem 1.1rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--foreground);
+  margin: 0.85rem auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0;
+  border: none;
   background: transparent;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
 }
 
-.product-detail-similar-btn:hover {
-  background: var(--foreground);
-  color: var(--background);
+.product-detail-similar-hex {
+  position: relative;
+  display: block;
+  width: 3.25rem;
+  height: 3.25rem;
+  transition: transform 0.15s ease;
+}
+
+.product-detail-similar-btn:hover .product-detail-similar-hex {
+  transform: translateY(-2px);
+}
+
+.product-detail-similar-hex svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.product-detail-similar-hexline {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 2.4;
+}
+
+.product-detail-similar-icon {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 2.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.product-detail-similar-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: #6d5efc;
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.product-detail-similar-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--app-muted);
 }
 
 .product-detail-similar-overlay {

@@ -359,8 +359,30 @@ export function ProductDetailView({
                 type="button"
                 onClick={() => setShowSimilar(true)}
                 className="product-detail-similar-btn"
+                aria-label={`Benzer ürünler (${similar.length})`}
               >
-                Benzer ürünler ({similar.length})
+                <span className="product-detail-similar-hex">
+                  <svg viewBox="0 0 76 76" aria-hidden="true">
+                    <polygon
+                      className="product-detail-similar-hexline"
+                      points="26,8 50,8 68,38 50,68 26,68 8,38"
+                    />
+                    <g
+                      className="product-detail-similar-icon"
+                      transform="translate(38,38)"
+                    >
+                      <rect x="-13" y="-9" width="11" height="11" rx="2" />
+                      <rect x="2" y="-2" width="11" height="11" rx="2" />
+                      <path d="M-4,7 L6,-5" />
+                    </g>
+                  </svg>
+                  <span className="product-detail-similar-badge">
+                    {similar.length}
+                  </span>
+                </span>
+                <span className="product-detail-similar-label">
+                  Benzer ürünler
+                </span>
               </button>
             )}
 
