@@ -43,7 +43,7 @@ export default async function HomePage() {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
-  }).format(settings.lastPriceListUpdate);
+  }).format(new Date(settings.lastPriceListUpdate));
 
   return (
     <DeviceGate>

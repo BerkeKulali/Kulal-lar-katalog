@@ -30,18 +30,24 @@ export default async function ProductDetailPage({
   const initialQuality =
     kaliteFilter === "ALL" ? undefined : kaliteFilter;
   const audience = await getCatalogAudienceFromCookies();
-  const detail = await getFamilyDetail(brandSlug, size, familySlug, audience);
-  if (!detail) notFound();
-
-  // Stok görünürlüğü tek noktadan çözülür: admin / plasiyer / bayi.
   const cookieStore = await cookies();
   const salespersonId = cookieStore.get(SALESPERSON_ID_COOKIE)?.value;
   const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
-  const admin = await getAdminSession();
-  const [showStock, settings] = await Promise.all([
-    resolveStockVisibility({ isAdmin: Boolean(admin), salespersonId, deviceToken }),
+
+  // Birbirine bağlı olmayan işleri paralel yürüt (DB round-trip şelalesini azalt).
+  const [detail, admin, settings] = await Promise.all([
+    getFamilyDetail(brandSlug, size, familySlug, audience),
+    getAdminSession(),
     getAppSettings(),
   ]);
+  if (!detail) notFound();
+
+  // Stok görünürlüğü admin bayrağına bağlı olduğu için sonra çözülür.
+  const showStock = await resolveStockVisibility({
+    isAdmin: Boolean(admin),
+    salespersonId,
+    deviceToken,
+  });
 
   const { family, brand, sizes, allVariants, similar } = detail;
 

@@ -261,12 +261,37 @@ export async function searchProducts(query: string) {
   });
 }
 
-export async function getAppSettings() {
-  return prisma.appSettings.upsert({
-    where: { id: "default" },
-    update: {},
-    create: { id: "default" },
-  });
+export type AppSettingsView = {
+  /** ISO string (unstable_cache Date'i string'e çevirmesin diye). */
+  lastPriceListUpdate: string;
+  salesEnabled: boolean;
+};
+
+/**
+ * Genel ayarların önbellekli, SALT-OKUNUR görünümü.
+ *
+ * Önceden her çağrıda `upsert` (yazma) yapıyordu; her dinamik render'a bir DB
+ * yazma round-trip'i biniyordu. Artık önbellekli okuma: CATALOG_TAG ile
+ * (satış aç/kapat, fiyat değişimi bu tag'i geçersiz kılar) + kısa revalidate.
+ * Satır yoksa güvenli varsayılan döner.
+ */
+const _getAppSettings = unstable_cache(
+  async (): Promise<AppSettingsView> => {
+    const s = await prisma.appSettings.findUnique({
+      where: { id: "default" },
+      select: { lastPriceListUpdate: true, salesEnabled: true },
+    });
+    return {
+      lastPriceListUpdate: (s?.lastPriceListUpdate ?? new Date()).toISOString(),
+      salesEnabled: s?.salesEnabled ?? true,
+    };
+  },
+  ["app-settings"],
+  { tags: [CATALOG_TAG], revalidate: 60 }
+);
+
+export async function getAppSettings(): Promise<AppSettingsView> {
+  return _getAppSettings();
 }
 
 export const getActiveAnnouncements = cache(async () => {
