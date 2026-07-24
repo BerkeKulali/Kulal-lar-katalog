@@ -12,6 +12,7 @@ import {
 } from "@/lib/product-attributes";
 import { featureBadges } from "@/lib/product-features";
 import { pickVariantDisplayImage, toImageCandidates } from "@/lib/product-image";
+import { isPlaceholderImage, optimizeCatalogImage } from "@/lib/image-url";
 import { useCatalogSyncStore } from "@/store/catalog-sync";
 import { formatPrice, formatStock, qualityLabel, sortQualities } from "@/lib/utils";
 import { PalletFillIcon, TruckIcon } from "@/components/PackagingIcons";
@@ -159,6 +160,7 @@ export function ProductDetailView({
   const [saleMode, setSaleMode] = useState<SaleMode>("m2");
   const [added, setAdded] = useState(false);
   const [showSimilar, setShowSimilar] = useState(false);
+  const [zoomOpen, setZoomOpen] = useState(false);
 
   const variantsForSize = useMemo(
     () => variants.filter((v) => v.size === size),
@@ -329,17 +331,48 @@ export function ProductDetailView({
       )
     : null;
 
+  // Büyüteç için yüksek çözünürlüklü sürüm (Cloudinary; c_limit orijinali aşmaz).
+  const zoomSrc =
+    displayImage && !isPlaceholderImage(displayImage)
+      ? optimizeCatalogImage(displayImage, 2560)
+      : null;
+
+  useEffect(() => {
+    if (!zoomOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setZoomOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomOpen]);
+
   return (
     <div className="space-y-8 pb-28">
       {selected && (
         <>
-          <TileImage
-            src={displayImage}
-            alt={familyName}
-            size={size}
-            context="detail"
-            className="mx-auto max-w-2xl"
-          />
+          {zoomSrc ? (
+            <button
+              type="button"
+              onClick={() => setZoomOpen(true)}
+              className="product-detail-image-btn mx-auto block max-w-2xl"
+              aria-label="Görseli büyüt"
+            >
+              <TileImage
+                src={displayImage}
+                alt={familyName}
+                size={size}
+                context="detail"
+              />
+            </button>
+          ) : (
+            <TileImage
+              src={displayImage}
+              alt={familyName}
+              size={size}
+              context="detail"
+              className="mx-auto max-w-2xl"
+            />
+          )}
 
           <div className="product-detail-hero">
             <h1 className="product-detail-title">{familyName}</h1>
@@ -622,6 +655,30 @@ export function ProductDetailView({
           items={similar}
           onClose={() => setShowSimilar(false)}
         />
+      )}
+
+      {zoomOpen && zoomSrc && (
+        <div
+          className="image-lightbox"
+          onClick={() => setZoomOpen(false)}
+          role="presentation"
+        >
+          <button
+            type="button"
+            onClick={() => setZoomOpen(false)}
+            className="image-lightbox-close"
+            aria-label="Kapat"
+          >
+            ✕
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={zoomSrc}
+            alt={familyName}
+            className="image-lightbox-img"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
       )}
     </div>
   );

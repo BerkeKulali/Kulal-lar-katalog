@@ -561,6 +561,47 @@ button.catalog-picker-chip:not(.catalog-picker-chip--disabled):hover {
   color: var(--app-muted);
 }
 
+.product-detail-image-btn {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: zoom-in;
+}
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.92);
+  overflow: auto;
+}
+
+.image-lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  /* Tablet/telefonda parmakla yakınlaştırmaya izin ver (yüksek çözünürlük net kalır). */
+  touch-action: pinch-zoom;
+}
+
+.image-lightbox-close {
+  position: fixed;
+  top: 0.75rem;
+  right: 1rem;
+  z-index: 71;
+  font-size: 1.75rem;
+  line-height: 1;
+  color: #fff;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
 .product-detail-attrs {
   margin-top: 0.5rem;
   display: flex;
