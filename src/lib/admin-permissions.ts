@@ -82,6 +82,11 @@ export const ADMIN_NAV: {
   { href: "/admin/fiyatlar", label: "Fiyat listesi", permission: "prices" },
   { href: "/admin/stoklar", label: "Stok yönetimi", permission: "stock" },
   {
+    href: "/admin/netsis-senkron",
+    label: "Netsis senkron geçmişi",
+    permission: "stock",
+  },
+  {
     href: "/admin/netsis",
     label: "Netsis kod eşleştirme",
     permission: "netsis",

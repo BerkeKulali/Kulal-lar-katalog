@@ -50,6 +50,7 @@ export async function GET(request: Request) {
         feature3D: true,
         featureRec: true,
         code: true,
+        stockLocked: true,
         family: {
           select: { name: true, brand: { select: { name: true } } },
         },
@@ -80,6 +81,7 @@ export async function GET(request: Request) {
       features: featureBadges(v).join(" "),
       code: v.code,
       stockM2: stockByVariant.get(v.id) ?? null,
+      locked: v.stockLocked,
     }));
 
     return NextResponse.json({ items });

@@ -68,7 +68,8 @@ export async function POST(request: Request) {
       });
       await tx.productVariant.update({
         where: { id: variantId },
-        data: { updatedAt: new Date() },
+        // Manuel sabitleme = kilit: Netsis otomasyonu bu varyantı artık ezmez.
+        data: { updatedAt: new Date(), stockLocked: true, stockLockedAt: new Date() },
       });
     });
     updated++;
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
     await auditLog(admin, {
       action: "stock.manual",
       entityType: "stock",
-      summary: `${updated} ürünün stoğu ${quantityM2} m² olarak sabitlendi`,
+      summary: `${updated} ürünün stoğu ${quantityM2} m² olarak sabitlendi (kilitlendi)`,
     });
   }
 

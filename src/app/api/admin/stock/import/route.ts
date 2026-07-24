@@ -1,30 +1,17 @@
 import { NextResponse } from "next/server";
-import * as XLSX from "xlsx";
 import { requireAdmin } from "@/lib/admin-auth";
 import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { hasAnyPermission } from "@/lib/admin-permissions";
 import { auditLog } from "@/lib/audit";
-import {
-  groupBalancesByVariant,
-  parseNetsisBalanceRows,
-} from "@/lib/netsis-stock-import";
-import { prisma } from "@/lib/prisma";
-import { chunk } from "@/lib/utils";
-
-/** Netsis stok içe aktarımında yazılan tek stok satırının etiketi. */
-const NETSIS_STOCK_LABEL = "Netsis";
-
-/** Turso parametre limitini aşmamak için IN sorguları bu boyutta parçalanır. */
-const STOCK_CODE_QUERY_CHUNK = 100;
+import { reportError } from "@/lib/report-error";
+import { applyNetsisStock, recordNetsisSync } from "@/lib/netsis-stock-apply";
 
 /**
- * Netsis stok içe aktarımı.
+ * Netsis stok içe aktarımı (admin dosya yüklemesi).
  *
- * Eşleşme YALNIZCA atanmış Netsis kodları (VariantNetsisCode) ile yapılır;
- * eski `code` alanı kullanılmaz. Bir varyantın birden çok kodu olabilir, bu
- * durumda bu kodların bakiyeleri toplanır ve varyantın stok satırı bu toplama
- * göre yeniden yazılır. Bakiye 0 ise stok 0 m² olarak yazılır (satır silinmez)
- * — böylece Netsis'te tükenen ürünler katalogda da tükenmiş görünür.
+ * Eşleştirme/yazım mantığı `applyNetsisStock` ortak servisindedir; aynı mantığı
+ * otomatik ajan ucu da kullanır. Manuel kilitli varyantlar korunur.
+ * `?dryRun=1` → hiçbir şey yazmadan ne değişeceğini döndürür.
  */
 export async function POST(request: Request) {
   const admin = await requireAdmin();
@@ -38,95 +25,51 @@ export async function POST(request: Request) {
     );
   }
 
+  const url = new URL(request.url);
+  const dryRun = url.searchParams.get("dryRun") === "1";
+
   const formData = await request.formData();
   const file = formData.get("file");
-
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "Dosya gerekli" }, { status: 400 });
   }
 
   const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: "array" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  // raw: false → hücreler görüntülenen metin olarak gelir. "1.241" gibi Türkçe
-  // binlik ayıraçlı değerler SheetJS tarafından 1.241 sayısına dönüştürülmeden
-  // korunur; parseStockQuantity Türkçe biçimi doğru çözer.
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-    defval: "",
-    raw: false,
-  });
 
-  const { balances, errors: parseErrors } = parseNetsisBalanceRows(rows);
-
-  const results = {
-    variantsUpdated: 0,
-    zeroBalanceUpdated: 0,
-    stockLinesWritten: 0,
-    matchedCodes: 0,
-    totalCodes: balances.size,
-    unmatchedCodes: [] as string[],
-    errors: [...parseErrors],
-  };
-
-  if (balances.size === 0) {
-    return NextResponse.json(results);
-  }
-
-  const codes = [...balances.keys()];
-
-  // Netsis kodları → varyant. Bir varyantın birden çok kodu olabilir; marka
-  // kapsamı korunur. Sorgu, Turso parametre limitini aşmamak için parçalanır.
-  const variantByCode = new Map<string, string>();
-  for (const codeChunk of chunk(codes, STOCK_CODE_QUERY_CHUNK)) {
-    const codeRows = await prisma.variantNetsisCode.findMany({
-      where: {
-        code: { in: codeChunk },
-        variant: {
-          isActive: true,
-          ...(admin.brandId ? { family: { brandId: admin.brandId } } : {}),
-        },
-      },
-      select: { code: true, variantId: true },
+  try {
+    const result = await applyNetsisStock(buffer, {
+      brandId: admin.brandId ?? null,
+      dryRun,
     });
-    for (const r of codeRows) {
-      variantByCode.set(r.code.toUpperCase(), r.variantId);
+
+    if (!dryRun && result.variantsUpdated > 0) {
+      invalidateCatalogCache();
+      await auditLog(admin, {
+        action: "stock.import",
+        entityType: "stock",
+        summary: `Netsis import: ${result.variantsUpdated} ürün güncellendi (${result.matchedCodes}/${result.totalCodes} kod, ${result.zeroBalanceUpdated} sıfır, ${result.lockedSkipped} kilitli atlandı)`,
+      });
     }
-  }
 
-  // Bakiyeleri varyant bazında topla (saf fonksiyon; birim testli).
-  const grouped = groupBalancesByVariant(balances, variantByCode);
-  results.unmatchedCodes.push(...grouped.unmatchedCodes);
-  results.matchedCodes += grouped.matchedCodes;
-
-  for (const [variantId, rawQty] of grouped.byVariant) {
-    const quantityM2 = Math.round(rawQty * 100) / 100;
-
-    // Tek stok satırı. Önceki satırları silip yeniden yazarak hem eski
-    // çok-etiketli kayıtları temizler hem de 0'ı 0 olarak yazar.
-    await prisma.$transaction(async (tx) => {
-      await tx.stockLine.deleteMany({ where: { variantId } });
-      await tx.stockLine.create({
-        data: { variantId, label: NETSIS_STOCK_LABEL, quantityM2 },
-      });
-      await tx.productVariant.update({
-        where: { id: variantId },
-        data: { updatedAt: new Date() },
-      });
+    await recordNetsisSync({
+      source: "manual",
+      fileName: file.name,
+      ok: true,
+      result,
     });
 
-    results.variantsUpdated++;
-    results.stockLinesWritten++;
-    if (quantityM2 === 0) results.zeroBalanceUpdated++;
-  }
-
-  if (results.variantsUpdated > 0) {
-    invalidateCatalogCache();
-    await auditLog(admin, {
-      action: "stock.import",
-      entityType: "stock",
-      summary: `Netsis import: ${results.variantsUpdated} ürün güncellendi (${results.matchedCodes}/${results.totalCodes} kod, ${results.zeroBalanceUpdated} sıfır)`,
+    return NextResponse.json(result);
+  } catch (err) {
+    reportError(err, { where: "stock/import", fileName: file.name });
+    await recordNetsisSync({
+      source: "manual",
+      fileName: file.name,
+      ok: false,
+      message: err instanceof Error ? err.message : String(err),
     });
+    return NextResponse.json(
+      { error: "İçe aktarım sırasında hata oluştu" },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json(results);
 }

@@ -225,6 +225,54 @@ async function ensureDeviceShowStockColumn(
   }
 }
 
+/** ProductVariant.stockLocked + stockLockedAt kolonlarını idempotent ekler. */
+async function ensureVariantStockLockedColumns(
+  client: ReturnType<typeof createClient>
+) {
+  const cols = await client.execute(`PRAGMA table_info("ProductVariant")`);
+  const names = new Set(cols.rows.map((r) => String(r.name)));
+  if (!names.has("stockLocked")) {
+    await client.execute(
+      `ALTER TABLE "ProductVariant" ADD COLUMN "stockLocked" BOOLEAN NOT NULL DEFAULT false`
+    );
+  }
+  if (!names.has("stockLockedAt")) {
+    await client.execute(
+      `ALTER TABLE "ProductVariant" ADD COLUMN "stockLockedAt" DATETIME`
+    );
+  }
+}
+
+/** NetsisSyncLog tablosunu ve index'lerini idempotent oluşturur. */
+async function ensureNetsisSyncLogTable(
+  client: ReturnType<typeof createClient>
+) {
+  await client.execute(`
+    CREATE TABLE IF NOT EXISTS "NetsisSyncLog" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "source" TEXT NOT NULL,
+      "fileName" TEXT,
+      "totalCodes" INTEGER NOT NULL DEFAULT 0,
+      "matchedCodes" INTEGER NOT NULL DEFAULT 0,
+      "unmatchedCount" INTEGER NOT NULL DEFAULT 0,
+      "variantsUpdated" INTEGER NOT NULL DEFAULT 0,
+      "lockedSkipped" INTEGER NOT NULL DEFAULT 0,
+      "zeroBalance" INTEGER NOT NULL DEFAULT 0,
+      "dryRun" BOOLEAN NOT NULL DEFAULT false,
+      "ok" BOOLEAN NOT NULL DEFAULT true,
+      "message" TEXT,
+      "unmatchedSample" TEXT,
+      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS "NetsisSyncLog_createdAt_idx" ON "NetsisSyncLog"("createdAt")`
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS "NetsisSyncLog_source_createdAt_idx" ON "NetsisSyncLog"("source", "createdAt")`
+  );
+}
+
 async function listMigrationDirs() {
   const entries = await readdir(migrationsRoot, { withFileTypes: true });
   return entries
@@ -291,6 +339,10 @@ async function main() {
       await ensureFamilyClickEventTable(client);
     } else if (dir === "20260723120000_admin_audit_log") {
       await ensureAdminAuditLogTable(client);
+    } else if (dir === "20260724120000_variant_stock_locked") {
+      await ensureVariantStockLockedColumns(client);
+    } else if (dir === "20260724121000_netsis_sync_log") {
+      await ensureNetsisSyncLogTable(client);
     } else {
       await client.executeMultiple(sql);
     }

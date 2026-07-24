@@ -16,6 +16,7 @@ type StockItem = {
   features: string;
   code: string | null;
   stockM2: number | null;
+  locked: boolean;
 };
 
 type ImportResult = {
@@ -23,6 +24,7 @@ type ImportResult = {
   zeroBalanceUpdated: number;
   matchedCodes: number;
   totalCodes: number;
+  lockedSkipped?: number;
   unmatchedCodes: string[];
   errors: string[];
 };
@@ -127,6 +129,34 @@ export function StockManager({ brands }: { brands: Brand[] }) {
     }
   }
 
+  async function handleLock(locked: boolean) {
+    if (selected.size === 0) {
+      setMessage("Önce ürün seçin");
+      return;
+    }
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/stock/lock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ variantIds: [...selected], locked }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error ?? "İşlem başarısız");
+      } else {
+        setMessage(
+          locked
+            ? `${data.updated} ürün kilitlendi (otomasyon ezmez)`
+            : `${data.updated} ürünün kilidi kaldırıldı (otomasyona bırakıldı)`
+        );
+        await load();
+      }
+    } catch {
+      setMessage("İşlem başarısız");
+    }
+  }
+
   function handleFilterSubmit(e: FormEvent) {
     e.preventDefault();
     load();
@@ -216,6 +246,9 @@ export function StockManager({ brands }: { brands: Brand[] }) {
                 {importResult.variantsUpdated} ürün güncellendi
                 {importResult.zeroBalanceUpdated > 0 &&
                   ` (${importResult.zeroBalanceUpdated} tanesi 0 stok)`}
+                {importResult.lockedSkipped
+                  ? ` · ${importResult.lockedSkipped} kilitli atlandı`
+                  : ""}
               </p>
               {importResult.unmatchedCodes.length > 0 && (
                 <details className="text-xs text-amber-500">
@@ -324,6 +357,14 @@ export function StockManager({ brands }: { brands: Brand[] }) {
                   ) : (
                     formatStock(item.stockM2)
                   )}
+                  {item.locked && (
+                    <span
+                      className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-500"
+                      title="Manuel kilit: Netsis otomasyonu bu ürünü güncellemez"
+                    >
+                      🔒 kilitli
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}
@@ -344,8 +385,18 @@ export function StockManager({ brands }: { brands: Brand[] }) {
         style={{ background: "var(--app-main-bg)" }}
       >
         <span className="theme-muted mr-auto text-xs">
-          Seçili ürünlerin stoğunu girilen değere sabitler ({stockLabel})
+          Seçili ürünlerin stoğunu girilen değere sabitler ({stockLabel}). Manuel
+          sabitleme kilitler; kilitliyken Netsis otomasyonu ezmez.
         </span>
+        <button
+          type="button"
+          onClick={() => handleLock(false)}
+          disabled={selectedCount === 0}
+          className="theme-button border px-3 py-2 text-xs disabled:opacity-40"
+          title="Seçili ürünleri otomasyona bırak"
+        >
+          Kilidi kaldır
+        </button>
         <input
           value={manualQty}
           onChange={(e) => setManualQty(e.target.value)}

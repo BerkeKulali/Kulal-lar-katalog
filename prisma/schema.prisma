@@ -162,6 +162,9 @@ model ProductVariant {
   imagePublicId  String?
   imageUpdatedAt DateTime?
   isActive       Boolean       @default(true)
+  /** Manuel stok kilidi: true ise Netsis otomasyonu bu varyantı atlar (manuel değer korunur). */
+  stockLocked    Boolean       @default(false)
+  stockLockedAt  DateTime?
   stockLines StockLine[]
   orderLines OrderLine[]
   createdAt  DateTime      @default(now())
@@ -337,6 +340,33 @@ model AdminAuditLog {
   @@index([createdAt])
   @@index([action, createdAt])
   @@index([adminUserId, createdAt])
+}
+
+/**
+ * Netsis stok senkronizasyon kaydı. Her içe aktarım (manuel veya ajan) bir
+ * satır yazar: kaynak, sonuç sayıları, kilitli-atlanan/eşleşmeyen ve hata özeti.
+ * İzleme ekranı ve anomali uyarısı bundan beslenir.
+ */
+model NetsisSyncLog {
+  id              String   @id @default(cuid())
+  /** "agent" | "manual" */
+  source          String
+  fileName        String?
+  totalCodes      Int      @default(0)
+  matchedCodes    Int      @default(0)
+  unmatchedCount  Int      @default(0)
+  variantsUpdated Int      @default(0)
+  lockedSkipped   Int      @default(0)
+  zeroBalance     Int      @default(0)
+  dryRun          Boolean  @default(false)
+  ok              Boolean  @default(true)
+  message         String?
+  /** Eşleşmeyen kodların bir kısmı (JSON dizi, kısaltılmış). */
+  unmatchedSample String?
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([source, createdAt])
 }
 
 model AppSettings {
