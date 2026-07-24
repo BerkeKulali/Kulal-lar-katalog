@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import {
+  aggregateClickEvents,
   parseDimensions,
   type ReportFilters,
   type ReportResult,
@@ -9,25 +10,6 @@ import {
 export * from "@/lib/click-report-shared";
 
 const MAX_EVENTS = 50_000;
-const ISTANBUL = "Europe/Istanbul";
-
-/** Istanbul saatine göre YYYY-MM-DD (gruplama anahtarı). */
-function istanbulDayKey(d: Date): string {
-  return d.toLocaleDateString("en-CA", { timeZone: ISTANBUL });
-}
-
-/** YYYY-MM-DD → dd.mm.yyyy (görüntü). */
-function displayDay(key: string): string {
-  const [y, m, d] = key.split("-");
-  return `${d}.${m}.${y}`;
-}
-
-function actorLabel(actorType: string, actorName: string | null): string {
-  if (actorName) return actorName;
-  if (actorType === "dealer") return "Bilinmeyen bayi";
-  if (actorType === "salesperson") return "Bilinmeyen plasiyer";
-  return "Bilinmeyen";
-}
 
 /** URL parametrelerinden rapor filtrelerini üretir (varsayılan: son 30 gün). */
 export function parseReportFilters(
@@ -103,45 +85,17 @@ export async function buildClickReport(
   const truncated = events.length > MAX_EVENTS;
   const rowsData = truncated ? events.slice(0, MAX_EVENTS) : events;
 
-  const dims = filters.dimensions;
-  const groups = new Map<
-    string,
-    {
-      product: string | null;
-      date: string | null;
-      actor: string | null;
-      actorType: string | null;
-      count: number;
-    }
-  >();
+  const { rows, total } = aggregateClickEvents(
+    rowsData.map((ev) => ({
+      familyName: ev.family.name,
+      brandName: ev.family.brand.name,
+      actorType: ev.actorType,
+      actorName: ev.actorName,
+      count: ev.count,
+      createdAt: ev.createdAt,
+    })),
+    filters.dimensions
+  );
 
-  let total = 0;
-  for (const ev of rowsData) {
-    total += ev.count;
-
-    const product = dims.includes("product")
-      ? `${ev.family.name} · ${ev.family.brand.name}`
-      : null;
-    const date = dims.includes("date")
-      ? displayDay(istanbulDayKey(ev.createdAt))
-      : null;
-    const actor = dims.includes("actor")
-      ? actorLabel(ev.actorType, ev.actorName)
-      : null;
-    const actorType = dims.includes("actor") ? ev.actorType : null;
-
-    const key = [product ?? "", date ?? "", actor ?? "", actorType ?? ""].join(
-      "|"
-    );
-    const existing = groups.get(key);
-    if (existing) {
-      existing.count += ev.count;
-    } else {
-      groups.set(key, { product, date, actor, actorType, count: ev.count });
-    }
-  }
-
-  const rows = [...groups.values()].sort((a, b) => b.count - a.count);
-
-  return { dimensions: dims, rows, total, truncated };
+  return { dimensions: filters.dimensions, rows, total, truncated };
 }

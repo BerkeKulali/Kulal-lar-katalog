@@ -222,6 +222,32 @@ export function parseNetsisBalanceRows(
   return { balances, errors };
 }
 
+/**
+ * Netsis bakiyelerini (kod → miktar) varyant bazında toplar. Bir varyantın
+ * birden çok kodu olabilir; bunların bakiyeleri toplanır. Eşleşmeyen kodlar
+ * ayrı raporlanır. Saftır (DB'siz), bu yüzden test edilebilir.
+ */
+export function groupBalancesByVariant(
+  balances: Map<string, number>,
+  variantByCode: Map<string, string>
+): { byVariant: Map<string, number>; unmatchedCodes: string[]; matchedCodes: number } {
+  const byVariant = new Map<string, number>();
+  const unmatchedCodes: string[] = [];
+  let matchedCodes = 0;
+
+  for (const [code, qty] of balances) {
+    const variantId = variantByCode.get(code);
+    if (!variantId) {
+      unmatchedCodes.push(code);
+      continue;
+    }
+    matchedCodes += 1;
+    byVariant.set(variantId, (byVariant.get(variantId) ?? 0) + qty);
+  }
+
+  return { byVariant, unmatchedCodes, matchedCodes };
+}
+
 export function aggregateStockRows(rows: NetsisStockRow[]) {
   const byCode = new Map<string, Map<string, number>>();
 

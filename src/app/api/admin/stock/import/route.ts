@@ -4,7 +4,10 @@ import { requireAdmin } from "@/lib/admin-auth";
 import { invalidateCatalogCache } from "@/lib/cache-tags";
 import { hasAnyPermission } from "@/lib/admin-permissions";
 import { auditLog } from "@/lib/audit";
-import { parseNetsisBalanceRows } from "@/lib/netsis-stock-import";
+import {
+  groupBalancesByVariant,
+  parseNetsisBalanceRows,
+} from "@/lib/netsis-stock-import";
 import { prisma } from "@/lib/prisma";
 import { chunk } from "@/lib/utils";
 
@@ -90,22 +93,12 @@ export async function POST(request: Request) {
     }
   }
 
-  // Bakiyeleri varyant bazında topla (aynı varyanta ait birden çok kod eklenir).
-  const balanceByVariant = new Map<string, number>();
-  for (const code of codes) {
-    const variantId = variantByCode.get(code);
-    if (!variantId) {
-      results.unmatchedCodes.push(code);
-      continue;
-    }
-    results.matchedCodes++;
-    balanceByVariant.set(
-      variantId,
-      (balanceByVariant.get(variantId) ?? 0) + (balances.get(code) ?? 0)
-    );
-  }
+  // Bakiyeleri varyant bazında topla (saf fonksiyon; birim testli).
+  const grouped = groupBalancesByVariant(balances, variantByCode);
+  results.unmatchedCodes.push(...grouped.unmatchedCodes);
+  results.matchedCodes += grouped.matchedCodes;
 
-  for (const [variantId, rawQty] of balanceByVariant) {
+  for (const [variantId, rawQty] of grouped.byVariant) {
     const quantityM2 = Math.round(rawQty * 100) / 100;
 
     // Tek stok satırı. Önceki satırları silip yeniden yazarak hem eski

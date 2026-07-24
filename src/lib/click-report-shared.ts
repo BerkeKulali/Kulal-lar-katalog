@@ -50,3 +50,77 @@ export function parseDimensions(raw: string | null | undefined): ReportDimension
   const dims = REPORT_DIMENSIONS.filter((d) => parts.includes(d));
   return dims.length > 0 ? dims : ["product"];
 }
+
+// --- Saf toplama (aggregation) — DB'den bağımsız, test edilebilir ---
+
+export type ClickEventForReport = {
+  familyName: string;
+  brandName: string;
+  actorType: string;
+  actorName: string | null;
+  count: number;
+  createdAt: Date;
+};
+
+const ISTANBUL_TZ = "Europe/Istanbul";
+
+/** Istanbul saatine göre YYYY-MM-DD (gruplama anahtarı). */
+export function istanbulDayKey(d: Date): string {
+  return d.toLocaleDateString("en-CA", { timeZone: ISTANBUL_TZ });
+}
+
+/** YYYY-MM-DD → dd.mm.yyyy (görüntü). */
+export function displayDay(key: string): string {
+  const [y, m, d] = key.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+export function actorDisplayName(
+  actorType: string,
+  actorName: string | null
+): string {
+  if (actorName) return actorName;
+  if (actorType === "dealer") return "Bilinmeyen bayi";
+  if (actorType === "salesperson") return "Bilinmeyen plasiyer";
+  return "Bilinmeyen";
+}
+
+/**
+ * Tıklama olaylarını seçilen kırılımlara göre gruplar. Saftır: aynı girdi hep
+ * aynı çıktıyı verir; DB'ye dokunmaz. Satırlar sayıya göre azalan sıralanır.
+ */
+export function aggregateClickEvents(
+  events: ClickEventForReport[],
+  dimensions: ReportDimension[]
+): { rows: ReportRow[]; total: number } {
+  const groups = new Map<string, ReportRow>();
+  let total = 0;
+
+  for (const ev of events) {
+    total += ev.count;
+
+    const product = dimensions.includes("product")
+      ? `${ev.familyName} · ${ev.brandName}`
+      : null;
+    const date = dimensions.includes("date")
+      ? displayDay(istanbulDayKey(ev.createdAt))
+      : null;
+    const actor = dimensions.includes("actor")
+      ? actorDisplayName(ev.actorType, ev.actorName)
+      : null;
+    const actorType = dimensions.includes("actor") ? ev.actorType : null;
+
+    const key = [product ?? "", date ?? "", actor ?? "", actorType ?? ""].join(
+      "|"
+    );
+    const existing = groups.get(key);
+    if (existing) {
+      existing.count += ev.count;
+    } else {
+      groups.set(key, { product, date, actor, actorType, count: ev.count });
+    }
+  }
+
+  const rows = [...groups.values()].sort((a, b) => b.count - a.count);
+  return { rows, total };
+}
