@@ -61,14 +61,16 @@ export async function POST(request: Request) {
     return NextResponse.json(result);
   } catch (err) {
     reportError(err, { where: "stock/import", fileName: file.name });
+    const detail = err instanceof Error ? err.message : String(err);
     await recordNetsisSync({
       source: "manual",
       fileName: file.name,
       ok: false,
-      message: err instanceof Error ? err.message : String(err),
+      message: detail,
     });
+    // Bu uç yalnızca admin'e açık; teşhis için hata detayını döndürmek güvenli.
     return NextResponse.json(
-      { error: "İçe aktarım sırasında hata oluştu" },
+      { error: `İçe aktarım hatası: ${detail}`, detail },
       { status: 500 }
     );
   }

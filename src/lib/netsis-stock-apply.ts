@@ -13,14 +13,6 @@ export const NETSIS_STOCK_LABEL = "Netsis";
 /** Turso parametre limitini aşmamak için IN sorguları bu boyutta parçalanır. */
 const STOCK_CODE_QUERY_CHUNK = 100;
 
-/**
- * Yazımlar bu boyutta transaction gruplarında yapılır. Her varyant için 3 işlem
- * (sil + yaz + updatedAt) olduğundan 50 varyant ≈ 150 ifade/transaction — Vercel
- * Hobby'nin ~10 sn fonksiyon süresine rahat sığar, tek tek transaction'a göre
- * çok daha hızlıdır.
- */
-const WRITE_BATCH = 50;
-
 /** Eşleşmeyen kod uyarısı: bu orandan fazlası eşleşmezse Sentry'ye bildirilir. */
 const UNMATCHED_ALERT_RATIO = 0.5;
 const UNMATCHED_ALERT_MIN_TOTAL = 20;
@@ -112,16 +104,24 @@ export async function applyNetsisStock(
   result.unmatchedCodes = grouped.unmatchedCodes;
   result.matchedCodes = grouped.matchedCodes;
 
-  // Manuel kilitli varyantları belirle (atlanacak).
+  // Manuel kilitli varyantları belirle (atlanacak). Kolon henüz migrate
+  // edilmemişse (sürüm gecikmesi) import'u bozmadan kilitsiz devam et.
   const targetVariantIds = [...grouped.byVariant.keys()];
   const lockedSet = new Set<string>();
   if (respectLock && targetVariantIds.length > 0) {
-    for (const idChunk of chunk(targetVariantIds, STOCK_CODE_QUERY_CHUNK)) {
-      const locked = await prisma.productVariant.findMany({
-        where: { id: { in: idChunk }, stockLocked: true },
-        select: { id: true },
-      });
-      for (const v of locked) lockedSet.add(v.id);
+    try {
+      for (const idChunk of chunk(targetVariantIds, STOCK_CODE_QUERY_CHUNK)) {
+        const locked = await prisma.productVariant.findMany({
+          where: { id: { in: idChunk }, stockLocked: true },
+          select: { id: true },
+        });
+        for (const v of locked) lockedSet.add(v.id);
+      }
+    } catch (err) {
+      reportError(err, { where: "applyNetsisStock:lockQuery" });
+      result.errors.push(
+        "Kilit bilgisi okunamadı (stockLocked); kilit denetimi atlandı."
+      );
     }
   }
 
@@ -146,25 +146,37 @@ export async function applyNetsisStock(
     return result;
   }
 
-  // Toplu yazım: her varyant için sil+yaz+updatedAt, batch'li transaction.
-  for (const batch of chunk(writes, WRITE_BATCH)) {
-    await prisma.$transaction(
-      batch.flatMap((w) => [
-        prisma.stockLine.deleteMany({ where: { variantId: w.variantId } }),
-        prisma.stockLine.create({
+  // Yazım: her varyant için tek interaktif transaction (sil+yaz+updatedAt).
+  // Bu, önceden kanıtlanmış libsql/Turso uyumlu desendir. Tek bir varyantın
+  // hatası tüm içe aktarımı düşürmesin diye her biri ayrı sarılır.
+  for (const w of writes) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.stockLine.deleteMany({ where: { variantId: w.variantId } });
+        await tx.stockLine.create({
           data: {
             variantId: w.variantId,
             label: NETSIS_STOCK_LABEL,
             quantityM2: w.quantityM2,
           },
-        }),
-        prisma.productVariant.update({
+        });
+        await tx.productVariant.update({
           where: { id: w.variantId },
           data: { updatedAt: new Date() },
-        }),
-      ])
-    );
-    for (const w of batch) tally(w.quantityM2);
+        });
+      });
+      tally(w.quantityM2);
+    } catch (err) {
+      reportError(err, {
+        where: "applyNetsisStock:write",
+        variantId: w.variantId,
+      });
+      result.errors.push(
+        `Varyant ${w.variantId} yazılamadı: ${
+          err instanceof Error ? err.message : String(err)
+        }`
+      );
+    }
   }
 
   return result;

@@ -182,15 +182,29 @@ export function StockManager({ brands }: { brands: Brand[] }) {
         method: "POST",
         body: formData,
       });
-      const data = await res.json();
+      const raw = await res.text();
+      let data: (ImportResult & { error?: string }) | { error?: string } | null =
+        null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        // JSON değil (ör. beklenmeyen sunucu hatası sayfası)
+      }
       if (!res.ok) {
-        setImportError(data.error ?? "İçe aktarma başarısız");
-      } else {
-        setImportResult(data);
+        const detail =
+          data?.error ??
+          (raw ? raw.slice(0, 300) : `HTTP ${res.status} ${res.statusText}`);
+        setImportError(`İçe aktarma başarısız (HTTP ${res.status}): ${detail}`);
+      } else if (data) {
+        setImportResult(data as ImportResult);
         await load();
       }
-    } catch {
-      setImportError("İçe aktarma başarısız");
+    } catch (err) {
+      setImportError(
+        `İçe aktarma başarısız: ${
+          err instanceof Error ? err.message : "bağlantı hatası"
+        }`
+      );
     } finally {
       setImporting(false);
     }
