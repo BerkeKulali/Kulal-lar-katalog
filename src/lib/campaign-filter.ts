@@ -1,17 +1,18 @@
 /**
- * Kampanya ürün segmenti filtresi: marka/malzeme tipi/kalite/stok eşiğine
+ * Kampanya ürün segmenti filtresi: marka/malzeme tipi/kalite/stok aralığına
  * göre ürün (varyant) listesi çıkarır. Saf mantık — DB'den bağımsız, test
  * edilebilir (bkz. campaign-filter.test.ts). API route bu fonksiyonu,
  * `src/app/api/admin/stock/list/route.ts`'teki gibi Prisma'dan topladığı
  * stok verisiyle besler.
  *
- * Eşik yönü tanımı:
- * - "altı" (under)  → stok < eşik  (eşiğin kendisi dahil DEĞİL)
- * - "üstü" (over)   → stok >= eşik (eşiğin kendisi dahil)
+ * Stok aralığı tanımı (ikisi de opsiyonel, birlikte kullanılabilir — örn.
+ * "40 üstü, 180 altı" için minM2=40, maxM2=180):
+ * - minM2 (alt sınır) → stok >= minM2 (dahil, eski "üstü" davranışı)
+ * - maxM2 (üst sınır) → stok < maxM2  (dahil DEĞİL, eski "altı" davranışı)
+ * İkisi de null ise stok hiç filtrelenmez.
  */
 
 export type FilterBasis = "family" | "variant";
-export type FilterDirection = "under" | "over";
 export type FilterQuality = "FIRST" | "END";
 
 export type FilterCriteria = {
@@ -21,8 +22,10 @@ export type FilterCriteria = {
   /** null = tüm kaliteler. */
   quality: FilterQuality | null;
   basis: FilterBasis;
-  direction: FilterDirection;
-  thresholdM2: number;
+  /** null = alt sınır yok. */
+  minM2: number | null;
+  /** null = üst sınır yok. */
+  maxM2: number | null;
 };
 
 export type VariantForFilter = {
@@ -73,10 +76,10 @@ function matchesBaseCriteria(
   return true;
 }
 
-function passesThreshold(stock: number, criteria: FilterCriteria): boolean {
-  return criteria.direction === "under"
-    ? stock < criteria.thresholdM2
-    : stock >= criteria.thresholdM2;
+function passesRange(stock: number, criteria: FilterCriteria): boolean {
+  if (criteria.minM2 != null && stock < criteria.minM2) return false;
+  if (criteria.maxM2 != null && stock >= criteria.maxM2) return false;
+  return true;
 }
 
 function sortRows(rows: FilterRow[]): FilterRow[] {
@@ -118,10 +121,10 @@ export function applyProductFilter(
 
   const passing =
     criteria.basis === "variant"
-      ? candidates.filter((v) => passesThreshold(v.stockM2, criteria))
+      ? candidates.filter((v) => passesRange(v.stockM2, criteria))
       : candidates.filter((v) => {
           const total = totalsByFamily.get(v.familyId) ?? 0;
-          return passesThreshold(total, criteria);
+          return passesRange(total, criteria);
         });
 
   const rows = passing.map(

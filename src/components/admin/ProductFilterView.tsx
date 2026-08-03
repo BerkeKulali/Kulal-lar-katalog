@@ -20,7 +20,6 @@ type FilterRow = {
 };
 
 type Basis = "family" | "variant";
-type Direction = "under" | "over";
 
 type Preset = {
   id: string;
@@ -29,8 +28,8 @@ type Preset = {
   materialType: string | null;
   quality: "FIRST" | "END" | null;
   basis: Basis;
-  direction: Direction;
-  thresholdM2: number;
+  minM2: number | null;
+  maxM2: number | null;
 };
 
 export function ProductFilterView({
@@ -44,8 +43,8 @@ export function ProductFilterView({
   const [materialType, setMaterialType] = useState("");
   const [quality, setQuality] = useState<"" | "FIRST" | "END">("");
   const [basis, setBasis] = useState<Basis>("family");
-  const [direction, setDirection] = useState<Direction>("under");
-  const [thresholdM2, setThresholdM2] = useState("250");
+  const [minM2, setMinM2] = useState("");
+  const [maxM2, setMaxM2] = useState("250");
 
   const [rows, setRows] = useState<FilterRow[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -62,10 +61,10 @@ export function ProductFilterView({
     if (materialType) params.set("materialType", materialType);
     if (quality) params.set("quality", quality);
     params.set("basis", basis);
-    params.set("direction", direction);
-    params.set("thresholdM2", thresholdM2 || "0");
+    if (minM2.trim()) params.set("minM2", minM2.trim());
+    if (maxM2.trim()) params.set("maxM2", maxM2.trim());
     return params;
-  }, [brandIds, materialType, quality, basis, direction, thresholdM2]);
+  }, [brandIds, materialType, quality, basis, minM2, maxM2]);
 
   const loadPresets = useCallback(async () => {
     const res = await fetch("/api/admin/campaigns/presets", { cache: "no-store" });
@@ -80,9 +79,18 @@ export function ProductFilterView({
 
   async function runFilter(e?: FormEvent) {
     e?.preventDefault();
-    const threshold = Number(thresholdM2);
-    if (!Number.isFinite(threshold) || threshold < 0) {
-      setError("Geçerli bir m² eşiği girin");
+    const min = minM2.trim() ? Number(minM2) : null;
+    const max = maxM2.trim() ? Number(maxM2) : null;
+    if (min != null && (!Number.isFinite(min) || min < 0)) {
+      setError("Geçerli bir 'en az m²' değeri girin");
+      return;
+    }
+    if (max != null && (!Number.isFinite(max) || max < 0)) {
+      setError("Geçerli bir 'en çok m²' değeri girin");
+      return;
+    }
+    if (min != null && max != null && min >= max) {
+      setError("'En az' değeri 'en çok' değerinden küçük olmalı");
       return;
     }
     setLoading(true);
@@ -118,8 +126,8 @@ export function ProductFilterView({
     setMaterialType(preset.materialType ?? "");
     setQuality(preset.quality ?? "");
     setBasis(preset.basis);
-    setDirection(preset.direction);
-    setThresholdM2(String(preset.thresholdM2));
+    setMinM2(preset.minM2 != null ? String(preset.minM2) : "");
+    setMaxM2(preset.maxM2 != null ? String(preset.maxM2) : "");
     setMessage(`"${preset.name}" segmenti yüklendi — Filtrele'ye basın`);
   }
 
@@ -137,8 +145,8 @@ export function ProductFilterView({
           materialType: materialType || null,
           quality: quality || null,
           basis,
-          direction,
-          thresholdM2: Number(thresholdM2),
+          minM2: minM2.trim() ? Number(minM2) : null,
+          maxM2: maxM2.trim() ? Number(maxM2) : null,
         }),
       });
       const data = await res.json();
@@ -259,27 +267,32 @@ export function ProductFilterView({
           </div>
 
           <div>
-            <label className="theme-muted mb-1 block text-xs">Yön</label>
-            <select
-              value={direction}
-              onChange={(e) => setDirection(e.target.value as Direction)}
-              className="theme-select border px-3 py-2 text-sm"
-            >
-              <option value="under">Altı</option>
-              <option value="over">Üstü (eşit dahil)</option>
-            </select>
+            <label className="theme-muted mb-1 block text-xs">En az (m²)</label>
+            <input
+              value={minM2}
+              onChange={(e) => setMinM2(e.target.value)}
+              placeholder="—"
+              inputMode="decimal"
+              className="theme-input w-24 border px-3 py-2 text-sm"
+            />
           </div>
 
           <div>
-            <label className="theme-muted mb-1 block text-xs">Eşik (m²)</label>
+            <label className="theme-muted mb-1 block text-xs">En çok (m²)</label>
             <input
-              value={thresholdM2}
-              onChange={(e) => setThresholdM2(e.target.value)}
+              value={maxM2}
+              onChange={(e) => setMaxM2(e.target.value)}
+              placeholder="—"
               inputMode="decimal"
-              className="theme-input w-28 border px-3 py-2 text-sm"
+              className="theme-input w-24 border px-3 py-2 text-sm"
             />
           </div>
         </div>
+        <p className="theme-muted text-[11px]">
+          İkisi de girilirse aralık uygulanır (örn. en az 40, en çok 180 →
+          40 ile 180 arası). En az sınırı dahildir, en çok sınırı dahil
+          değildir. İkisi de boş bırakılırsa stok hiç filtrelenmez.
+        </p>
 
         <div className="flex flex-wrap items-center gap-3">
           <button

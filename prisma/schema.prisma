@@ -53,11 +53,6 @@ enum FilterBasis {
   VARIANT
 }
 
-enum FilterDirection {
-  UNDER
-  OVER
-}
-
 model Brand {
   id        String          @id @default(cuid())
   name      String
@@ -460,8 +455,10 @@ model ProductFilterPreset {
   materialType     String?
   quality          Quality?
   basis            FilterBasis
-  direction        FilterDirection
-  thresholdM2      Float
+  /** Aralığın alt sınırı (dahil, "üstü"); null = alt sınır yok. */
+  minM2            Float?
+  /** Aralığın üst sınırı (dahil değil, "altı"); null = üst sınır yok. */
+  maxM2            Float?
   createdByAdminId String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt

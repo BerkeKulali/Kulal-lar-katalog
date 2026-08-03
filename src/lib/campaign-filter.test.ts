@@ -28,14 +28,14 @@ function criteria(overrides: Partial<FilterCriteria>): FilterCriteria {
     materialType: null,
     quality: null,
     basis: "variant",
-    direction: "under",
-    thresholdM2: 250,
+    minM2: null,
+    maxM2: 250,
     ...overrides,
   };
 }
 
 describe("applyProductFilter", () => {
-  it("basis=variant, direction=under: eşiğin altındaki varyantları döner", () => {
+  it("basis=variant, sadece maxM2 (altı): sınırın altındaki varyantları döner", () => {
     const variants = [
       v({ variantId: "a", familyId: "fa", stockM2: 100 }),
       v({ variantId: "b", familyId: "fb", stockM2: 250 }), // eşit → dahil değil
@@ -43,7 +43,7 @@ describe("applyProductFilter", () => {
     ];
     const rows = applyProductFilter(
       variants,
-      criteria({ basis: "variant", direction: "under", thresholdM2: 250 })
+      criteria({ basis: "variant", minM2: null, maxM2: 250 })
     );
     assert.deepEqual(
       rows.map((r) => r.variantId),
@@ -52,7 +52,7 @@ describe("applyProductFilter", () => {
     assert.equal(rows[0].familyTotalStockM2, 100);
   });
 
-  it("basis=variant, direction=over: eşit ve üstünü döner (dahil)", () => {
+  it("basis=variant, sadece minM2 (üstü): eşit ve üstünü döner (dahil)", () => {
     const variants = [
       v({ variantId: "a", stockM2: 999 }),
       v({ variantId: "b", stockM2: 1000 }), // eşit → dahil
@@ -60,7 +60,7 @@ describe("applyProductFilter", () => {
     ];
     const rows = applyProductFilter(
       variants,
-      criteria({ basis: "variant", direction: "over", thresholdM2: 1000 })
+      criteria({ basis: "variant", minM2: 1000, maxM2: null })
     );
     assert.deepEqual(
       rows.map((r) => r.variantId).sort(),
@@ -68,7 +68,40 @@ describe("applyProductFilter", () => {
     );
   });
 
-  it("basis=family: aile toplamı eşiği geçerse ailenin tüm varyantları döner", () => {
+  it("basis=variant, minM2 ve maxM2 birlikte: aralık uygulanır (40 üstü, 180 altı)", () => {
+    const variants = [
+      v({ variantId: "a", stockM2: 20 }), // aralığın altında
+      v({ variantId: "b", stockM2: 40 }), // alt sınıra eşit → dahil
+      v({ variantId: "c", stockM2: 120 }), // aralık içinde
+      v({ variantId: "d", stockM2: 180 }), // üst sınıra eşit → dahil değil
+      v({ variantId: "e", stockM2: 300 }), // aralığın üstünde
+    ];
+    const rows = applyProductFilter(
+      variants,
+      criteria({ basis: "variant", minM2: 40, maxM2: 180 })
+    );
+    assert.deepEqual(
+      rows.map((r) => r.variantId).sort(),
+      ["b", "c"]
+    );
+  });
+
+  it("minM2 ve maxM2 ikisi de null: stok hiç filtrelenmez", () => {
+    const variants = [
+      v({ variantId: "a", stockM2: 0 }),
+      v({ variantId: "b", stockM2: 999999 }),
+    ];
+    const rows = applyProductFilter(
+      variants,
+      criteria({ basis: "variant", minM2: null, maxM2: null })
+    );
+    assert.deepEqual(
+      rows.map((r) => r.variantId).sort(),
+      ["a", "b"]
+    );
+  });
+
+  it("basis=family: aile toplamı sınırın altında kalırsa ailenin tüm varyantları döner", () => {
     const variants = [
       v({ variantId: "a", familyId: "f1", stockM2: 100 }),
       v({ variantId: "b", familyId: "f1", stockM2: 80 }), // toplam f1 = 180
@@ -76,9 +109,9 @@ describe("applyProductFilter", () => {
     ];
     const rows = applyProductFilter(
       variants,
-      criteria({ basis: "family", direction: "under", thresholdM2: 250 })
+      criteria({ basis: "family", minM2: null, maxM2: 250 })
     );
-    // f1 toplamı (180) eşiğin altında → a ve b dahil; f2 (300) değil.
+    // f1 toplamı (180) sınırın altında → a ve b dahil; f2 (300) değil.
     assert.deepEqual(
       rows.map((r) => r.variantId).sort(),
       ["a", "b"]
@@ -94,7 +127,7 @@ describe("applyProductFilter", () => {
     ];
     const rows = applyProductFilter(
       variants,
-      criteria({ brandIds: ["gural"], basis: "variant", direction: "under", thresholdM2: 500 })
+      criteria({ brandIds: ["gural"], basis: "variant", minM2: null, maxM2: 500 })
     );
     assert.deepEqual(
       rows.map((r) => r.variantId),
@@ -114,8 +147,8 @@ describe("applyProductFilter", () => {
         materialType: "ahsap",
         quality: "END",
         basis: "variant",
-        direction: "under",
-        thresholdM2: 500,
+        minM2: null,
+        maxM2: 500,
       })
     );
     assert.deepEqual(
@@ -127,7 +160,7 @@ describe("applyProductFilter", () => {
   it("hiçbir varyant kriterlere uymazsa boş sonuç döner", () => {
     const rows = applyProductFilter(
       [v({ stockM2: 1000 })],
-      criteria({ basis: "variant", direction: "under", thresholdM2: 250 })
+      criteria({ basis: "variant", minM2: null, maxM2: 250 })
     );
     assert.deepEqual(rows, []);
   });
@@ -135,13 +168,13 @@ describe("applyProductFilter", () => {
   it("basis=variant iken de familyTotalStockM2 bilgi amaçlı hesaplanır", () => {
     const variants = [
       v({ variantId: "a", familyId: "f1", stockM2: 100 }),
-      v({ variantId: "b", familyId: "f1", stockM2: 5000 }), // eşiği geçmez, ama toplama dahil
+      v({ variantId: "b", familyId: "f1", stockM2: 5000 }), // sınırı geçmez, ama toplama dahil
     ];
     const rows = applyProductFilter(
       variants,
-      criteria({ basis: "variant", direction: "under", thresholdM2: 250 })
+      criteria({ basis: "variant", minM2: null, maxM2: 250 })
     );
-    // Sadece "a" eşiğin altında (kendi stoğu 100), ama aile toplamı (5100)
+    // Sadece "a" sınırın altında (kendi stoğu 100), ama aile toplamı (5100)
     // bilgi amaçlı satırda görünür.
     assert.deepEqual(
       rows.map((r) => r.variantId),
@@ -150,14 +183,14 @@ describe("applyProductFilter", () => {
     assert.equal(rows[0].familyTotalStockM2, 5100);
   });
 
-  it("basis=family: aile toplamı tam eşiğe eşitse 'altı' filtresine dahil olmaz", () => {
+  it("basis=family: aile toplamı tam sınıra eşitse 'altı' filtresine dahil olmaz", () => {
     const variants = [
       v({ variantId: "a", familyId: "f1", stockM2: 150 }),
       v({ variantId: "b", familyId: "f1", stockM2: 100 }), // toplam = 250
     ];
     const rows = applyProductFilter(
       variants,
-      criteria({ basis: "family", direction: "under", thresholdM2: 250 })
+      criteria({ basis: "family", minM2: null, maxM2: 250 })
     );
     assert.deepEqual(rows, []);
   });

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
-import type { FilterBasis, FilterDirection, FilterQuality } from "@/lib/campaign-filter";
+import type { FilterBasis, FilterQuality } from "@/lib/campaign-filter";
 import { prisma } from "@/lib/prisma";
 
 /** Kayıtlı ürün segmenti filtreleri listesi. Yetki: campaigns. */
@@ -20,8 +20,8 @@ export async function GET() {
       materialType: p.materialType,
       quality: p.quality,
       basis: p.basis.toLowerCase() as FilterBasis,
-      direction: p.direction.toLowerCase() as FilterDirection,
-      thresholdM2: p.thresholdM2,
+      minM2: p.minM2,
+      maxM2: p.maxM2,
     })),
   });
 }
@@ -51,14 +51,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Geçersiz basis" }, { status: 400 });
   }
 
-  const directionRaw = String(body?.direction ?? "").toLowerCase();
-  if (directionRaw !== "under" && directionRaw !== "over") {
-    return NextResponse.json({ error: "Geçersiz direction" }, { status: 400 });
+  let minM2: number | null = null;
+  if (body?.minM2 !== undefined && body?.minM2 !== null && body?.minM2 !== "") {
+    minM2 = Number(body.minM2);
+    if (!Number.isFinite(minM2) || minM2 < 0) {
+      return NextResponse.json({ error: "Geçerli bir 'en az m²' değeri girin" }, { status: 400 });
+    }
   }
 
-  const thresholdM2 = Number(body?.thresholdM2);
-  if (!Number.isFinite(thresholdM2) || thresholdM2 < 0) {
-    return NextResponse.json({ error: "Geçerli bir m² eşiği girin" }, { status: 400 });
+  let maxM2: number | null = null;
+  if (body?.maxM2 !== undefined && body?.maxM2 !== null && body?.maxM2 !== "") {
+    maxM2 = Number(body.maxM2);
+    if (!Number.isFinite(maxM2) || maxM2 < 0) {
+      return NextResponse.json({ error: "Geçerli bir 'en çok m²' değeri girin" }, { status: 400 });
+    }
+  }
+
+  if (minM2 != null && maxM2 != null && minM2 >= maxM2) {
+    return NextResponse.json(
+      { error: "'En az' değeri 'en çok' değerinden küçük olmalı" },
+      { status: 400 }
+    );
   }
 
   const preset = await prisma.productFilterPreset.create({
@@ -68,8 +81,8 @@ export async function POST(request: Request) {
       materialType,
       quality: quality ?? undefined,
       basis: basisRaw.toUpperCase() as "FAMILY" | "VARIANT",
-      direction: directionRaw.toUpperCase() as "UNDER" | "OVER",
-      thresholdM2,
+      minM2,
+      maxM2,
       createdByAdminId: auth.admin.id,
     },
   });

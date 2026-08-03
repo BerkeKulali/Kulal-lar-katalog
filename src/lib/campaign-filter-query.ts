@@ -8,7 +8,6 @@ import {
   applyProductFilter,
   type FilterBasis,
   type FilterCriteria,
-  type FilterDirection,
   type FilterQuality,
   type FilterRow,
   type VariantForFilter,
@@ -115,16 +114,27 @@ export function parseFilterCriteriaFromSearchParams(
   }
   const basis = basisRaw as FilterBasis;
 
-  const directionRaw = searchParams.get("direction")?.trim() || "under";
-  if (directionRaw !== "under" && directionRaw !== "over") {
-    return { error: "Geçersiz direction" };
-  }
-  const direction = directionRaw as FilterDirection;
-
-  const thresholdM2 = Number(searchParams.get("thresholdM2"));
-  if (!Number.isFinite(thresholdM2) || thresholdM2 < 0) {
-    return { error: "Geçerli bir m² eşiği girin" };
+  const minRaw = searchParams.get("minM2")?.trim();
+  let minM2: number | null = null;
+  if (minRaw) {
+    minM2 = Number(minRaw);
+    if (!Number.isFinite(minM2) || minM2 < 0) {
+      return { error: "Geçerli bir 'en az m²' değeri girin" };
+    }
   }
 
-  return { brandIds, materialType, quality, basis, direction, thresholdM2 };
+  const maxRaw = searchParams.get("maxM2")?.trim();
+  let maxM2: number | null = null;
+  if (maxRaw) {
+    maxM2 = Number(maxRaw);
+    if (!Number.isFinite(maxM2) || maxM2 < 0) {
+      return { error: "Geçerli bir 'en çok m²' değeri girin" };
+    }
+  }
+
+  if (minM2 != null && maxM2 != null && minM2 >= maxM2) {
+    return { error: "'En az' değeri 'en çok' değerinden küçük olmalı" };
+  }
+
+  return { brandIds, materialType, quality, basis, minM2, maxM2 };
 }

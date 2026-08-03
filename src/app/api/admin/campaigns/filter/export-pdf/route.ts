@@ -81,12 +81,17 @@ export async function GET(request: Request) {
     ]),
   ];
 
-  const directionLabel = criteria.direction === "under" ? "altı" : "üstü";
   const basisLabel =
     criteria.basis === "family" ? "aile toplamı" : "varyant bazında";
-  const subtitleParts = [
-    `Eşik: ${criteria.thresholdM2.toLocaleString("tr-TR")} m² ${directionLabel} (${basisLabel})`,
-  ];
+  const rangeLabel =
+    criteria.minM2 != null && criteria.maxM2 != null
+      ? `${criteria.minM2.toLocaleString("tr-TR")} – ${criteria.maxM2.toLocaleString("tr-TR")} m² arası`
+      : criteria.minM2 != null
+        ? `${criteria.minM2.toLocaleString("tr-TR")} m² ve üstü`
+        : criteria.maxM2 != null
+          ? `${criteria.maxM2.toLocaleString("tr-TR")} m² altı`
+          : "tüm stoklar";
+  const subtitleParts = [`Stok: ${rangeLabel} (${basisLabel})`];
   if (criteria.materialType) subtitleParts.push(`Malzeme: ${criteria.materialType}`);
   if (criteria.quality) subtitleParts.push(`Kalite: ${qualityLabel(criteria.quality)}`);
 
