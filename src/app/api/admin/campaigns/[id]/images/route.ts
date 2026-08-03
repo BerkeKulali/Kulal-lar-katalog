@@ -44,10 +44,15 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Dosya gerekli" }, { status: 400 });
   }
 
-  const maxBytes = 12 * 1024 * 1024;
+  // Vercel serverless fonksiyonlarının istek gövdesi için sabit ~4.5MB
+  // platform sınırı var (uygulama kodundan yükseltilemez) — bunun altında,
+  // güvenli bir payla tutuyoruz. Daha büyük istekler zaten platform
+  // tarafından bu koda hiç ulaşmadan reddediliyor; bu kontrol asıl olarak
+  // doğrudan (PDF olmayan) görsel yüklemeleri için bir güvenlik ağı.
+  const maxBytes = 4 * 1024 * 1024;
   if (file.size > maxBytes) {
     return NextResponse.json(
-      { error: "Dosya çok büyük (max 12MB)" },
+      { error: "Dosya çok büyük (max 4MB)" },
       { status: 413 }
     );
   }

@@ -27,11 +27,23 @@ type Campaign = {
 };
 
 /**
- * PDF'i tarayıcıda (pdf.js) sayfalara ayırıp her sayfayı PNG File'a çevirir.
+ * Vercel'in serverless fonksiyon istek gövdesi için sabit ~4.5MB sınırı var
+ * (uygulama kodundan değiştirilemez/yükseltilemez). Bunu aşan bir yükleme
+ * sunucuya hiç ulaşmadan platform tarafından "Request Entity Too Large"
+ * (düz metin, JSON değil) ile reddediliyor.
+ */
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
+/**
+ * PDF'i tarayıcıda (pdf.js) sayfalara ayırıp her sayfayı JPEG File'a çevirir.
  * Sunucu tarafında PDF render pipeline'ı kurmamak için bilinçli tercih —
  * Vercel serverless'ta headless render karmaşık; bu iş istemcide yapılıyor.
+ *
+ * PNG yerine JPEG kullanılıyor: yüksek çözünürlükte (scale 2) afiş
+ * sayfalarının PNG'si kolayca birkaç MB'ı geçip Vercel'in sınırına takılıyordu.
+ * JPEG + kademeli kalite düşürme ile dosya boyutu güvenli aralıkta tutuluyor.
  */
-async function pdfFileToPngFiles(file: File): Promise<File[]> {
+async function pdfFileToImageFiles(file: File): Promise<File[]> {
   const pdfjsLib = await import("pdfjs-dist");
   // /public altında pdfjs-dist ile AYNI sürümden kopyalanmış worker dosyası
   // kullanılıyor (CDN'e bağımlı olmamak ve sürüm uyuşmazlığını önlemek için).
@@ -48,7 +60,7 @@ async function pdfFileToPngFiles(file: File): Promise<File[]> {
   try {
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
       const page = await pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale: 2 });
+      const viewport = page.getViewport({ scale: 1.8 });
 
       const canvas = document.createElement("canvas");
       canvas.width = Math.ceil(viewport.width);
@@ -57,16 +69,18 @@ async function pdfFileToPngFiles(file: File): Promise<File[]> {
       const renderTask = page.render({ canvas, viewport });
       await renderTask.promise;
 
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(
-          (b) => (b ? resolve(b) : reject(new Error("PNG üretilemedi"))),
-          "image/png"
-        );
-      });
+      let blob: Blob | null = null;
+      for (const quality of [0.85, 0.7, 0.55, 0.4]) {
+        blob = await new Promise<Blob | null>((resolve) => {
+          canvas.toBlob((b) => resolve(b), "image/jpeg", quality);
+        });
+        if (blob && blob.size <= MAX_UPLOAD_BYTES) break;
+      }
+      if (!blob) throw new Error("Sayfa görseli üretilemedi");
 
       const pageLabel = pdf.numPages > 1 ? `-sayfa-${pageNum}` : "";
       files.push(
-        new File([blob], `${baseName}${pageLabel}.png`, { type: "image/png" })
+        new File([blob], `${baseName}${pageLabel}.jpg`, { type: "image/jpeg" })
       );
     }
   } finally {
@@ -74,6 +88,24 @@ async function pdfFileToPngFiles(file: File): Promise<File[]> {
   }
 
   return files;
+}
+
+/**
+ * fetch yanıtını güvenle JSON'a çevirir. Vercel'in platform seviyesinde
+ * kestiği istekler (413 "Request Entity Too Large" gibi) düz metin döner —
+ * doğrudan res.json() bunlarda "Unexpected token" hatasıyla patlıyordu.
+ */
+async function readJsonSafe(res: Response): Promise<{ error?: string; [key: string]: unknown }> {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    if (res.status === 413) {
+      return { error: "Dosya çok büyük — sunucu isteği reddetti (413)" };
+    }
+    return { error: `Sunucu hatası (${res.status})` };
+  }
 }
 
 export function CampaignManager() {
@@ -90,12 +122,12 @@ export function CampaignManager() {
     setError(null);
     try {
       const res = await fetch("/api/admin/campaigns", { cache: "no-store" });
-      const data = await res.json();
+      const data = await readJsonSafe(res);
       if (!res.ok) {
         setError(data.error ?? "Liste yüklenemedi");
         return;
       }
-      setCampaigns(data.campaigns ?? []);
+      setCampaigns((data.campaigns as Campaign[] | undefined) ?? []);
     } catch {
       setError("Liste yüklenemedi");
     } finally {
@@ -121,7 +153,7 @@ export function CampaignManager() {
           description: newDescription.trim() || null,
         }),
       });
-      const data = await res.json();
+      const data = await readJsonSafe(res);
       if (!res.ok) {
         setError(data.error ?? "Oluşturulamadı");
         return;
@@ -209,7 +241,7 @@ function CampaignCard({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    const body = await res.json();
+    const body = await readJsonSafe(res);
     if (!res.ok) {
       setMessage(body.error ?? "Güncellenemedi");
       return false;
@@ -228,7 +260,7 @@ function CampaignCard({
   async function handleDelete() {
     if (!confirm(`"${campaign.title}" kampanyası silinsin mi?`)) return;
     const res = await fetch(`/api/admin/campaigns/${campaign.id}`, { method: "DELETE" });
-    const body = await res.json();
+    const body = await readJsonSafe(res);
     if (!res.ok) {
       setMessage(body.error ?? "Silinemedi");
       return;
@@ -244,7 +276,7 @@ function CampaignCard({
       method: "POST",
       body: form,
     });
-    const body = await res.json();
+    const body = await readJsonSafe(res);
     if (!res.ok) {
       setMessage(body.error ?? "Yükleme başarısız");
       return false;
@@ -267,7 +299,7 @@ function CampaignCard({
       }
 
       setUploadProgress("PDF sayfalara ayrılıyor…");
-      const pages = await pdfFileToPngFiles(file);
+      const pages = await pdfFileToImageFiles(file);
       for (let i = 0; i < pages.length; i++) {
         setUploadProgress(`Sayfa ${i + 1}/${pages.length} yükleniyor…`);
         const ok = await uploadOneFile(pages[i]!);
@@ -293,7 +325,7 @@ function CampaignCard({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageId }),
     });
-    const body = await res.json();
+    const body = await readJsonSafe(res);
     if (!res.ok) {
       setMessage(body.error ?? "Görsel silinemedi");
       return;
@@ -312,7 +344,7 @@ function CampaignCard({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageIds: images.map((img) => img.id) }),
     });
-    const body = await res.json();
+    const body = await readJsonSafe(res);
     if (!res.ok) {
       setMessage(body.error ?? "Sıralama güncellenemedi");
       return;
