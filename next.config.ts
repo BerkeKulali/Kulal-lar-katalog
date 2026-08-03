@@ -30,6 +30,13 @@ const nextConfig: NextConfig = {
     "@prisma/adapter-better-sqlite3",
     "@libsql/client",
     "@prisma/adapter-libsql",
+    // pdfmake, iç durumunu (font kaydı vb.) modül seviyesinde tuttuğu için
+    // Turbopack/webpack'in bundle'a gömmesi bu durumu bozuyor ("Cannot set
+    // properties of undefined (setting 'fonts')" — build sırasında
+    // "Collecting page data" adımında export-pdf route'u içe aktarılırken
+    // ortaya çıkıyordu). Native require ile, bundle dışında yüklenmesi
+    // gerekiyor.
+    "pdfmake",
   ],
 };
 
