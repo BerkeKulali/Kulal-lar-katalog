@@ -48,6 +48,16 @@ enum AccessRequestStatus {
   REJECTED
 }
 
+enum FilterBasis {
+  FAMILY
+  VARIANT
+}
+
+enum FilterDirection {
+  UNDER
+  OVER
+}
+
 model Brand {
   id        String          @id @default(cuid())
   name      String
@@ -400,4 +410,59 @@ model AccessRequest {
   @@index([status, createdAt])
   @@index([type, createdAt])
   @@index([salespersonId, status])
+}
+
+/**
+ * Kampanya afişi: banner-studio'da hazırlanan PDF'in dışa aktarılmış sayfa
+ * görselleri (bkz. CampaignImage). Herkese açık kataloğun "Kampanyalar"
+ * bölümünde gösterilir; yönetimi admin-only "campaigns" izniyle sınırlıdır.
+ */
+model Campaign {
+  id               String          @id @default(cuid())
+  title            String
+  description      String?
+  isActive         Boolean         @default(true)
+  /** false ise yalnızca plasiyerlere görünür (Brand.visibleToDealers ile aynı desen). */
+  visibleToDealers Boolean         @default(true)
+  sortOrder        Int             @default(0)
+  /** Kart/liste görünümünde yuvarlak rozet olarak gösterilir (bkz. src/lib/campaign-tags.ts). Üçü de opsiyonel. */
+  locationTag      String?
+  sizeTag          String?
+  qualityTag       String?
+  images           CampaignImage[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model CampaignImage {
+  id            String   @id @default(cuid())
+  campaignId    String
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  imageUrl      String
+  imagePublicId String?
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([campaignId])
+}
+
+/**
+ * Admin-only ürün segmenti filtresi: marka/malzeme/kalite/stok eşiğine göre
+ * tanımlanmış, isimlendirilip tekrar çalıştırılabilen sorgu (örn. "Güral
+ * 250 m² altı ürünler"). Sonuç DB'de saklanmaz; her çalıştırmada güncel
+ * stoktan hesaplanır (bkz. src/lib/campaign-filter.ts).
+ */
+model ProductFilterPreset {
+  id               String          @id @default(cuid())
+  name             String
+  /** JSON dizi: marka id'leri (boş dizi = tüm markalar). */
+  brandIds         String          @default("[]")
+  materialType     String?
+  quality          Quality?
+  basis            FilterBasis
+  direction        FilterDirection
+  thresholdM2      Float
+  createdByAdminId String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 }

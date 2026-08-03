@@ -10,6 +10,7 @@ import { formatSizeLabel } from "@/lib/constants";
 import { HOME_COLORS, HOME_MATERIAL_TYPES } from "@/lib/product-attributes";
 import {
   getActiveAnnouncements,
+  getActiveCampaigns,
   getAppSettings,
   getBrands,
   getGlobalSearchCatalog,
@@ -17,12 +18,14 @@ import {
 
 export default async function HomePage() {
   const audience = await getCatalogAudienceFromCookies();
-  const [brands, settings, announcements, searchIndex] = await Promise.all([
-    getBrands(audience),
-    getAppSettings(),
-    getActiveAnnouncements(),
-    getGlobalSearchCatalog(audience),
-  ]);
+  const [brands, settings, announcements, searchIndex, campaigns] =
+    await Promise.all([
+      getBrands(audience),
+      getAppSettings(),
+      getActiveAnnouncements(),
+      getGlobalSearchCatalog(audience),
+      getActiveCampaigns(audience),
+    ]);
   // Duyurular, o izleyiciye kapalı markaların adını içeriyorsa gizlenir.
   // (Önceden metinde "qua" geçmesi koda gömülü olarak filtreleniyordu; artık
   // kural veritabanındaki marka görünürlüğünden türetiliyor.)
@@ -67,6 +70,50 @@ export default async function HomePage() {
                 )}
               </div>
             ))}
+          </section>
+        )}
+
+        {campaigns.length > 0 && (
+          <section className="mt-6">
+            <div className="mb-4 flex items-center justify-between px-5">
+              <h2 className="text-xs font-semibold tracking-[0.3em] text-zinc-500">
+                KAMPANYALAR
+              </h2>
+              <Link
+                href="/kampanyalar"
+                className="text-[10px] text-zinc-500 underline"
+              >
+                Tümünü gör
+              </Link>
+            </div>
+            <div className="flex gap-3 overflow-x-auto px-5 pb-1">
+              {campaigns.map((c) => (
+                <Link
+                  key={c.id}
+                  href="/kampanyalar"
+                  className="block w-40 flex-shrink-0 p-2"
+                >
+                  {(c.locationTag || c.sizeTag || c.qualityTag) && (
+                    <div className="campaign-tag-medallion campaign-tag-medallion--sm mb-2">
+                      {c.locationTag && (
+                        <span className="campaign-tag-line">{c.locationTag}</span>
+                      )}
+                      {c.sizeTag && (
+                        <span className="campaign-tag-line campaign-tag-line--muted">
+                          {c.sizeTag}
+                        </span>
+                      )}
+                      {c.qualityTag && (
+                        <span className="campaign-tag-line campaign-tag-line--muted">
+                          {c.qualityTag}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <p className="truncate text-[11px] font-semibold">{c.title}</p>
+                </Link>
+              ))}
+            </div>
           </section>
         )}
 

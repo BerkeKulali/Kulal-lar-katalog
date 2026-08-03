@@ -9,6 +9,7 @@ export const ADMIN_PERMISSIONS = [
   "orders",
   "import",
   "salespeople",
+  "campaigns",
   "admins",
 ] as const;
 
@@ -23,6 +24,7 @@ export const PERMISSION_LABELS: Record<AdminPermission, string> = {
   orders: "Siparişler",
   import: "Excel import / export",
   salespeople: "Plasiyerler ve bayiler",
+  campaigns: "Kampanyalar",
   admins: "Admin kullanıcıları",
 };
 
@@ -93,6 +95,16 @@ export const ADMIN_NAV: {
   },
   { href: "/admin/siparisler", label: "Siparişler", permission: "orders" },
   { href: "/admin/import", label: "Excel import / export", permission: "import" },
+  {
+    href: "/admin/kampanyalar",
+    label: "Kampanyalar (afiş galerisi)",
+    permission: "campaigns",
+  },
+  {
+    href: "/admin/kampanyalar/urunler",
+    label: "Ürün segmentleri (filtre & export)",
+    permission: "campaigns",
+  },
 ];
 
 export type AdminSession = AdminUser & {

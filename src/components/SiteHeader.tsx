@@ -10,6 +10,7 @@ import { useThemeStore } from "@/store/theme";
 const NAV_ITEMS = [
   { href: "/", label: "Anasayfa" },
   { href: "/katalog", label: "Katalog" },
+  { href: "/kampanyalar", label: "Kampanyalar" },
 ];
 
 type AdminSession = {

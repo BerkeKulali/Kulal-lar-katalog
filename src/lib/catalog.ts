@@ -301,6 +301,55 @@ export const getActiveAnnouncements = cache(async () => {
   });
 });
 
+export type CampaignImageView = { id: string; url: string };
+
+export type CampaignView = {
+  id: string;
+  title: string;
+  description: string | null;
+  locationTag: string | null;
+  sizeTag: string | null;
+  qualityTag: string | null;
+  images: CampaignImageView[];
+};
+
+/**
+ * Aktif kampanya afişleri (bkz. admin/kampanyalar). `visibleToDealers`
+ * kuralı `Brand.visibleToDealers` ile aynı desende uygulanır.
+ */
+async function _getActiveCampaigns(
+  audience: CatalogAudience = "default"
+): Promise<CampaignView[]> {
+  const campaigns = await prisma.campaign.findMany({
+    where: {
+      isActive: true,
+      ...(audience === "dealer" ? { visibleToDealers: true } : {}),
+    },
+    include: {
+      images: { orderBy: { sortOrder: "asc" } },
+    },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  return campaigns
+    .filter((c) => c.images.length > 0)
+    .map((c) => ({
+      id: c.id,
+      title: c.title,
+      description: c.description,
+      locationTag: c.locationTag,
+      sizeTag: c.sizeTag,
+      qualityTag: c.qualityTag,
+      images: c.images.map((img) => ({ id: img.id, url: img.imageUrl })),
+    }));
+}
+
+export const getActiveCampaigns = unstable_cache(
+  _getActiveCampaigns,
+  ["catalog-campaigns"],
+  catalogCacheOptions
+);
+
 // --- Global arama indeksi (anasayfa + arama) ---
 
 async function _getGlobalSearchCatalog(
