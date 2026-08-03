@@ -1,6 +1,5 @@
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { createPdf, setFonts, setLocalAccessPolicy } from "pdfmake";
 import { requireAdminPermission } from "@/lib/admin-auth";
 import {
   parseFilterCriteriaFromSearchParams,
@@ -19,16 +18,32 @@ export const runtime = "nodejs";
 // build'inde elenebiliyor, proje-içi statik yol daha güvenilir).
 const FONT_DIR = path.join(process.cwd(), "src/lib/pdf/fonts");
 
-setFonts({
-  Roboto: {
-    normal: path.join(FONT_DIR, "Roboto-Regular.ttf"),
-    bold: path.join(FONT_DIR, "Roboto-Medium.ttf"),
-    italics: path.join(FONT_DIR, "Roboto-Italic.ttf"),
-    bolditalics: path.join(FONT_DIR, "Roboto-MediumItalic.ttf"),
-  },
-});
-// Yalnızca yukarıdaki sabit, projeye gömülü font dosyalarına erişime izin ver.
-setLocalAccessPolicy((p) => p.startsWith(FONT_DIR));
+let pdfmakeReady = false;
+
+// pdfmake'i modül üst seviyesinde import etmek yerine istek anında, lazy
+// olarak yüklüyoruz. Next.js build'i "Collecting page data" adımında route
+// modülünü statik analiz için içe aktarıyor; pdfmake'in modül-seviyesi
+// durumu (font kaydı) bu build-zamanı içe aktarma sırasında henüz tam
+// başlatılmamış oluyor ve "Cannot set properties of undefined (setting
+// 'fonts')" hatasıyla build'i düşürüyordu. setFonts/setLocalAccessPolicy'i
+// gerçek bir isteğe kadar erteleyerek bu build-zamanı çalıştırmayı önlüyoruz.
+async function loadPdfmake() {
+  const pdfmake = await import("pdfmake");
+  if (!pdfmakeReady) {
+    pdfmake.setFonts({
+      Roboto: {
+        normal: path.join(FONT_DIR, "Roboto-Regular.ttf"),
+        bold: path.join(FONT_DIR, "Roboto-Medium.ttf"),
+        italics: path.join(FONT_DIR, "Roboto-Italic.ttf"),
+        bolditalics: path.join(FONT_DIR, "Roboto-MediumItalic.ttf"),
+      },
+    });
+    // Yalnızca yukarıdaki sabit, projeye gömülü font dosyalarına erişime izin ver.
+    pdfmake.setLocalAccessPolicy((p) => p.startsWith(FONT_DIR));
+    pdfmakeReady = true;
+  }
+  return pdfmake;
+}
 
 /** Ürün segmenti filtre sonucunu PDF olarak indirir. Yetki: campaigns. */
 export async function GET(request: Request) {
@@ -75,6 +90,7 @@ export async function GET(request: Request) {
   if (criteria.materialType) subtitleParts.push(`Malzeme: ${criteria.materialType}`);
   if (criteria.quality) subtitleParts.push(`Kalite: ${qualityLabel(criteria.quality)}`);
 
+  const { createPdf } = await loadPdfmake();
   const pdf = createPdf({
     pageOrientation: "landscape",
     pageMargins: [30, 30, 30, 30],
