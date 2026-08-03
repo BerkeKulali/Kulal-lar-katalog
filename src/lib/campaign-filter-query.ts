@@ -12,8 +12,11 @@ import {
   type FilterRow,
   type VariantForFilter,
 } from "@/lib/campaign-filter";
+import { normalizeSize } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
+import { isPrismaSurface } from "@/lib/surface";
 import { chunk } from "@/lib/utils";
+import type { Surface } from "@/generated/prisma/enums";
 
 const STOCK_CHUNK = 100;
 
@@ -34,6 +37,10 @@ export async function runProductFilter(
     where: {
       isActive: true,
       ...(criteria.quality ? { quality: criteria.quality } : {}),
+      ...(criteria.sizes.length > 0 ? { size: { in: criteria.sizes } } : {}),
+      ...(criteria.surfaces.length > 0
+        ? { surface: { in: criteria.surfaces as Surface[] } }
+        : {}),
       family: {
         isActive: true,
         ...(effectiveBrandIds.length > 0
@@ -136,5 +143,22 @@ export function parseFilterCriteriaFromSearchParams(
     return { error: "'En az' değeri 'en çok' değerinden küçük olmalı" };
   }
 
-  return { brandIds, materialType, quality, basis, minM2, maxM2 };
+  const sizes = (searchParams.get("sizes") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => normalizeSize(s));
+
+  const surfacesRaw = (searchParams.get("surfaces") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  for (const s of surfacesRaw) {
+    if (!isPrismaSurface(s)) {
+      return { error: `Geçersiz yüzey: ${s}` };
+    }
+  }
+  const surfaces = surfacesRaw.map((s) => s.toUpperCase());
+
+  return { brandIds, materialType, quality, basis, minM2, maxM2, sizes, surfaces };
 }

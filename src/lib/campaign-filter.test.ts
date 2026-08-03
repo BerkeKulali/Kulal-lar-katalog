@@ -30,6 +30,8 @@ function criteria(overrides: Partial<FilterCriteria>): FilterCriteria {
     basis: "variant",
     minM2: null,
     maxM2: 250,
+    sizes: [],
+    surfaces: [],
     ...overrides,
   };
 }
@@ -193,5 +195,57 @@ describe("applyProductFilter", () => {
       criteria({ basis: "family", minM2: null, maxM2: 250 })
     );
     assert.deepEqual(rows, []);
+  });
+
+  it("ebat filtresi eşleşmeyenleri eler", () => {
+    const variants = [
+      v({ variantId: "a", size: "60x120", stockM2: 100 }),
+      v({ variantId: "b", size: "60x60", stockM2: 100 }),
+    ];
+    const rows = applyProductFilter(
+      variants,
+      criteria({ sizes: ["60x120"], minM2: null, maxM2: null })
+    );
+    assert.deepEqual(
+      rows.map((r) => r.variantId),
+      ["a"]
+    );
+  });
+
+  it("yüzey filtresi eşleşmeyenleri eler", () => {
+    const variants = [
+      v({ variantId: "a", surface: "MAT", stockM2: 100 }),
+      v({ variantId: "b", surface: "R10", stockM2: 100 }),
+    ];
+    const rows = applyProductFilter(
+      variants,
+      criteria({ surfaces: ["MAT"], minM2: null, maxM2: null })
+    );
+    assert.deepEqual(
+      rows.map((r) => r.variantId),
+      ["a"]
+    );
+  });
+
+  it("ebat ve yüzey filtresi birlikte, çoklu seçimle çalışır", () => {
+    const variants = [
+      v({ variantId: "a", size: "60x120", surface: "MAT", stockM2: 100 }),
+      v({ variantId: "b", size: "60x60", surface: "MAT", stockM2: 100 }),
+      v({ variantId: "c", size: "60x120", surface: "R10", stockM2: 100 }),
+      v({ variantId: "d", size: "40x120", surface: "GLS", stockM2: 100 }),
+    ];
+    const rows = applyProductFilter(
+      variants,
+      criteria({
+        sizes: ["60x120", "40x120"],
+        surfaces: ["MAT", "GLS"],
+        minM2: null,
+        maxM2: null,
+      })
+    );
+    assert.deepEqual(
+      rows.map((r) => r.variantId).sort(),
+      ["a", "d"]
+    );
   });
 });

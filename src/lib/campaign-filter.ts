@@ -26,6 +26,10 @@ export type FilterCriteria = {
   minM2: number | null;
   /** null = üst sınır yok. */
   maxM2: number | null;
+  /** Boş dizi = tüm ebatlar. Normalize edilmiş (küçük harf) değerler. */
+  sizes: string[];
+  /** Boş dizi = tüm yüzeyler. Prisma Surface enum değerleri (büyük harf). */
+  surfaces: string[];
 };
 
 export type VariantForFilter = {
@@ -71,6 +75,12 @@ function matchesBaseCriteria(
     return false;
   }
   if (criteria.quality && v.quality !== criteria.quality) {
+    return false;
+  }
+  if (criteria.sizes.length > 0 && !criteria.sizes.includes(v.size)) {
+    return false;
+  }
+  if (criteria.surfaces.length > 0 && !criteria.surfaces.includes(v.surface)) {
     return false;
   }
   return true;

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
 import type { FilterBasis, FilterQuality } from "@/lib/campaign-filter";
+import { normalizeSize } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
+import { isPrismaSurface } from "@/lib/surface";
 
 /** Kayıtlı ürün segmenti filtreleri listesi. Yetki: campaigns. */
 export async function GET() {
@@ -22,6 +24,8 @@ export async function GET() {
       basis: p.basis.toLowerCase() as FilterBasis,
       minM2: p.minM2,
       maxM2: p.maxM2,
+      sizes: JSON.parse(p.sizes) as string[],
+      surfaces: JSON.parse(p.surfaces) as string[],
     })),
   });
 }
@@ -74,6 +78,22 @@ export async function POST(request: Request) {
     );
   }
 
+  const sizes: string[] = Array.isArray(body?.sizes)
+    ? body.sizes
+        .filter((v: unknown): v is string => typeof v === "string")
+        .map((s: string) => normalizeSize(s))
+    : [];
+
+  const surfacesInput: string[] = Array.isArray(body?.surfaces)
+    ? body.surfaces.filter((v: unknown): v is string => typeof v === "string")
+    : [];
+  for (const s of surfacesInput) {
+    if (!isPrismaSurface(s)) {
+      return NextResponse.json({ error: `Geçersiz yüzey: ${s}` }, { status: 400 });
+    }
+  }
+  const surfaces = surfacesInput.map((s) => s.toUpperCase());
+
   const preset = await prisma.productFilterPreset.create({
     data: {
       name,
@@ -83,6 +103,8 @@ export async function POST(request: Request) {
       basis: basisRaw.toUpperCase() as "FAMILY" | "VARIANT",
       minM2,
       maxM2,
+      sizes: JSON.stringify(sizes),
+      surfaces: JSON.stringify(surfaces),
       createdByAdminId: auth.admin.id,
     },
   });

@@ -1,8 +1,15 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { surfaceDisplayLabel } from "@/lib/constants";
+import {
+  formatSizeLabel,
+  getAllCatalogSizes,
+  SURFACES,
+  surfaceDisplayLabel,
+} from "@/lib/constants";
 import { qualityLabel } from "@/lib/utils";
+
+const ALL_SIZES = getAllCatalogSizes();
 
 type Brand = { id: string; name: string };
 type MaterialType = { id: string; label: string };
@@ -30,6 +37,8 @@ type Preset = {
   basis: Basis;
   minM2: number | null;
   maxM2: number | null;
+  sizes: string[];
+  surfaces: string[];
 };
 
 export function ProductFilterView({
@@ -45,6 +54,8 @@ export function ProductFilterView({
   const [basis, setBasis] = useState<Basis>("family");
   const [minM2, setMinM2] = useState("");
   const [maxM2, setMaxM2] = useState("250");
+  const [sizes, setSizes] = useState<string[]>([]);
+  const [surfaces, setSurfaces] = useState<string[]>([]);
 
   const [rows, setRows] = useState<FilterRow[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -63,8 +74,10 @@ export function ProductFilterView({
     params.set("basis", basis);
     if (minM2.trim()) params.set("minM2", minM2.trim());
     if (maxM2.trim()) params.set("maxM2", maxM2.trim());
+    if (sizes.length > 0) params.set("sizes", sizes.join(","));
+    if (surfaces.length > 0) params.set("surfaces", surfaces.join(","));
     return params;
-  }, [brandIds, materialType, quality, basis, minM2, maxM2]);
+  }, [brandIds, materialType, quality, basis, minM2, maxM2, sizes, surfaces]);
 
   const loadPresets = useCallback(async () => {
     const res = await fetch("/api/admin/campaigns/presets", { cache: "no-store" });
@@ -121,6 +134,18 @@ export function ProductFilterView({
     );
   }
 
+  function toggleSize(size: string) {
+    setSizes((prev) =>
+      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
+    );
+  }
+
+  function toggleSurface(surface: string) {
+    setSurfaces((prev) =>
+      prev.includes(surface) ? prev.filter((s) => s !== surface) : [...prev, surface]
+    );
+  }
+
   function applyPreset(preset: Preset) {
     setBrandIds(preset.brandIds);
     setMaterialType(preset.materialType ?? "");
@@ -128,6 +153,8 @@ export function ProductFilterView({
     setBasis(preset.basis);
     setMinM2(preset.minM2 != null ? String(preset.minM2) : "");
     setMaxM2(preset.maxM2 != null ? String(preset.maxM2) : "");
+    setSizes(preset.sizes ?? []);
+    setSurfaces(preset.surfaces ?? []);
     setMessage(`"${preset.name}" segmenti yüklendi — Filtrele'ye basın`);
   }
 
@@ -147,6 +174,8 @@ export function ProductFilterView({
           basis,
           minM2: minM2.trim() ? Number(minM2) : null,
           maxM2: maxM2.trim() ? Number(maxM2) : null,
+          sizes,
+          surfaces,
         }),
       });
       const data = await res.json();
@@ -223,6 +252,38 @@ export function ProductFilterView({
             </div>
           </div>
         )}
+
+        <div>
+          <p className="theme-muted mb-1 text-xs">Ebat (boş = tümü)</p>
+          <div className="flex flex-wrap gap-3">
+            {ALL_SIZES.map((s) => (
+              <label key={s} className="flex items-center gap-1.5 text-sm">
+                <input
+                  type="checkbox"
+                  checked={sizes.includes(s)}
+                  onChange={() => toggleSize(s)}
+                />
+                {formatSizeLabel(s)}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="theme-muted mb-1 text-xs">Yüzey (boş = tümü)</p>
+          <div className="flex flex-wrap gap-3">
+            {SURFACES.map((s) => (
+              <label key={s} className="flex items-center gap-1.5 text-sm">
+                <input
+                  type="checkbox"
+                  checked={surfaces.includes(s)}
+                  onChange={() => toggleSurface(s)}
+                />
+                {surfaceDisplayLabel(s)}
+              </label>
+            ))}
+          </div>
+        </div>
 
         <div className="flex flex-wrap gap-4">
           <div>

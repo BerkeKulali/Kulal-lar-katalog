@@ -94,6 +94,14 @@ export async function GET(request: Request) {
   const subtitleParts = [`Stok: ${rangeLabel} (${basisLabel})`];
   if (criteria.materialType) subtitleParts.push(`Malzeme: ${criteria.materialType}`);
   if (criteria.quality) subtitleParts.push(`Kalite: ${qualityLabel(criteria.quality)}`);
+  if (criteria.sizes.length > 0) {
+    subtitleParts.push(`Ebat: ${criteria.sizes.map((s) => s.toUpperCase()).join(", ")}`);
+  }
+  if (criteria.surfaces.length > 0) {
+    subtitleParts.push(
+      `Yüzey: ${criteria.surfaces.map((s) => surfaceDisplayLabel(s)).join(", ")}`
+    );
+  }
 
   const { createPdf } = await loadPdfmake();
   const pdf = createPdf({

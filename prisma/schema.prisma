@@ -459,6 +459,10 @@ model ProductFilterPreset {
   minM2            Float?
   /** Aralığın üst sınırı (dahil değil, "altı"); null = üst sınır yok. */
   maxM2            Float?
+  /** JSON dizi: ebat değerleri, örn. ["60x120"] (boş dizi = tüm ebatlar). */
+  sizes            String          @default("[]")
+  /** JSON dizi: Surface enum değerleri, örn. ["MAT"] (boş dizi = tüm yüzeyler). */
+  surfaces         String          @default("[]")
   createdByAdminId String?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
