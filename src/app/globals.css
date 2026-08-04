@@ -271,6 +271,28 @@ html {
   color: var(--foreground);
 }
 
+/* Ürün detay / sepet gibi tek-off geri dönüş bağlantıları — katalog seçim
+   çiplerindeki (catalog-picker-chip) yumuşak dolgulu/gölgeli dile uyar,
+   düz kenarlıklı eski moda kutu görünümü yerine. */
+.catalog-back-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--catalog-picker-fg);
+  background: var(--catalog-picker-bg);
+  box-shadow: var(--catalog-picker-shadow);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.catalog-back-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--catalog-picker-shadow-hover);
+}
+
 .catalog-size-title {
   margin-top: 0.75rem;
   font-size: 1.125rem;

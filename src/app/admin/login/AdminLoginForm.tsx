@@ -69,7 +69,7 @@ export function AdminLoginForm() {
   }
 
   return (
-    <AppShell variant="narrow" className="flex flex-col justify-center py-16">
+    <AppShell variant="narrow" showLogo className="flex flex-col justify-center py-16">
       <h1 className="mb-8 text-center text-xl font-bold">Admin Girişi</h1>
 
       {needKey && (

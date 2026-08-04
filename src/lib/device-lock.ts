@@ -48,11 +48,17 @@ export async function registerTabletForSalesperson(salespersonId: string) {
 export type AuthorizedDevice = {
   id: string;
   salespersonId: string | null;
+  dealerId: string | null;
 };
 
 /**
  * Token geçerli ve cihaz hâlâ yetkiliyse cihaz kaydını döner, aksi halde null.
- * Yetki kuralı: plasiyerin tablet kilidi varsa yalnızca kilitli cihaz geçerlidir.
+ * Yetki kuralları:
+ * - Plasiyerin tablet kilidi varsa yalnızca kilitli cihaz geçerlidir.
+ * - Kullanıcı adı/şifre ile giriş yapmış bayi cihazı (dealerId dolu) için,
+ *   bağlı Dealer hesabı hâlâ onaylı (APPROVED) ve aktif olmalı — admin bir
+ *   bayiyi reddedip/devre dışı bırakırsa o bayinin tüm mevcut cihaz oturumları
+ *   (DEVICE_AUTH_COOKIE önbelleği kadar gecikmeyle) burada geçersiz sayılır.
  */
 export async function getAuthorizedDevice(
   deviceToken: string
@@ -62,8 +68,12 @@ export async function getAuthorizedDevice(
     select: {
       id: true,
       salespersonId: true,
+      dealerId: true,
       salesperson: {
         select: { lockedDeviceId: true },
+      },
+      dealer: {
+        select: { status: true, isActive: true },
       },
     },
   });
@@ -73,7 +83,13 @@ export async function getAuthorizedDevice(
   const lockId = device.salesperson?.lockedDeviceId;
   if (lockId && lockId !== device.id) return null;
 
-  return { id: device.id, salespersonId: device.salespersonId };
+  if (device.dealerId) {
+    if (!device.dealer || device.dealer.status !== "APPROVED" || !device.dealer.isActive) {
+      return null;
+    }
+  }
+
+  return { id: device.id, salespersonId: device.salespersonId, dealerId: device.dealerId };
 }
 
 export async function isDeviceAuthorized(deviceToken: string): Promise<boolean> {

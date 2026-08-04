@@ -75,7 +75,7 @@ export default function CartPage() {
     <AppShell className="pb-28">
       <SiteHeader />
       <div className="px-5 pt-4">
-        <Link href="/" className="text-xs text-zinc-500 hover:text-white">
+        <Link href="/" className="catalog-back-pill">
           ← Anasayfa
         </Link>
         <h1 className="mt-4 text-lg font-bold tracking-wide">Sipariş Listesi</h1>

@@ -3,7 +3,7 @@ import { AppShell } from "@/components/AppShell";
 
 export default function NotFound() {
   return (
-    <AppShell variant="narrow" className="pb-12 pt-8">
+    <AppShell variant="narrow" showLogo className="pb-12 pt-8">
       <div className="mt-20 space-y-5 px-6 text-center">
         <h1 className="text-xl font-bold tracking-wide">Sayfa bulunamadı</h1>
         <p className="theme-muted text-sm">

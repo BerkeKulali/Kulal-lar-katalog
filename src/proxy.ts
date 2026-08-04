@@ -43,6 +43,9 @@ export default async function proxy(request: NextRequest) {
   const hasValidAdminSession = Boolean(
     verifyAdminSessionValue(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)
   );
+  // "dealer-pending" artık üretilmiyor (bayi girişi kullanıcı adı/şifre ile
+  // anlık tamamlanıyor) — eski kurulumlardan kalma cookie'ler için hâlâ kabul
+  // edilir, geriye dönük zararsız.
   const hasValidActorType =
     actorType === "dealer" ||
     actorType === "dealer-pending" ||

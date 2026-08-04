@@ -10,7 +10,7 @@ export const metadata = {
  */
 export default function OfflinePage() {
   return (
-    <AppShell variant="narrow" className="pb-12 pt-8">
+    <AppShell variant="narrow" showLogo className="pb-12 pt-8">
       <div className="mt-24 space-y-5 px-6 text-center">
         <h1 className="text-xl font-bold tracking-wide">Bağlantı yok</h1>
         <p className="theme-muted text-sm">

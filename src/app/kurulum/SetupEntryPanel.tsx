@@ -10,8 +10,8 @@ type SalespersonOption = {
 };
 
 type RequestStatus = "NONE" | "PENDING" | "APPROVED" | "REJECTED";
-type RequestKind = "salesperson" | "dealer" | null;
 type EntryMode = "dealer" | "salesperson" | "admin";
+type DealerAuthMode = "login" | "signup";
 
 export function SetupEntryPanel({
   salespeople,
@@ -22,15 +22,22 @@ export function SetupEntryPanel({
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<EntryMode>("dealer");
-  const [dealerName, setDealerName] = useState("");
   const [salespersonId, setSalespersonId] = useState(
     salespeople.find((sp) => !sp.isLocked)?.id ?? ""
   );
   const [status, setStatus] = useState<RequestStatus>("NONE");
-  const [requestKind, setRequestKind] = useState<RequestKind>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState(initialError ?? "");
   const [loading, setLoading] = useState(false);
+
+  const [dealerAuthMode, setDealerAuthMode] = useState<DealerAuthMode>("login");
+  const [dealerUsername, setDealerUsername] = useState("");
+  const [dealerPassword, setDealerPassword] = useState("");
+  const [dealerSignupName, setDealerSignupName] = useState("");
+  const [dealerSignupUsername, setDealerSignupUsername] = useState("");
+  const [dealerSignupPassword, setDealerSignupPassword] = useState("");
+  const [dealerMessage, setDealerMessage] = useState("");
+  const [dealerError, setDealerError] = useState("");
 
   const selectedSalespersonName = useMemo(
     () => salespeople.find((sp) => sp.id === salespersonId)?.name ?? "",
@@ -38,58 +45,22 @@ export function SetupEntryPanel({
   );
 
   async function loadRequestStatus() {
-    const [spRes, dealerRes] = await Promise.all([
-      fetch("/api/device/register/salesperson/status", { cache: "no-store" }),
-      fetch("/api/device/register/dealer/status", { cache: "no-store" }),
-    ]);
-    const spData = spRes.ok ? await spRes.json().catch(() => null) : null;
-    const dealerData = dealerRes.ok ? await dealerRes.json().catch(() => null) : null;
+    const res = await fetch("/api/device/register/salesperson/status", { cache: "no-store" });
+    const data = res.ok ? await res.json().catch(() => null) : null;
+    const spStatus = (data?.status ?? "NONE") as RequestStatus;
 
-    const spStatus = (spData?.status ?? "NONE") as RequestStatus;
-    const dealerStatus = (dealerData?.status ?? "NONE") as RequestStatus;
-
-    if (spStatus !== "NONE") {
-      setRequestKind("salesperson");
-      setStatus(spStatus);
-      setMode("salesperson");
-      if (spStatus === "PENDING") {
-        setStatusMessage(
-          `${spData.salespersonName ?? "Plasiyer"} için admin onayı bekleniyor.`
-        );
-      } else if (spStatus === "APPROVED") {
-        setStatusMessage("Talep onaylandı. Girişi tamamlayabilirsiniz.");
-      } else if (spStatus === "REJECTED") {
-        setStatusMessage(
-          spData.rejectionReason
-            ? `Talep reddedildi: ${spData.rejectionReason}`
-            : "Talep reddedildi."
-        );
-      }
-      return;
+    setStatus(spStatus);
+    if (spStatus === "PENDING") {
+      setStatusMessage(`${data.salespersonName ?? "Plasiyer"} için admin onayı bekleniyor.`);
+    } else if (spStatus === "APPROVED") {
+      setStatusMessage("Talep onaylandı. Girişi tamamlayabilirsiniz.");
+    } else if (spStatus === "REJECTED") {
+      setStatusMessage(
+        data.rejectionReason ? `Talep reddedildi: ${data.rejectionReason}` : "Talep reddedildi."
+      );
+    } else {
+      setStatusMessage("");
     }
-
-    if (dealerStatus !== "NONE") {
-      setRequestKind("dealer");
-      setStatus(dealerStatus);
-      setMode("dealer");
-      if (dealerStatus === "PENDING") {
-        setStatusMessage(
-          `${dealerData.dealerName ?? "Bayi"} için admin onayı bekleniyor.`
-        );
-      } else if (dealerStatus === "APPROVED") {
-        setStatusMessage("Talep onaylandı. Girişi tamamlayabilirsiniz.");
-      } else if (dealerStatus === "REJECTED") {
-        setStatusMessage(
-          dealerData.rejectionReason
-            ? `Talep reddedildi: ${dealerData.rejectionReason}`
-            : "Talep reddedildi."
-        );
-      }
-      return;
-    }
-
-    setRequestKind(null);
-    setStatus("NONE");
   }
 
   useEffect(() => {
@@ -104,50 +75,62 @@ export function SetupEntryPanel({
     return () => clearInterval(timer);
   }, [status]);
 
-  async function handleDealerRequest(e: React.FormEvent) {
+  async function handleDealerLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setError("");
-    setStatusMessage("");
+    setDealerError("");
+    setDealerMessage("");
     try {
-      const res = await fetch("/api/device/register/dealer/request", {
+      const res = await fetch("/api/dealer/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dealerName }),
+        body: JSON.stringify({ username: dealerUsername, password: dealerPassword }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error ?? "Talep oluşturulamadı");
-        return;
-      }
-      setRequestKind("dealer");
-      setStatus("PENDING");
-      setStatusMessage(
-        `${dealerName.trim() || "Bayi"} için admin onayı bekleniyor.`
-      );
-    } catch {
-      setError("Sunucuya bağlanılamadı");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleDealerFinalize() {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/device/register/dealer/finalize", {
-        method: "POST",
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error ?? "Giriş tamamlanamadı");
+        setDealerError(data.error ?? "Giriş yapılamadı");
         return;
       }
       router.push("/");
       router.refresh();
     } catch {
-      setError("Sunucuya bağlanılamadı");
+      setDealerError("Sunucuya bağlanılamadı");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDealerSignup(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setDealerError("");
+    setDealerMessage("");
+    try {
+      const res = await fetch("/api/dealer/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: dealerSignupName,
+          username: dealerSignupUsername,
+          password: dealerSignupPassword,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDealerError(data.error ?? "Kayıt oluşturulamadı");
+        return;
+      }
+      setDealerMessage(
+        "Kaydınız alındı. Admin onayladıktan sonra bu kullanıcı adı ve şifreyle buradan giriş yapabilirsiniz."
+      );
+      setDealerUsername(dealerSignupUsername);
+      setDealerPassword("");
+      setDealerSignupName("");
+      setDealerSignupUsername("");
+      setDealerSignupPassword("");
+      setDealerAuthMode("login");
+    } catch {
+      setDealerError("Sunucuya bağlanılamadı");
     } finally {
       setLoading(false);
     }
@@ -169,7 +152,6 @@ export function SetupEntryPanel({
         setError(data.error ?? "Talep oluşturulamadı");
         return;
       }
-      setRequestKind("salesperson");
       setStatus("PENDING");
       setStatusMessage(
         `${selectedSalespersonName || "Plasiyer"} için admin onayı bekleniyor.`
@@ -221,9 +203,6 @@ export function SetupEntryPanel({
     }
   }
 
-  const dealerPending = requestKind === "dealer" && status === "PENDING";
-  const dealerApproved = requestKind === "dealer" && status === "APPROVED";
-
   return (
     <div className="mx-auto mt-8 max-w-md space-y-5 px-6">
       <div className="grid grid-cols-3 gap-2">
@@ -258,41 +237,121 @@ export function SetupEntryPanel({
         </button>
       </div>
 
-      {mode === "dealer" && (
+      {mode === "dealer" && dealerAuthMode === "login" && (
         <form
-          onSubmit={handleDealerRequest}
+          onSubmit={handleDealerLogin}
           className="space-y-3 border border-zinc-800 p-4"
         >
           <p className="text-xs text-zinc-400">
-            Bayi girişi admin onayından sonra tamamlanır.
+            Onaylı bayi kullanıcı adı ve şifrenizle herhangi bir cihazdan giriş yapabilirsiniz.
           </p>
           <input
             type="text"
-            value={dealerName}
-            onChange={(e) => setDealerName(e.target.value)}
-            placeholder="Bayi adı"
-            disabled={loading || dealerPending}
+            value={dealerUsername}
+            onChange={(e) => setDealerUsername(e.target.value)}
+            placeholder="Kullanıcı adı"
+            autoCapitalize="none"
+            disabled={loading}
             className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
           />
-          {dealerApproved ? (
-            <button
-              type="button"
-              onClick={handleDealerFinalize}
-              disabled={loading}
-              className="w-full border border-emerald-500 py-2 text-sm font-semibold text-emerald-200 disabled:opacity-40"
-            >
-              {loading ? "Tamamlanıyor…" : "Onaylandı, girişi tamamla"}
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={loading || dealerName.trim().length < 2 || dealerPending}
-              className="w-full border border-white py-2 text-sm font-semibold disabled:opacity-40"
-            >
-              {loading ? "Gönderiliyor…" : "Admin onayı iste"}
-            </button>
-          )}
+          <input
+            type="password"
+            value={dealerPassword}
+            onChange={(e) => setDealerPassword(e.target.value)}
+            placeholder="Şifre"
+            disabled={loading}
+            className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
+          />
+          <button
+            type="submit"
+            disabled={loading || !dealerUsername.trim() || !dealerPassword}
+            className="w-full border border-white py-2 text-sm font-semibold disabled:opacity-40"
+          >
+            {loading ? "Giriş yapılıyor…" : "Giriş yap"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDealerAuthMode("signup");
+              setDealerError("");
+              setDealerMessage("");
+            }}
+            className="w-full text-center text-xs text-zinc-400 underline underline-offset-2"
+          >
+            Hesabınız yok mu? Kayıt olun
+          </button>
         </form>
+      )}
+
+      {mode === "dealer" && dealerAuthMode === "signup" && (
+        <form
+          onSubmit={handleDealerSignup}
+          className="space-y-3 border border-zinc-800 p-4"
+        >
+          <p className="text-xs text-zinc-400">
+            Kayıt admin onayına tabidir. Onaylandıktan sonra seçtiğiniz kullanıcı adı
+            ve şifreyle buradan (herhangi bir cihazdan) giriş yapabilirsiniz.
+          </p>
+          <input
+            type="text"
+            value={dealerSignupName}
+            onChange={(e) => setDealerSignupName(e.target.value)}
+            placeholder="Bayi adı"
+            disabled={loading}
+            className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
+          />
+          <input
+            type="text"
+            value={dealerSignupUsername}
+            onChange={(e) => setDealerSignupUsername(e.target.value)}
+            placeholder="Kullanıcı adı"
+            autoCapitalize="none"
+            disabled={loading}
+            className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
+          />
+          <input
+            type="password"
+            value={dealerSignupPassword}
+            onChange={(e) => setDealerSignupPassword(e.target.value)}
+            placeholder="Şifre (en az 6 karakter)"
+            disabled={loading}
+            className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
+          />
+          <button
+            type="submit"
+            disabled={
+              loading ||
+              dealerSignupName.trim().length < 2 ||
+              dealerSignupUsername.trim().length < 3 ||
+              dealerSignupPassword.length < 6
+            }
+            className="w-full border border-white py-2 text-sm font-semibold disabled:opacity-40"
+          >
+            {loading ? "Gönderiliyor…" : "Kayıt ol / Admin onayı iste"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDealerAuthMode("login");
+              setDealerError("");
+              setDealerMessage("");
+            }}
+            className="w-full text-center text-xs text-zinc-400 underline underline-offset-2"
+          >
+            Zaten hesabınız var mı? Giriş yapın
+          </button>
+        </form>
+      )}
+
+      {mode === "dealer" && dealerMessage && (
+        <p className="rounded border border-amber-900 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
+          {dealerMessage}
+        </p>
+      )}
+      {mode === "dealer" && dealerError && (
+        <p className="rounded border border-red-900 bg-red-950/30 px-3 py-2 text-xs text-red-300">
+          {dealerError}
+        </p>
       )}
 
       {mode === "salesperson" && (
@@ -357,12 +416,12 @@ export function SetupEntryPanel({
         </div>
       )}
 
-      {statusMessage && (
+      {mode === "salesperson" && statusMessage && (
         <p className="rounded border border-amber-900 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
           {statusMessage}
         </p>
       )}
-      {error && (
+      {mode === "salesperson" && error && (
         <p className="rounded border border-red-900 bg-red-950/30 px-3 py-2 text-xs text-red-300">
           {error}
         </p>

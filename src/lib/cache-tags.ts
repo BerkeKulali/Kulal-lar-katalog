@@ -12,9 +12,11 @@ import { revalidateTag } from "next/cache";
 
 export const CATALOG_TAG = "catalog";
 export const SALESPERSON_TAG = "salespeople";
+export const DEALER_TAG = "dealers";
 
 export const CATALOG_REVALIDATE_SECONDS = 300;
 export const SALESPERSON_REVALIDATE_SECONDS = 60;
+export const DEALER_REVALIDATE_SECONDS = 60;
 
 // Admin mutasyonlarından sonra sonraki katalog ziyaretinde taze SSR verisi için
 // anında sona erdir (Next 16 iki argümanlı imza).
@@ -33,6 +35,15 @@ export function invalidateCatalogCache() {
 export function invalidateSalespersonCache() {
   try {
     revalidateTag(SALESPERSON_TAG, IMMEDIATE_EXPIRE);
+  } catch {
+    // request bağlamı dışında sessiz geç.
+  }
+}
+
+/** Bayi hesabı (kullanıcı adı/şifre) stok/filtre yetkisi önbelleğini geçersiz kıl. */
+export function invalidateDealerCache() {
+  try {
+    revalidateTag(DEALER_TAG, IMMEDIATE_EXPIRE);
   } catch {
     // request bağlamı dışında sessiz geç.
   }

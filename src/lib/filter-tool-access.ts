@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
 import { getAuthorizedDevice } from "@/lib/device-lock";
 import { getSalespersonFilterToolEnabled } from "@/lib/salesperson-stock";
+import { getDealerFilterToolEnabled } from "@/lib/dealer-stock";
 import { prisma } from "@/lib/prisma";
 
 export type FilterToolAccess =
@@ -19,7 +20,9 @@ export type FilterToolAccess =
  * Kurallar:
  * - Cihaz tokenı yok/geçersiz → izin yok.
  * - Plasiyer cihazı → Salesperson.filterToolEnabled (aktiflik dahil).
- * - Bayi cihazı (onaylı) → Device.filterToolEnabled.
+ * - Kullanıcı adı/şifre ile giriş yapmış bayi cihazı → Dealer.filterToolEnabled
+ *   (onay/aktiflik dahil; aynı bayinin farklı cihazlarındaki tüm oturumlarını kapsar).
+ * - Eski tek-seferlik bayi cihazı (dealerId yok) → Device.filterToolEnabled.
  */
 export async function resolveFilterToolAccess(): Promise<FilterToolAccess> {
   const token = (await cookies()).get(DEVICE_TOKEN_COOKIE)?.value;
@@ -34,6 +37,11 @@ export async function resolveFilterToolAccess(): Promise<FilterToolAccess> {
 
   if (device.salespersonId) {
     const enabled = await getSalespersonFilterToolEnabled(device.salespersonId);
+    return enabled ? { allowed: true } : { allowed: false, reason: "not-enabled" };
+  }
+
+  if (device.dealerId) {
+    const enabled = await getDealerFilterToolEnabled(device.dealerId);
     return enabled ? { allowed: true } : { allowed: false, reason: "not-enabled" };
   }
 

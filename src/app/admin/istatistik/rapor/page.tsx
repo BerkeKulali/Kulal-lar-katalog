@@ -38,7 +38,7 @@ export default async function ClickReportPage({
         <div className="flex items-center gap-3">
           <Link
             href="/admin/istatistik"
-            className="text-xs text-zinc-500 hover:text-white"
+            className="theme-button border px-3 py-1.5 text-xs"
           >
             ← İstatistik
           </Link>

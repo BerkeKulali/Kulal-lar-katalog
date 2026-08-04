@@ -44,8 +44,8 @@ export default async function AdminDashboardPage() {
     prisma.accessRequest.count({
       where: { type: "SALESPERSON", status: "PENDING" },
     }),
-    prisma.accessRequest.count({
-      where: { type: "DEALER", status: "PENDING" },
+    prisma.dealer.count({
+      where: { status: "PENDING" },
     }),
   ]);
 
@@ -68,7 +68,7 @@ export default async function AdminDashboardPage() {
         <div className="flex items-center gap-4">
           <Link
             href="/"
-            className="text-xs text-zinc-500 hover:text-white"
+            className="theme-button border px-3 py-1.5 text-xs"
           >
             Kataloga dön
           </Link>

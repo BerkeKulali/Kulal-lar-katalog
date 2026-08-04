@@ -24,8 +24,9 @@ export default async function SetupPage({
           Giriş türünü seçin: Bayi, Plasiyer veya Admin.
         </p>
         <p className="theme-muted text-xs">
-          Bayi ve plasiyer girişleri admin onayına tabidir. Talep gönderildikten
-          sonra admin panelinden onaylanması beklenir.
+          Plasiyer girişi admin onayına tabidir. Bayi girişi kullanıcı adı/şifre
+          iledir: ilk kayıt admin onayı bekler, onaylandıktan sonra aynı kullanıcı
+          adı/şifreyle istediğiniz her cihazdan giriş yapabilirsiniz.
         </p>
         <p className="theme-muted text-xs">
           Her zaman aynı adresi kullanın (ör.{" "}

@@ -6,26 +6,32 @@ import { AppShell } from "@/components/AppShell";
 
 type DealerItem = {
   id: string;
+  name: string;
+  username: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
-  dealerName: string;
-  requestLabel: string;
-  createdAt: string;
-  approvedAt: string | null;
-  completedAt: string | null;
+  isActive: boolean;
+  showStock: boolean;
+  filterToolEnabled: boolean;
   rejectionReason: string | null;
   approvedBy: string | null;
-  device: {
-    id: string;
-    label: string | null;
-    registeredAt: string;
-    lastSeenAt: string;
-    showStock: boolean;
-    filterToolEnabled: boolean;
-  } | null;
+  approvedAt: string | null;
+  createdAt: string;
+  deviceCount: number;
+  lastSeenAt: string | null;
+};
+
+type LegacyDeviceItem = {
+  id: string;
+  label: string | null;
+  registeredAt: string;
+  lastSeenAt: string;
+  showStock: boolean;
+  filterToolEnabled: boolean;
 };
 
 export default function AdminDealersPage() {
   const [dealers, setDealers] = useState<DealerItem[]>([]);
+  const [legacyDevices, setLegacyDevices] = useState<LegacyDeviceItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -41,6 +47,7 @@ export default function AdminDealersPage() {
       return;
     }
     setDealers(data.dealers ?? []);
+    setLegacyDevices(data.legacyDevices ?? []);
   }, []);
 
   useEffect(() => {
@@ -57,23 +64,43 @@ export default function AdminDealersPage() {
     return () => window.clearInterval(interval);
   }, [loadData]);
 
-  function formatDate(value: string) {
+  function formatDate(value: string | null) {
+    if (!value) return "—";
     return new Intl.DateTimeFormat("tr-TR", {
       dateStyle: "short",
       timeStyle: "short",
     }).format(new Date(value));
   }
 
-  async function removeDealer(item: DealerItem) {
-    const ok = window.confirm(
-      `"${item.dealerName}" bayi kaydı silinsin mi? Bu işlem mevcut cihaz erişimini de sonlandırır.`
-    );
-    if (!ok) return;
-
-    setActionId(item.id);
+  async function patchItem(id: string, body: Record<string, unknown>, successMessage: string) {
+    setActionId(id);
     setError(null);
     setMessage(null);
-    const res = await fetch(`/api/admin/dealers/${item.id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/dealers/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    setActionId(null);
+
+    if (!res.ok) {
+      setError(data.error ?? "Bayi güncellenemedi");
+      return;
+    }
+
+    setMessage(successMessage);
+    await loadData();
+  }
+
+  async function removeItem(id: string, label: string, confirmText: string) {
+    const ok = window.confirm(confirmText);
+    if (!ok) return;
+
+    setActionId(id);
+    setError(null);
+    setMessage(null);
+    const res = await fetch(`/api/admin/dealers/${id}`, { method: "DELETE" });
     const data = await res.json().catch(() => ({}));
     setActionId(null);
 
@@ -82,86 +109,7 @@ export default function AdminDealersPage() {
       return;
     }
 
-    setMessage(`"${data.dealerName ?? item.dealerName}" kaydı silindi`);
-    await loadData();
-  }
-
-  async function toggleStock(item: DealerItem) {
-    if (!item.device) return;
-    const next = !item.device.showStock;
-    setActionId(item.id);
-    setError(null);
-    setMessage(null);
-    const res = await fetch(`/api/admin/dealers/${item.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ showStock: next }),
-    });
-    const data = await res.json().catch(() => ({}));
-    setActionId(null);
-
-    if (!res.ok) {
-      setError(data.error ?? "Stok ayarı güncellenemedi");
-      return;
-    }
-
-    setMessage(
-      `"${item.dealerName}" için stok gösterimi ${next ? "açıldı" : "kapatıldı"}`
-    );
-    await loadData();
-  }
-
-  async function toggleFilterTool(item: DealerItem) {
-    if (!item.device) return;
-    const next = !item.device.filterToolEnabled;
-    setActionId(item.id);
-    setError(null);
-    setMessage(null);
-    const res = await fetch(`/api/admin/dealers/${item.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ filterToolEnabled: next }),
-    });
-    const data = await res.json().catch(() => ({}));
-    setActionId(null);
-
-    if (!res.ok) {
-      setError(data.error ?? "Filtre aracı ayarı güncellenemedi");
-      return;
-    }
-
-    setMessage(
-      `"${item.dealerName}" için ürün filtre aracı ${next ? "açıldı" : "kapatıldı"}`
-    );
-    await loadData();
-  }
-
-  async function handleRequestAction(item: DealerItem, action: "approve" | "reject") {
-    let reason: string | undefined;
-    if (action === "reject") {
-      reason = window.prompt("Ret nedeni (opsiyonel):") ?? undefined;
-    }
-    setActionId(item.id);
-    setError(null);
-    setMessage(null);
-    const res = await fetch(`/api/admin/access-requests/${item.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, reason }),
-    });
-    const data = await res.json().catch(() => ({}));
-    setActionId(null);
-
-    if (!res.ok) {
-      setError(data.error ?? "Talep güncellenemedi");
-      return;
-    }
-
-    setMessage(
-      action === "approve"
-        ? `"${item.dealerName}" talebi onaylandı`
-        : `"${item.dealerName}" talebi reddedildi`
-    );
+    setMessage(`"${data.dealerName ?? label}" kaydı silindi`);
     await loadData();
   }
 
@@ -175,7 +123,8 @@ export default function AdminDealersPage() {
         <div>
           <h1 className="text-lg font-bold">Bayiler</h1>
           <p className="mt-1 text-xs text-zinc-500">
-            Bayi giriş taleplerini onayla/reddet, kayıtları denetle ve gerektiğinde sil.
+            Bayi, kullanıcı adı/şifresiyle kendi kaydını oluşturur; buradan onaylayınca
+            o kullanıcı adı/şifre ile herhangi bir cihazdan giriş yapabilir.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -183,14 +132,14 @@ export default function AdminDealersPage() {
             type="button"
             onClick={() => loadData()}
             disabled={loading}
-            className="text-xs text-zinc-500 hover:text-white disabled:opacity-40"
+            className="theme-button border px-3 py-1.5 text-xs disabled:opacity-40"
           >
             {loading ? "Yenileniyor…" : "Yenile"}
           </button>
-          <Link href="/admin/plasiyerler" className="text-xs text-zinc-500 hover:text-white">
+          <Link href="/admin/plasiyerler" className="theme-button border px-3 py-1.5 text-xs">
             Plasiyerler
           </Link>
-          <Link href="/admin" className="text-xs text-zinc-500 hover:text-white">
+          <Link href="/admin" className="theme-button border px-3 py-1.5 text-xs">
             ← Admin
           </Link>
         </div>
@@ -210,60 +159,48 @@ export default function AdminDealersPage() {
       <div className="mb-6 border border-zinc-800 p-4 text-xs text-zinc-500">
         Toplam: {dealers.length} · Bekleyen: {pending} · Onaylı: {approved} ·
         Reddedilen: {rejected}
+        {legacyDevices.length > 0 ? ` · Eski cihaz: ${legacyDevices.length}` : ""}
       </div>
 
       {loading && <p className="text-sm text-zinc-500">Yükleniyor…</p>}
-      {!loading && dealers.length === 0 && (
+      {!loading && dealers.length === 0 && legacyDevices.length === 0 && (
         <p className="text-sm text-zinc-500">Henüz bayi kaydı yok.</p>
       )}
 
       <div className="space-y-2">
         {dealers.map((item) => (
           <div key={item.id} className="border border-zinc-800 p-4 text-xs">
-            <p className="font-medium">{item.dealerName}</p>
+            <p className="font-medium">
+              {item.name} <span className="text-zinc-500">· @{item.username}</span>
+            </p>
             <p className="mt-1 text-zinc-500">
               Durum: {item.status}
+              {item.status === "APPROVED" && !item.isActive ? " (devre dışı)" : ""}
               {item.approvedBy ? ` · işlem yapan: ${item.approvedBy}` : ""}
               {item.rejectionReason ? ` · not: ${item.rejectionReason}` : ""}
             </p>
-            <p className="text-zinc-600">Talep: {formatDate(item.createdAt)}</p>
-            {item.device && (
-              <p className="text-zinc-600">
-                Cihaz: {item.device.label ?? item.device.id} · son görülme{" "}
-                {formatDate(item.device.lastSeenAt)}
-              </p>
-            )}
+            <p className="text-zinc-600">Kayıt: {formatDate(item.createdAt)}</p>
             {item.approvedAt && (
               <p className="text-zinc-600">Onay: {formatDate(item.approvedAt)}</p>
             )}
-            {item.completedAt && (
+            {item.status === "APPROVED" && (
               <p className="text-zinc-600">
-                Tamamlanma: {formatDate(item.completedAt)}
+                Bağlı cihaz: {item.deviceCount} · son görülme {formatDate(item.lastSeenAt)}
               </p>
             )}
 
-            {item.device && (
+            {item.status === "APPROVED" && (
               <>
                 <p className="mt-2 text-zinc-500">
                   Stok gösterimi:{" "}
-                  <span
-                    className={
-                      item.device.showStock ? "text-emerald-400" : "text-zinc-400"
-                    }
-                  >
-                    {item.device.showStock ? "Açık" : "Kapalı"}
+                  <span className={item.showStock ? "text-emerald-400" : "text-zinc-400"}>
+                    {item.showStock ? "Açık" : "Kapalı"}
                   </span>
                 </p>
                 <p className="text-zinc-500">
                   Ürün filtre aracı:{" "}
-                  <span
-                    className={
-                      item.device.filterToolEnabled
-                        ? "text-emerald-400"
-                        : "text-zinc-400"
-                    }
-                  >
-                    {item.device.filterToolEnabled ? "Açık" : "Kapalı"}
+                  <span className={item.filterToolEnabled ? "text-emerald-400" : "text-zinc-400"}>
+                    {item.filterToolEnabled ? "Açık" : "Kapalı"}
                   </span>
                 </p>
               </>
@@ -273,7 +210,9 @@ export default function AdminDealersPage() {
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => handleRequestAction(item, "approve")}
+                  onClick={() =>
+                    patchItem(item.id, { action: "approve" }, `"${item.name}" hesabı onaylandı`)
+                  }
                   disabled={actionId === item.id}
                   className="border border-emerald-800 px-3 py-1.5 text-xs text-emerald-300 disabled:opacity-50"
                 >
@@ -281,7 +220,10 @@ export default function AdminDealersPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleRequestAction(item, "reject")}
+                  onClick={() => {
+                    const reason = window.prompt("Ret nedeni (opsiyonel):") ?? undefined;
+                    patchItem(item.id, { action: "reject", reason }, `"${item.name}" hesabı reddedildi`);
+                  }}
                   disabled={actionId === item.id}
                   className="border border-red-900 px-3 py-1.5 text-xs text-red-300 disabled:opacity-50"
                 >
@@ -290,38 +232,67 @@ export default function AdminDealersPage() {
               </div>
             )}
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              {item.device && (
+            {item.status === "APPROVED" && (
+              <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => toggleStock(item)}
+                  onClick={() =>
+                    patchItem(
+                      item.id,
+                      { showStock: !item.showStock },
+                      `"${item.name}" için stok gösterimi ${!item.showStock ? "açıldı" : "kapatıldı"}`
+                    )
+                  }
                   disabled={actionId === item.id}
                   className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
                 >
-                  {actionId === item.id
-                    ? "..."
-                    : item.device.showStock
-                      ? "Stok gösterimini kapat"
-                      : "Stok gösterimini aç"}
+                  {actionId === item.id ? "..." : item.showStock ? "Stok gösterimini kapat" : "Stok gösterimini aç"}
                 </button>
-              )}
-              {item.device && (
                 <button
                   type="button"
-                  onClick={() => toggleFilterTool(item)}
+                  onClick={() =>
+                    patchItem(
+                      item.id,
+                      { filterToolEnabled: !item.filterToolEnabled },
+                      `"${item.name}" için ürün filtre aracı ${!item.filterToolEnabled ? "açıldı" : "kapatıldı"}`
+                    )
+                  }
                   disabled={actionId === item.id}
                   className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
                 >
                   {actionId === item.id
                     ? "..."
-                    : item.device.filterToolEnabled
+                    : item.filterToolEnabled
                       ? "Filtre aracını kapat"
                       : "Filtre aracını aç"}
                 </button>
-              )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    patchItem(
+                      item.id,
+                      { isActive: !item.isActive },
+                      `"${item.name}" hesabı ${!item.isActive ? "aktifleştirildi" : "devre dışı bırakıldı"}`
+                    )
+                  }
+                  disabled={actionId === item.id}
+                  className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
+                >
+                  {actionId === item.id ? "..." : item.isActive ? "Hesabı devre dışı bırak" : "Hesabı aktifleştir"}
+                </button>
+              </div>
+            )}
+
+            <div className="mt-3">
               <button
                 type="button"
-                onClick={() => removeDealer(item)}
+                onClick={() =>
+                  removeItem(
+                    item.id,
+                    item.name,
+                    `"${item.name}" (${item.username}) bayi hesabı silinsin mi? Bu işlem hesabın tüm cihaz oturumlarını da sonlandırır.`
+                  )
+                }
                 disabled={actionId === item.id}
                 className="border border-red-900 px-3 py-1.5 text-xs text-red-400 hover:border-red-500 disabled:opacity-50"
               >
@@ -331,6 +302,92 @@ export default function AdminDealersPage() {
           </div>
         ))}
       </div>
+
+      {legacyDevices.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-sm font-semibold text-zinc-300">Eski bayi cihazları</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            Kullanıcı adı/şifre modelinden önce (anında kayıt döneminde) kurulmuş, tek
+            cihaza bağlı bayi kayıtları. Halen çalışmaya devam ediyor; isterseniz aynı
+            şekilde stok/filtre aracını buradan yönetebilir ya da silebilirsiniz.
+          </p>
+          <div className="mt-3 space-y-2">
+            {legacyDevices.map((item) => (
+              <div key={item.id} className="border border-zinc-800 p-4 text-xs">
+                <p className="font-medium">{item.label ?? "Bayi cihazı"}</p>
+                <p className="text-zinc-600">
+                  Kurulum: {formatDate(item.registeredAt)} · son görülme{" "}
+                  {formatDate(item.lastSeenAt)}
+                </p>
+                <p className="mt-2 text-zinc-500">
+                  Stok gösterimi:{" "}
+                  <span className={item.showStock ? "text-emerald-400" : "text-zinc-400"}>
+                    {item.showStock ? "Açık" : "Kapalı"}
+                  </span>
+                </p>
+                <p className="text-zinc-500">
+                  Ürün filtre aracı:{" "}
+                  <span className={item.filterToolEnabled ? "text-emerald-400" : "text-zinc-400"}>
+                    {item.filterToolEnabled ? "Açık" : "Kapalı"}
+                  </span>
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      patchItem(
+                        item.id,
+                        { showStock: !item.showStock },
+                        `Stok gösterimi ${!item.showStock ? "açıldı" : "kapatıldı"}`
+                      )
+                    }
+                    disabled={actionId === item.id}
+                    className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
+                  >
+                    {actionId === item.id
+                      ? "..."
+                      : item.showStock
+                        ? "Stok gösterimini kapat"
+                        : "Stok gösterimini aç"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      patchItem(
+                        item.id,
+                        { filterToolEnabled: !item.filterToolEnabled },
+                        `Ürün filtre aracı ${!item.filterToolEnabled ? "açıldı" : "kapatıldı"}`
+                      )
+                    }
+                    disabled={actionId === item.id}
+                    className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
+                  >
+                    {actionId === item.id
+                      ? "..."
+                      : item.filterToolEnabled
+                        ? "Filtre aracını kapat"
+                        : "Filtre aracını aç"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      removeItem(
+                        item.id,
+                        item.label ?? "Bayi cihazı",
+                        `"${item.label ?? "Bayi cihazı"}" silinsin mi?`
+                      )
+                    }
+                    disabled={actionId === item.id}
+                    className="border border-red-900 px-3 py-1.5 text-xs text-red-400 hover:border-red-500 disabled:opacity-50"
+                  >
+                    {actionId === item.id ? "Siliniyor..." : "Kaydı sil"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

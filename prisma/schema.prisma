@@ -220,15 +220,54 @@ model Salesperson {
   updatedAt      DateTime    @updatedAt
 }
 
+/**
+ * Kullanıcı adı/şifre ile giriş yapan bayi hesabı. Bayi kendi başına kayıt olur
+ * (status: PENDING), admin onaylayınca (APPROVED) bu kullanıcı adı/şifre ile
+ * herhangi bir cihazdan giriş yapılabilir hale gelir — giriş her seferinde o
+ * cihaz için ayrı bir Device kaydı ve token oluşturur (bkz. dealer-account.ts).
+ */
+model Dealer {
+  id                String               @id @default(cuid())
+  name              String
+  username          String               @unique
+  /** scrypt hash (bkz. src/lib/password.ts) */
+  password          String
+  status            AccessRequestStatus  @default(PENDING)
+  /** Onaylanmış bir bayiyi admin daha sonra geçici olarak devre dışı bırakabilir. */
+  isActive          Boolean              @default(true)
+  showStock         Boolean              @default(true)
+  filterToolEnabled Boolean              @default(false)
+  rejectionReason   String?
+  approvedByAdminId String?
+  approvedByAdmin   AdminUser?           @relation("DealerApprovedBy", fields: [approvedByAdminId], references: [id], onDelete: SetNull)
+  approvedAt        DateTime?
+  /** Şifre her değiştiğinde güncellenir (ileride şifre sıfırlama için). */
+  passwordChangedAt DateTime             @default(now())
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  devices           Device[]
+
+  @@index([status, createdAt])
+}
+
 model Device {
   id                 String       @id @default(cuid())
   token              String       @unique @default(cuid())
   salespersonId      String?
   salesperson        Salesperson? @relation(fields: [salespersonId], references: [id])
   lockForSalesperson Salesperson? @relation("SalespersonDeviceLock")
-  /** Bayi cihazları için stok görünürlüğü. Varsayılan kapalı; admin açar. */
+  /** Kullanıcı adı/şifre ile giriş yapmış bayi cihazı. Aynı bayi birden çok cihazdan giriş yapabilir. */
+  dealerId           String?
+  dealer             Dealer?      @relation(fields: [dealerId], references: [id], onDelete: SetNull)
+  /**
+   * Eski (kullanıcı adı/şifre öncesi) tek-seferlik bayi cihazları için stok görünürlüğü.
+   * dealerId doluysa bunun yerine Dealer.showStock kullanılır (bkz. resolveStockVisibility).
+   */
   showStock          Boolean      @default(false)
-  /** Onaylı bayi cihazı için ürün segmenti filtre aracı yetkisi. Varsayılan kapalı; admin açar. */
+  /**
+   * Eski tek-seferlik bayi cihazları için filtre aracı yetkisi.
+   * dealerId doluysa bunun yerine Dealer.filterToolEnabled kullanılır (bkz. resolveFilterToolAccess).
+   */
   filterToolEnabled  Boolean      @default(false)
   label              String?
   registeredAt       DateTime     @default(now())
@@ -311,6 +350,7 @@ model AdminUser {
   approvedOrders Order[]         @relation("OrderApprovedBy")
   orderLogs      OrderAdminLog[]
   accessRequests AccessRequest[] @relation("AccessRequestApprovedBy")
+  dealersApproved Dealer[]        @relation("DealerApprovedBy")
   auditLogs      AdminAuditLog[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

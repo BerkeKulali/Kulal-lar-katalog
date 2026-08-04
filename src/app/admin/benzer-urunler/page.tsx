@@ -22,7 +22,7 @@ export default async function AdminSimilarProductsPage() {
     <AppShell variant="admin" className="py-8">
       <div className="mb-2 flex items-center justify-between">
         <h1 className="text-lg font-bold">Benzer Ürünler</h1>
-        <Link href="/admin" className="text-xs text-zinc-500 hover:text-white">
+        <Link href="/admin" className="theme-button border px-3 py-1.5 text-xs">
           ← Admin
         </Link>
       </div>

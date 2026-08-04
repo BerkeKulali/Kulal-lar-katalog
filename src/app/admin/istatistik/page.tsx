@@ -85,7 +85,7 @@ export default function AdminClickStatsPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin/istatistik/rapor"
-            className="text-xs text-zinc-500 hover:text-white"
+            className="theme-button border px-3 py-1.5 text-xs"
           >
             Raporlar
           </Link>
@@ -93,11 +93,11 @@ export default function AdminClickStatsPage() {
             type="button"
             onClick={() => loadData()}
             disabled={loading}
-            className="text-xs text-zinc-500 hover:text-white disabled:opacity-40"
+            className="theme-button border px-3 py-1.5 text-xs disabled:opacity-40"
           >
             {loading ? "Yenileniyor…" : "Yenile"}
           </button>
-          <Link href="/admin" className="text-xs text-zinc-500 hover:text-white">
+          <Link href="/admin" className="theme-button border px-3 py-1.5 text-xs">
             ← Admin
           </Link>
         </div>

@@ -60,7 +60,7 @@ export default async function ProductDetailPage({
         <div className="pb-2">
           <Link
             href={`/katalog/${brand.slug}/${size}?${kaliteQuery(kaliteFilter)}`}
-            className="text-xs text-zinc-500 hover:text-white"
+            className="catalog-back-pill"
           >
             ← {formatSizeLabel(size)} listesi
           </Link>

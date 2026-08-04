@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getSalespersonShowStock } from "@/lib/salesperson-stock";
+import { getDealerShowStock } from "@/lib/dealer-stock";
 
 export type StockVisibilityInput = {
   /** Admin oturumu var mı? Admin için stok her zaman görünür. */
@@ -16,7 +17,9 @@ export type StockVisibilityInput = {
  * Kurallar:
  * - Admin → her zaman görünür (kontrol/doğrulama).
  * - Plasiyer (salespersonId var) → Salesperson.showStock.
- * - Bayi (salespersonId yok, cihaz var) → Device.showStock (varsayılan kapalı).
+ * - Bayi (salespersonId yok, cihaz var) → Dealer.showStock (kullanıcı adı/şifre
+ *   ile giriş yapılan yeni bayiler) ya da Device.showStock (eski tek-seferlik
+ *   bayi cihazları), bkz. resolveFilterToolAccess ile aynı desen.
  * - Diğer → kapalı.
  */
 export async function resolveStockVisibility(
@@ -31,9 +34,16 @@ export async function resolveStockVisibility(
   if (input.deviceToken) {
     const device = await prisma.device.findUnique({
       where: { token: input.deviceToken },
-      select: { showStock: true },
+      select: { showStock: true, dealerId: true },
     });
-    return device?.showStock ?? false;
+    if (!device) return false;
+    // Kullanıcı adı/şifre ile giriş yapmış bayi cihazı: yetki Dealer'da tutulur
+    // (aynı bayinin birden çok cihazı olabileceği için Device.showStock artık
+    // yalnızca eski tek-seferlik bayi cihazları için geçerlidir).
+    if (device.dealerId) {
+      return getDealerShowStock(device.dealerId);
+    }
+    return device.showStock;
   }
 
   return false;

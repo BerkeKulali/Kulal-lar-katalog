@@ -67,7 +67,7 @@ export default function NetsisSyncPage() {
           >
             Yenile
           </button>
-          <Link href="/admin" className="text-xs text-zinc-500 hover:text-white">
+          <Link href="/admin" className="theme-button border px-3 py-1.5 text-xs">
             ← Admin
           </Link>
         </div>
