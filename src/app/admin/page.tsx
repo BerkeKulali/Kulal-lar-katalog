@@ -45,11 +45,7 @@ export default async function AdminDashboardPage() {
       where: { type: "SALESPERSON", status: "PENDING" },
     }),
     prisma.accessRequest.count({
-      where: {
-        type: "DEALER",
-        status: "APPROVED",
-        createdAt: { gte: istanbulDaysAgo(1) },
-      },
+      where: { type: "DEALER", status: "PENDING" },
     }),
   ]);
 
@@ -114,7 +110,7 @@ export default async function AdminDashboardPage() {
         </div>
         <div className="border border-amber-800 p-4 col-span-2 sm:col-span-1">
           <p className="text-sm font-bold">
-            {pendingAccessRequests} plasiyer onayı · {dealerNotifications} bayi bildirimi
+            {pendingAccessRequests} plasiyer onayı · {dealerNotifications} bayi onayı
           </p>
           <p className="text-xs text-zinc-500">Yeni giriş talepleri</p>
         </div>

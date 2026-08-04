@@ -56,6 +56,11 @@ export function SiteHeader({ rightSlot }: { rightSlot?: React.ReactNode }) {
     setActorSession({ actorType, actorName });
   }, []);
 
+  const navItems =
+    actorSession?.actorType === "dealer" || actorSession?.actorType === "salesperson"
+      ? [...NAV_ITEMS, { href: "/urun-filtre", label: "Ürün Filtrele" }]
+      : NAV_ITEMS;
+
   return (
     <header className="site-header relative z-[60] pb-3 pt-2">
       {actorSession && (
@@ -75,7 +80,7 @@ export function SiteHeader({ rightSlot }: { rightSlot?: React.ReactNode }) {
               ≡
             </summary>
             <div className="theme-dropdown absolute right-0 z-[100] mt-2 min-w-[200px] border py-2 shadow-xl">
-              {NAV_ITEMS.map((item) => (
+              {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}

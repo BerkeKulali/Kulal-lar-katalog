@@ -203,11 +203,13 @@ model StockLine {
 }
 
 model Salesperson {
-  id             String      @id @default(cuid())
-  name           String
-  isActive       Boolean     @default(true)
-  showStock      Boolean     @default(true)
-  lockedDeviceId String?     @unique
+  id                String      @id @default(cuid())
+  name              String
+  isActive          Boolean     @default(true)
+  showStock         Boolean     @default(true)
+  /** Admin'in plasiyer bazında açtığı ürün segmenti filtre aracı yetkisi. */
+  filterToolEnabled Boolean     @default(false)
+  lockedDeviceId    String?     @unique
   lockedDevice   Device?     @relation("SalespersonDeviceLock", fields: [lockedDeviceId], references: [id], onDelete: SetNull)
   devices        Device[]
   accessRequests AccessRequest[]
@@ -226,6 +228,8 @@ model Device {
   lockForSalesperson Salesperson? @relation("SalespersonDeviceLock")
   /** Bayi cihazları için stok görünürlüğü. Varsayılan kapalı; admin açar. */
   showStock          Boolean      @default(false)
+  /** Onaylı bayi cihazı için ürün segmenti filtre aracı yetkisi. Varsayılan kapalı; admin açar. */
+  filterToolEnabled  Boolean      @default(false)
   label              String?
   registeredAt       DateTime     @default(now())
   lastSeenAt         DateTime     @default(now())

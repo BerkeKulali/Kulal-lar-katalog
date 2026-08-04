@@ -10,6 +10,7 @@ type SalespersonOption = {
 };
 
 type RequestStatus = "NONE" | "PENDING" | "APPROVED" | "REJECTED";
+type RequestKind = "salesperson" | "dealer" | null;
 type EntryMode = "dealer" | "salesperson" | "admin";
 
 export function SetupEntryPanel({
@@ -26,6 +27,7 @@ export function SetupEntryPanel({
     salespeople.find((sp) => !sp.isLocked)?.id ?? ""
   );
   const [status, setStatus] = useState<RequestStatus>("NONE");
+  const [requestKind, setRequestKind] = useState<RequestKind>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState(initialError ?? "");
   const [loading, setLoading] = useState(false);
@@ -36,30 +38,58 @@ export function SetupEntryPanel({
   );
 
   async function loadRequestStatus() {
-    const res = await fetch("/api/device/register/salesperson/status", {
-      cache: "no-store",
-    });
-    if (!res.ok) return;
-    const data = await res.json().catch(() => null);
-    if (!data) return;
-    const nextStatus = (data.status ?? "NONE") as RequestStatus;
-    setStatus(nextStatus);
-    if (nextStatus === "PENDING") {
-      setStatusMessage(
-        `${data.salespersonName ?? "Plasiyer"} için admin onayı bekleniyor.`
-      );
+    const [spRes, dealerRes] = await Promise.all([
+      fetch("/api/device/register/salesperson/status", { cache: "no-store" }),
+      fetch("/api/device/register/dealer/status", { cache: "no-store" }),
+    ]);
+    const spData = spRes.ok ? await spRes.json().catch(() => null) : null;
+    const dealerData = dealerRes.ok ? await dealerRes.json().catch(() => null) : null;
+
+    const spStatus = (spData?.status ?? "NONE") as RequestStatus;
+    const dealerStatus = (dealerData?.status ?? "NONE") as RequestStatus;
+
+    if (spStatus !== "NONE") {
+      setRequestKind("salesperson");
+      setStatus(spStatus);
       setMode("salesperson");
-    } else if (nextStatus === "APPROVED") {
-      setStatusMessage("Talep onaylandı. Girişi tamamlayabilirsiniz.");
-      setMode("salesperson");
-    } else if (nextStatus === "REJECTED") {
-      setStatusMessage(
-        data.rejectionReason
-          ? `Talep reddedildi: ${data.rejectionReason}`
-          : "Talep reddedildi."
-      );
-      setMode("salesperson");
+      if (spStatus === "PENDING") {
+        setStatusMessage(
+          `${spData.salespersonName ?? "Plasiyer"} için admin onayı bekleniyor.`
+        );
+      } else if (spStatus === "APPROVED") {
+        setStatusMessage("Talep onaylandı. Girişi tamamlayabilirsiniz.");
+      } else if (spStatus === "REJECTED") {
+        setStatusMessage(
+          spData.rejectionReason
+            ? `Talep reddedildi: ${spData.rejectionReason}`
+            : "Talep reddedildi."
+        );
+      }
+      return;
     }
+
+    if (dealerStatus !== "NONE") {
+      setRequestKind("dealer");
+      setStatus(dealerStatus);
+      setMode("dealer");
+      if (dealerStatus === "PENDING") {
+        setStatusMessage(
+          `${dealerData.dealerName ?? "Bayi"} için admin onayı bekleniyor.`
+        );
+      } else if (dealerStatus === "APPROVED") {
+        setStatusMessage("Talep onaylandı. Girişi tamamlayabilirsiniz.");
+      } else if (dealerStatus === "REJECTED") {
+        setStatusMessage(
+          dealerData.rejectionReason
+            ? `Talep reddedildi: ${dealerData.rejectionReason}`
+            : "Talep reddedildi."
+        );
+      }
+      return;
+    }
+
+    setRequestKind(null);
+    setStatus("NONE");
   }
 
   useEffect(() => {
@@ -74,19 +104,44 @@ export function SetupEntryPanel({
     return () => clearInterval(timer);
   }, [status]);
 
-  async function handleDealerSubmit(e: React.FormEvent) {
+  async function handleDealerRequest(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setStatusMessage("");
     try {
-      const res = await fetch("/api/device/register/dealer", {
+      const res = await fetch("/api/device/register/dealer/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dealerName }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error ?? "Bayi girişi yapılamadı");
+        setError(data.error ?? "Talep oluşturulamadı");
+        return;
+      }
+      setRequestKind("dealer");
+      setStatus("PENDING");
+      setStatusMessage(
+        `${dealerName.trim() || "Bayi"} için admin onayı bekleniyor.`
+      );
+    } catch {
+      setError("Sunucuya bağlanılamadı");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDealerFinalize() {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/device/register/dealer/finalize", {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Giriş tamamlanamadı");
         return;
       }
       router.push("/");
@@ -114,6 +169,7 @@ export function SetupEntryPanel({
         setError(data.error ?? "Talep oluşturulamadı");
         return;
       }
+      setRequestKind("salesperson");
       setStatus("PENDING");
       setStatusMessage(
         `${selectedSalespersonName || "Plasiyer"} için admin onayı bekleniyor.`
@@ -165,6 +221,9 @@ export function SetupEntryPanel({
     }
   }
 
+  const dealerPending = requestKind === "dealer" && status === "PENDING";
+  const dealerApproved = requestKind === "dealer" && status === "APPROVED";
+
   return (
     <div className="mx-auto mt-8 max-w-md space-y-5 px-6">
       <div className="grid grid-cols-3 gap-2">
@@ -200,24 +259,39 @@ export function SetupEntryPanel({
       </div>
 
       {mode === "dealer" && (
-        <form onSubmit={handleDealerSubmit} className="space-y-3 border border-zinc-800 p-4">
+        <form
+          onSubmit={handleDealerRequest}
+          className="space-y-3 border border-zinc-800 p-4"
+        >
           <p className="text-xs text-zinc-400">
-            Bayi adı ile bu cihaz kilitlenir. Yeni bayi girişleri admin paneline bildirilir.
+            Bayi girişi admin onayından sonra tamamlanır.
           </p>
           <input
             type="text"
             value={dealerName}
             onChange={(e) => setDealerName(e.target.value)}
             placeholder="Bayi adı"
-            className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm"
+            disabled={loading || dealerPending}
+            className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
           />
-          <button
-            type="submit"
-            disabled={loading || dealerName.trim().length < 2}
-            className="w-full border border-white py-2 text-sm font-semibold disabled:opacity-40"
-          >
-            {loading ? "Kaydediliyor…" : "Bayi olarak giriş yap"}
-          </button>
+          {dealerApproved ? (
+            <button
+              type="button"
+              onClick={handleDealerFinalize}
+              disabled={loading}
+              className="w-full border border-emerald-500 py-2 text-sm font-semibold text-emerald-200 disabled:opacity-40"
+            >
+              {loading ? "Tamamlanıyor…" : "Onaylandı, girişi tamamla"}
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={loading || dealerName.trim().length < 2 || dealerPending}
+              className="w-full border border-white py-2 text-sm font-semibold disabled:opacity-40"
+            >
+              {loading ? "Gönderiliyor…" : "Admin onayı iste"}
+            </button>
+          )}
         </form>
       )}
 

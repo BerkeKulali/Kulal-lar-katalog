@@ -44,9 +44,15 @@ type Preset = {
 export function ProductFilterView({
   brands,
   materialTypes,
+  apiBasePath,
+  canManagePresets = true,
 }: {
   brands: Brand[];
   materialTypes: MaterialType[];
+  /** Filtre/export/presets endpoint'lerinin kök yolu (örn. "/api/admin/campaigns" ya da "/api/filter-tool"). */
+  apiBasePath: string;
+  /** false ise segment kaydet/sil kontrolleri gizlenir (yalnızca okuma). */
+  canManagePresets?: boolean;
 }) {
   const [brandIds, setBrandIds] = useState<string[]>([]);
   const [materialType, setMaterialType] = useState("");
@@ -80,11 +86,11 @@ export function ProductFilterView({
   }, [brandIds, materialType, quality, basis, minM2, maxM2, sizes, surfaces]);
 
   const loadPresets = useCallback(async () => {
-    const res = await fetch("/api/admin/campaigns/presets", { cache: "no-store" });
+    const res = await fetch(`${apiBasePath}/presets`, { cache: "no-store" });
     if (!res.ok) return;
     const data = await res.json();
     setPresets(data.presets ?? []);
-  }, []);
+  }, [apiBasePath]);
 
   useEffect(() => {
     loadPresets();
@@ -110,7 +116,7 @@ export function ProductFilterView({
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch(`/api/admin/campaigns/filter?${query.toString()}`, {
+      const res = await fetch(`${apiBasePath}/filter?${query.toString()}`, {
         cache: "no-store",
       });
       const data = await res.json();
@@ -163,7 +169,7 @@ export function ProductFilterView({
     setSavingPreset(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/admin/campaigns/presets", {
+      const res = await fetch(`${apiBasePath}/presets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -195,7 +201,7 @@ export function ProductFilterView({
 
   async function deletePreset(id: string) {
     if (!confirm("Bu kayıtlı segment silinsin mi?")) return;
-    const res = await fetch(`/api/admin/campaigns/presets/${id}`, { method: "DELETE" });
+    const res = await fetch(`${apiBasePath}/presets/${id}`, { method: "DELETE" });
     if (res.ok) await loadPresets();
   }
 
@@ -217,14 +223,16 @@ export function ProductFilterView({
                 >
                   {p.name}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => deletePreset(p.id)}
-                  className="text-red-500"
-                  title="Sil"
-                >
-                  ×
-                </button>
+                {canManagePresets && (
+                  <button
+                    type="button"
+                    onClick={() => deletePreset(p.id)}
+                    className="text-red-500"
+                    title="Sil"
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -370,13 +378,13 @@ export function ProductFilterView({
           {rows && rows.length > 0 && (
             <>
               <a
-                href={`/api/admin/campaigns/filter/export-xlsx?${query.toString()}`}
+                href={`${apiBasePath}/filter/export-xlsx?${query.toString()}`}
                 className="theme-button border px-4 py-2 text-sm"
               >
                 Excel indir
               </a>
               <a
-                href={`/api/admin/campaigns/filter/export-pdf?${query.toString()}`}
+                href={`${apiBasePath}/filter/export-pdf?${query.toString()}`}
                 className="theme-button border px-4 py-2 text-sm"
               >
                 PDF indir
@@ -384,22 +392,24 @@ export function ProductFilterView({
             </>
           )}
 
-          <div className="ml-auto flex items-center gap-2">
-            <input
-              value={presetName}
-              onChange={(e) => setPresetName(e.target.value)}
-              placeholder="Segmenti kaydet (isim)"
-              className="theme-input w-48 border px-3 py-2 text-xs"
-            />
-            <button
-              type="button"
-              onClick={savePreset}
-              disabled={savingPreset || !presetName.trim()}
-              className="theme-button border px-3 py-2 text-xs disabled:opacity-40"
-            >
-              {savingPreset ? "Kaydediliyor…" : "Kaydet"}
-            </button>
-          </div>
+          {canManagePresets && (
+            <div className="ml-auto flex items-center gap-2">
+              <input
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                placeholder="Segmenti kaydet (isim)"
+                className="theme-input w-48 border px-3 py-2 text-xs"
+              />
+              <button
+                type="button"
+                onClick={savePreset}
+                disabled={savingPreset || !presetName.trim()}
+                className="theme-button border px-3 py-2 text-xs disabled:opacity-40"
+              >
+                {savingPreset ? "Kaydediliyor…" : "Kaydet"}
+              </button>
+            </div>
+          )}
         </div>
       </form>
 

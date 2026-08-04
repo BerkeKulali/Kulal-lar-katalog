@@ -4,14 +4,27 @@ import { prisma } from "@/lib/prisma";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-/** Bayi cihazının stok görünürlüğünü aç/kapat. */
+/** Bayi cihazının stok görünürlüğünü ve/veya filtre aracı yetkisini aç/kapat. */
 export async function PATCH(request: Request, context: RouteContext) {
   const auth = await requireAdminPermission("salespeople");
   if (!auth.admin) return auth.response;
 
   const { id } = await context.params;
-  const body = await request.json().catch(() => null);
-  const showStock = Boolean((body as { showStock?: unknown })?.showStock);
+  const body = (await request.json().catch(() => null)) as {
+    showStock?: unknown;
+    filterToolEnabled?: unknown;
+  } | null;
+
+  const data: { showStock?: boolean; filterToolEnabled?: boolean } = {};
+  if (typeof body?.showStock === "boolean") {
+    data.showStock = body.showStock;
+  }
+  if (typeof body?.filterToolEnabled === "boolean") {
+    data.filterToolEnabled = body.filterToolEnabled;
+  }
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "Güncellenecek alan yok" }, { status: 400 });
+  }
 
   const dealer = await prisma.accessRequest.findFirst({
     where: { id, type: "DEALER" },
@@ -28,12 +41,13 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
-  await prisma.device.update({
+  const updated = await prisma.device.update({
     where: { id: dealer.deviceId },
-    data: { showStock },
+    data,
+    select: { showStock: true, filterToolEnabled: true },
   });
 
-  return NextResponse.json({ ok: true, showStock });
+  return NextResponse.json({ ok: true, ...updated });
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {

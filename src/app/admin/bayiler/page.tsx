@@ -20,6 +20,7 @@ type DealerItem = {
     registeredAt: string;
     lastSeenAt: string;
     showStock: boolean;
+    filterToolEnabled: boolean;
   } | null;
 };
 
@@ -110,6 +111,60 @@ export default function AdminDealersPage() {
     await loadData();
   }
 
+  async function toggleFilterTool(item: DealerItem) {
+    if (!item.device) return;
+    const next = !item.device.filterToolEnabled;
+    setActionId(item.id);
+    setError(null);
+    setMessage(null);
+    const res = await fetch(`/api/admin/dealers/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filterToolEnabled: next }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setActionId(null);
+
+    if (!res.ok) {
+      setError(data.error ?? "Filtre aracı ayarı güncellenemedi");
+      return;
+    }
+
+    setMessage(
+      `"${item.dealerName}" için ürün filtre aracı ${next ? "açıldı" : "kapatıldı"}`
+    );
+    await loadData();
+  }
+
+  async function handleRequestAction(item: DealerItem, action: "approve" | "reject") {
+    let reason: string | undefined;
+    if (action === "reject") {
+      reason = window.prompt("Ret nedeni (opsiyonel):") ?? undefined;
+    }
+    setActionId(item.id);
+    setError(null);
+    setMessage(null);
+    const res = await fetch(`/api/admin/access-requests/${item.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, reason }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setActionId(null);
+
+    if (!res.ok) {
+      setError(data.error ?? "Talep güncellenemedi");
+      return;
+    }
+
+    setMessage(
+      action === "approve"
+        ? `"${item.dealerName}" talebi onaylandı`
+        : `"${item.dealerName}" talebi reddedildi`
+    );
+    await loadData();
+  }
+
   const pending = dealers.filter((d) => d.status === "PENDING").length;
   const approved = dealers.filter((d) => d.status === "APPROVED").length;
   const rejected = dealers.filter((d) => d.status === "REJECTED").length;
@@ -120,7 +175,7 @@ export default function AdminDealersPage() {
         <div>
           <h1 className="text-lg font-bold">Bayiler</h1>
           <p className="mt-1 text-xs text-zinc-500">
-            Bayi tablet kayıtlarını denetle ve gerektiğinde sil.
+            Bayi giriş taleplerini onayla/reddet, kayıtları denetle ve gerektiğinde sil.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -188,16 +243,51 @@ export default function AdminDealersPage() {
             )}
 
             {item.device && (
-              <p className="mt-2 text-zinc-500">
-                Stok gösterimi:{" "}
-                <span
-                  className={
-                    item.device.showStock ? "text-emerald-400" : "text-zinc-400"
-                  }
+              <>
+                <p className="mt-2 text-zinc-500">
+                  Stok gösterimi:{" "}
+                  <span
+                    className={
+                      item.device.showStock ? "text-emerald-400" : "text-zinc-400"
+                    }
+                  >
+                    {item.device.showStock ? "Açık" : "Kapalı"}
+                  </span>
+                </p>
+                <p className="text-zinc-500">
+                  Ürün filtre aracı:{" "}
+                  <span
+                    className={
+                      item.device.filterToolEnabled
+                        ? "text-emerald-400"
+                        : "text-zinc-400"
+                    }
+                  >
+                    {item.device.filterToolEnabled ? "Açık" : "Kapalı"}
+                  </span>
+                </p>
+              </>
+            )}
+
+            {item.status === "PENDING" && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleRequestAction(item, "approve")}
+                  disabled={actionId === item.id}
+                  className="border border-emerald-800 px-3 py-1.5 text-xs text-emerald-300 disabled:opacity-50"
                 >
-                  {item.device.showStock ? "Açık" : "Kapalı"}
-                </span>
-              </p>
+                  Onayla
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRequestAction(item, "reject")}
+                  disabled={actionId === item.id}
+                  className="border border-red-900 px-3 py-1.5 text-xs text-red-300 disabled:opacity-50"
+                >
+                  Reddet
+                </button>
+              </div>
             )}
 
             <div className="mt-3 flex flex-wrap gap-2">
@@ -213,6 +303,20 @@ export default function AdminDealersPage() {
                     : item.device.showStock
                       ? "Stok gösterimini kapat"
                       : "Stok gösterimini aç"}
+                </button>
+              )}
+              {item.device && (
+                <button
+                  type="button"
+                  onClick={() => toggleFilterTool(item)}
+                  disabled={actionId === item.id}
+                  className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
+                >
+                  {actionId === item.id
+                    ? "..."
+                    : item.device.filterToolEnabled
+                      ? "Filtre aracını kapat"
+                      : "Filtre aracını aç"}
                 </button>
               )}
               <button

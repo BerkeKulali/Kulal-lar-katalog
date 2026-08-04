@@ -41,7 +41,11 @@ export default async function AdminProductFilterPage() {
         olarak indirebilir, sık kullandığınız kombinasyonları isimlendirip
         kaydedebilirsiniz.
       </p>
-      <ProductFilterView brands={brands} materialTypes={MATERIAL_TYPES} />
+      <ProductFilterView
+        brands={brands}
+        materialTypes={MATERIAL_TYPES}
+        apiBasePath="/api/admin/campaigns"
+      />
     </AppShell>
   );
 }

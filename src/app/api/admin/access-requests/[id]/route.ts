@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
 import {
+  approveDealerAccessRequest,
   approveSalespersonAccessRequest,
+  rejectDealerAccessRequest,
   rejectSalespersonAccessRequest,
 } from "@/lib/device-access";
+import { prisma } from "@/lib/prisma";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -16,13 +19,29 @@ export async function PATCH(request: Request, context: RouteContext) {
   const reason = typeof body.reason === "string" ? body.reason : undefined;
   const { id } = await context.params;
 
+  const existing = await prisma.accessRequest.findUnique({
+    where: { id },
+    select: { type: true },
+  });
+  if (!existing) {
+    return NextResponse.json({ error: "Talep bulunamadı" }, { status: 404 });
+  }
+
   try {
     if (action === "approve") {
-      await approveSalespersonAccessRequest(id, auth.admin.id);
+      if (existing.type === "DEALER") {
+        await approveDealerAccessRequest(id, auth.admin.id);
+      } else {
+        await approveSalespersonAccessRequest(id, auth.admin.id);
+      }
       return NextResponse.json({ ok: true, status: "APPROVED" });
     }
     if (action === "reject") {
-      await rejectSalespersonAccessRequest(id, auth.admin.id, reason);
+      if (existing.type === "DEALER") {
+        await rejectDealerAccessRequest(id, auth.admin.id, reason);
+      } else {
+        await rejectSalespersonAccessRequest(id, auth.admin.id, reason);
+      }
       return NextResponse.json({ ok: true, status: "REJECTED" });
     }
     return NextResponse.json({ error: "Geçersiz işlem" }, { status: 400 });

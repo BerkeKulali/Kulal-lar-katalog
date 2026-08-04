@@ -27,7 +27,12 @@ export async function PATCH(request: Request, context: RouteContext) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const data: { name?: string; isActive?: boolean; showStock?: boolean } = {};
+  const data: {
+    name?: string;
+    isActive?: boolean;
+    showStock?: boolean;
+    filterToolEnabled?: boolean;
+  } = {};
 
   if (body.name !== undefined) {
     const name = normalizeName(body.name);
@@ -48,6 +53,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     data.showStock = body.showStock;
   }
 
+  if (typeof body.filterToolEnabled === "boolean") {
+    data.filterToolEnabled = body.filterToolEnabled;
+  }
+
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "Güncellenecek alan yok" }, { status: 400 });
   }
@@ -57,7 +66,11 @@ export async function PATCH(request: Request, context: RouteContext) {
     data,
   });
 
-  if (data.showStock !== undefined || data.isActive !== undefined) {
+  if (
+    data.showStock !== undefined ||
+    data.isActive !== undefined ||
+    data.filterToolEnabled !== undefined
+  ) {
     invalidateSalespersonCache();
   }
 
@@ -68,6 +81,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       name: salesperson.name,
       isActive: salesperson.isActive,
       showStock: salesperson.showStock,
+      filterToolEnabled: salesperson.filterToolEnabled,
       orderCount: existing._count.orders,
       deviceCount: existing._count.devices,
     },

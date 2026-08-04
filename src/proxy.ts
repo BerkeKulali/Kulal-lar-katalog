@@ -45,6 +45,7 @@ export default async function proxy(request: NextRequest) {
   );
   const hasValidActorType =
     actorType === "dealer" ||
+    actorType === "dealer-pending" ||
     actorType === "salesperson" ||
     actorType === "salesperson-pending";
 
