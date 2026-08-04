@@ -237,50 +237,53 @@ export function ProductFilterView({
       >
         {brands.length > 0 && (
           <div>
-            <p className="theme-muted mb-1 text-xs">Marka (boş = tümü)</p>
-            <div className="flex flex-wrap gap-3">
+            <p className="theme-muted mb-1.5 text-xs">Marka (boş = tümü)</p>
+            <div className="flex flex-wrap gap-2">
               {brands.map((b) => (
-                <label key={b.id} className="flex items-center gap-1.5 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={brandIds.includes(b.id)}
-                    onChange={() => toggleBrand(b.id)}
-                  />
+                <button
+                  key={b.id}
+                  type="button"
+                  aria-pressed={brandIds.includes(b.id)}
+                  onClick={() => toggleBrand(b.id)}
+                  className={`theme-chip${brandIds.includes(b.id) ? " theme-chip--active" : ""}`}
+                >
                   {b.name}
-                </label>
+                </button>
               ))}
             </div>
           </div>
         )}
 
         <div>
-          <p className="theme-muted mb-1 text-xs">Ebat (boş = tümü)</p>
-          <div className="flex flex-wrap gap-3">
+          <p className="theme-muted mb-1.5 text-xs">Ebat (boş = tümü)</p>
+          <div className="flex flex-wrap gap-2">
             {ALL_SIZES.map((s) => (
-              <label key={s} className="flex items-center gap-1.5 text-sm">
-                <input
-                  type="checkbox"
-                  checked={sizes.includes(s)}
-                  onChange={() => toggleSize(s)}
-                />
+              <button
+                key={s}
+                type="button"
+                aria-pressed={sizes.includes(s)}
+                onClick={() => toggleSize(s)}
+                className={`theme-chip${sizes.includes(s) ? " theme-chip--active" : ""}`}
+              >
                 {formatSizeLabel(s)}
-              </label>
+              </button>
             ))}
           </div>
         </div>
 
         <div>
-          <p className="theme-muted mb-1 text-xs">Yüzey (boş = tümü)</p>
-          <div className="flex flex-wrap gap-3">
+          <p className="theme-muted mb-1.5 text-xs">Yüzey (boş = tümü)</p>
+          <div className="flex flex-wrap gap-2">
             {SURFACES.map((s) => (
-              <label key={s} className="flex items-center gap-1.5 text-sm">
-                <input
-                  type="checkbox"
-                  checked={surfaces.includes(s)}
-                  onChange={() => toggleSurface(s)}
-                />
+              <button
+                key={s}
+                type="button"
+                aria-pressed={surfaces.includes(s)}
+                onClick={() => toggleSurface(s)}
+                className={`theme-chip${surfaces.includes(s) ? " theme-chip--active" : ""}`}
+              >
                 {surfaceDisplayLabel(s)}
-              </label>
+              </button>
             ))}
           </div>
         </div>

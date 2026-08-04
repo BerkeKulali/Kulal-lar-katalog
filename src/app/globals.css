@@ -115,6 +115,36 @@ html {
   color: var(--foreground);
 }
 
+/* Admin filtre formlarındaki çoklu seçim rozetleri (marka/ebat/yüzey) —
+   çıplak checkbox+label yerine tıklanabilir, yuvarlak "chip" düğmeler. */
+.theme-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--app-input-border);
+  background: var(--app-input-bg);
+  color: var(--foreground);
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.theme-chip:hover {
+  border-color: var(--foreground);
+}
+
+.theme-chip--active {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+
 /* ── Katalog arama + ölçü başlığı ── */
 .catalog-search-wrap {
   padding-top: 0.25rem;
