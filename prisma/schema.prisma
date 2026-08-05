@@ -63,10 +63,11 @@ model Brand {
   isVisible Boolean         @default(true)
   /** false ise marka yalnızca plasiyerlere görünür, bayilere kapalıdır. */
   visibleToDealers Boolean  @default(true)
-  families  ProductFamily[]
-  admins    AdminUser[]
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  families      ProductFamily[]
+  admins        AdminUser[]
+  announcements Announcement[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 }
 
 model ProductFamily {
@@ -362,8 +363,16 @@ model Announcement {
   body      String?
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
+  /**
+   * Otomatik fiyat güncelleme duyurusu için marka referansı (manuel/genel duyurularda null).
+   * Doluysa fiyat güncellemesi bu markanın duyurusunu bulup günceller (bkz. src/lib/announcements.ts).
+   */
+  brandId   String?
+  brand     Brand?   @relation(fields: [brandId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([brandId])
 }
 
 /**

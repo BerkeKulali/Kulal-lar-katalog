@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   const results = await importPriceRowsWithContext(rows, ctx, rowOffset);
 
   if (finalize) {
-    await touchPriceListUpdated();
+    await touchPriceListUpdated(ctx.brandId);
   }
 
   return NextResponse.json({

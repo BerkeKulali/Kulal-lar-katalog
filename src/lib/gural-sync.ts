@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { normalizeSize } from "@/lib/constants";
 import { GURAL_PACKAGING_BY_SIZE, guralPackagingForSize } from "@/lib/gural-packaging";
 import { endPriceFromFirst, variantCode } from "@/lib/prices";
+import { upsertBrandPriceAnnouncement } from "@/lib/announcements";
 
 export type GuralSyncResult = {
   endCreated: number;
@@ -178,6 +179,7 @@ export async function syncGuralEndPricesAndPackaging(): Promise<GuralSyncResult>
     update: { lastPriceListUpdate: new Date() },
     create: { id: "default", lastPriceListUpdate: new Date() },
   });
+  await upsertBrandPriceAnnouncement(brand.id);
 
   return result;
 }

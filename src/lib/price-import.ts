@@ -2,6 +2,7 @@ import type { AdminUser, Quality, Surface } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { normalizeSize } from "@/lib/constants";
 import { invalidateCatalogCache } from "@/lib/cache-tags";
+import { upsertBrandPriceAnnouncement } from "@/lib/announcements";
 import { guralPackagingForSize } from "@/lib/gural-packaging";
 import { endPriceFromFirst, variantCode } from "@/lib/prices";
 import {
@@ -156,6 +157,9 @@ export async function importPriceRows(
       create: { id: "default", lastPriceListUpdate: new Date() },
     });
     invalidateCatalogCache();
+
+    const sizes = rows.map((row) => normalizeSize(row.olcu));
+    await upsertBrandPriceAnnouncement(ctx.brandId, { sizes });
   }
 
   return results;
@@ -363,11 +367,15 @@ async function upsertGuralEndVariant(
   }
 }
 
-export async function touchPriceListUpdated() {
+export async function touchPriceListUpdated(brandId?: string) {
   await prisma.appSettings.upsert({
     where: { id: "default" },
     update: { lastPriceListUpdate: new Date() },
     create: { id: "default", lastPriceListUpdate: new Date() },
   });
   invalidateCatalogCache();
+
+  if (brandId) {
+    await upsertBrandPriceAnnouncement(brandId);
+  }
 }

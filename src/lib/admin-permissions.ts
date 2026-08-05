@@ -105,6 +105,11 @@ export const ADMIN_NAV: {
     label: "Ürün segmentleri (filtre & export)",
     permission: "campaigns",
   },
+  {
+    href: "/admin/duyurular",
+    label: "Duyurular (ana sayfa banner)",
+    permission: "campaigns",
+  },
 ];
 
 export type AdminSession = AdminUser & {

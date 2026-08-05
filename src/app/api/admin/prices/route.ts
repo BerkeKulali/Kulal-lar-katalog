@@ -9,6 +9,7 @@ import {
   syncEndPricesForFirstVariants,
 } from "@/lib/end-price-sync";
 import { importPriceRows } from "@/lib/price-import";
+import { upsertBrandPriceAnnouncement } from "@/lib/announcements";
 import { parseQuality, parseSurface } from "@/lib/utils";
 
 export async function GET() {
@@ -198,6 +199,11 @@ export async function PATCH(request: Request) {
       update: { lastPriceListUpdate: new Date() },
       create: { id: "default", lastPriceListUpdate: new Date() },
     });
+    if (brandIdFilter) {
+      await upsertBrandPriceAnnouncement(brandIdFilter, {
+        sizes: size ? [size] : undefined,
+      });
+    }
 
     await auditLog(admin, {
       action: "price.bulk",
@@ -259,6 +265,11 @@ export async function PATCH(request: Request) {
     update: { lastPriceListUpdate: new Date() },
     create: { id: "default", lastPriceListUpdate: new Date() },
   });
+  if (nextPrice != null) {
+    await upsertBrandPriceAnnouncement(variant.family.brandId, {
+      sizes: [variant.size],
+    });
+  }
 
   await auditLog(admin, {
     action: "price.update",
