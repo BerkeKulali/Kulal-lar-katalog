@@ -143,9 +143,7 @@ export function ProductDetailView({
 }) {
   const addItem = useCartStore((s) => s.addItem);
   const getSyncedPrice = useCatalogSyncStore((s) => s.getSyncedPrice);
-  const getFamilyStockForVariant = useCatalogSyncStore(
-    (s) => s.getFamilyStockForVariant
-  );
+  const getVariant = useCatalogSyncStore((s) => s.getVariant);
   const syncedShowStock = useCatalogSyncStore((s) => s.showStock);
   const syncedSalesEnabled = useCatalogSyncStore((s) => s.salesEnabled);
   const hasSyncData = useCatalogSyncStore(
@@ -248,10 +246,19 @@ export function ProductDetailView({
   const canShowStock = hasSyncData ? syncedShowStock : initialShowStock;
   const salesEnabled = hasSyncData ? syncedSalesEnabled : initialSalesEnabled;
 
-  const syncedStockTotal =
-    canShowStock && selected && hasSyncData
-      ? getFamilyStockForVariant(selected.id)
-      : undefined;
+  // Senkron mağazasındaki stok sayısı, bu sayfanın kendi (taze) SSR verisinden
+  // DAHA ESKİ olabilir — ör. cihaz uzun süredir aynı sekmede açık, arka plan
+  // senkronu henüz bir stok güncellemesini yakalamamış olabilir. Böyle
+  // durumda eski (yüksek) stok sayısı donup kalmasın diye, hangisinin daha
+  // güncel olduğuna `updatedAt` ile bakılır: senkron verisi bu sayfanın kendi
+  // stok zaman damgasından daha yeni DEĞİLSE, taze SSR değeri kullanılır.
+  const syncedVariant =
+    canShowStock && selected && hasSyncData ? getVariant(selected.id) : undefined;
+  const syncIsFresh =
+    syncedVariant != null &&
+    selected?.stockUpdatedAt != null &&
+    syncedVariant.updatedAt >= selected.stockUpdatedAt;
+  const syncedStockTotal = syncIsFresh ? syncedVariant!.stockM2 : undefined;
 
   const totalStock =
     canShowStock && selected
