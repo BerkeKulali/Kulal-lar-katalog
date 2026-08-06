@@ -47,9 +47,16 @@ export function FamilySurfaceEditor({
       }
       onMatrixChange(nextMatrix);
     } else {
+      // Ölçüye göre modda her ölçünün kendi yüzey listesi olabilir. Sadece
+      // ilk ölçünün listesini almak, diğer ölçülere özel yüzeyleri sessizce
+      // kaybederdi (ör. 60x60'a özel MAT, "tüm ölçülerde aynı" moda geçilince
+      // uçardı — kaydedince o yüzeyin variantları silinirdi). Bunun yerine
+      // tüm seçili ölçülerin yüzeylerinin birleşimini alıyoruz — admin
+      // istemediğini elle kaldırabilir, ama veri sessizce silinmez.
+      const matrixSurfaces = selectedSizes.flatMap((size) => matrix[size] ?? []);
       const surfaces =
-        selectedSizes.length > 0 && matrix[selectedSizes[0]]?.length
-          ? [...matrix[selectedSizes[0]]]
+        matrixSurfaces.length > 0
+          ? [...new Set(matrixSurfaces)]
           : [...uniformSurfaces];
       onUniformSurfacesChange(surfaces);
     }

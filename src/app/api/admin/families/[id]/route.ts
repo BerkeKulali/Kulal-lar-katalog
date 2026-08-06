@@ -306,7 +306,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       variantCode
     );
     const { toCreate: createRows, toRemove: removeRows, toUpdate } =
-      reconcileVariantPlan(toCreate, family.variants);
+      reconcileVariantPlan(toCreate, toRemove);
 
     const blocked = removeRows.filter(
       (v) => (v._count?.orderLines ?? 0) > 0
