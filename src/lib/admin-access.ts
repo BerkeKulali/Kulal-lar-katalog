@@ -7,7 +7,7 @@ import {
 import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
 
 export const ADMIN_GATE_COOKIE = "kulalilar-admin-gate";
-const ADMIN_GATE_MAX_AGE = 60 * 60 * 24 * 30;
+const ADMIN_GATE_MAX_AGE = 60 * 60 * 24 * 365;
 
 export function isAdminPath(pathname: string) {
   return pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
