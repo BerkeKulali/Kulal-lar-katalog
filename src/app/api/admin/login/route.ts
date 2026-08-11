@@ -98,10 +98,14 @@ export async function POST(request: Request) {
     maxAge,
   });
 
-  // Admin girişi katalog cihaz cookie'si YAZMAZ. Eski bir admin cihaz
-  // kaydı varsa temizlenir; aksi durumda katalog/admin bypass oluşur.
+  // Admin girişi katalog cihaz cookie'si YAZMAZ. Eski bir cihaz kaydı
+  // (admin/bayi/plasiyer fark etmez) varsa temizlenir; aksi halde bu
+  // tarayıcı daha önce bayi/plasiyer olarak eşleşmişse admin girişinden
+  // SONRA bile katalog sayfaları (ör. /arama) o eski bayi/plasiyer
+  // görünürlük filtresini uygulamaya devam eder — admin, kendi hesabıyla
+  // baktığını sanırken aslında eski bayi kısıtlamasını görür.
   const existingActorType = cookieStore.get(DEVICE_ACTOR_TYPE_COOKIE)?.value;
-  if (existingActorType === "admin") {
+  if (existingActorType) {
     const clear = { path: "/", maxAge: 0 };
     cookieStore.set(DEVICE_TOKEN_COOKIE, "", clear);
     cookieStore.set(DEVICE_AUTH_COOKIE, "", clear);
