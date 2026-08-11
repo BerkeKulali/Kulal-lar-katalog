@@ -70,9 +70,13 @@ describe("isValidSurfaceForBrand", () => {
 describe("getSizesForBrand", () => {
   it("bien'e özel ölçüleri ekler", () => {
     const sizes = getSizesForBrand("bien");
-    for (const s of ["45x45", "50x50", "61x61", "120x180"]) {
+    for (const s of ["15x60", "45x45", "50x50", "61x61", "120x180"]) {
       assert.ok(sizes.includes(s), `${s} bien'de olmalı`);
     }
+  });
+
+  it("qua, bien ile aynı ölçü seçeneklerini kullanır", () => {
+    assert.deepEqual(getSizesForBrand("qua"), getSizesForBrand("bien"));
   });
 
   it("diğer markalara özel ölçü sızdırmaz", () => {
