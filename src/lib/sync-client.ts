@@ -8,6 +8,32 @@ import { useCatalogSyncStore } from "@/store/catalog-sync";
 
 let downloadInFlight: Promise<void> | null = null;
 
+/**
+ * Delta mi tam senkron mu yapılacağına karar verir. Güvenlik ağı: bir delta
+ * senkronu kaçırılan bir ürünü SONSUZA kadar atlayabilir (ör. tam senkron
+ * sırasında offline olan bir cihaz). Bu yüzden "en son ne zaman tam senkron
+ * yapıldı" ölçülmeli (lastFullSyncAt) — delta senkronlarla sürekli
+ * tazelenen lastSyncAt değil, aksi halde cihaz hep online kaldığı sürece
+ * tam senkron hiç tetiklenmez.
+ */
+export function shouldUseDelta({
+  hasLocalData,
+  lastSyncAt,
+  lastFullSyncAt,
+  now,
+}: {
+  hasLocalData: boolean;
+  lastSyncAt: string | null;
+  lastFullSyncAt: string | null;
+  now: number;
+}): boolean {
+  if (!hasLocalData || !lastSyncAt) return false;
+  const lastFullSyncAge = lastFullSyncAt
+    ? now - new Date(lastFullSyncAt).getTime()
+    : Number.POSITIVE_INFINITY;
+  return lastFullSyncAge < FULL_SYNC_MAX_AGE_MS;
+}
+
 export async function runCatalogSync() {
   const store = useCatalogSyncStore.getState();
   if (store.isSyncing) return;
@@ -19,11 +45,12 @@ export async function runCatalogSync() {
   try {
     const hasLocalData = Object.keys(store.variants).length > 0;
     const prevShowStock = store.showStock;
-    const lastSyncAge = store.lastSyncAt
-      ? Date.now() - new Date(store.lastSyncAt).getTime()
-      : Number.POSITIVE_INFINITY;
-    const useDelta =
-      hasLocalData && lastSyncAge < FULL_SYNC_MAX_AGE_MS && store.lastSyncAt;
+    const useDelta = shouldUseDelta({
+      hasLocalData,
+      lastSyncAt: store.lastSyncAt,
+      lastFullSyncAt: store.lastFullSyncAt,
+      now: Date.now(),
+    });
     const since = useDelta ? store.lastSyncAt : null;
     const url = since
       ? `/api/sync?since=${encodeURIComponent(since)}`

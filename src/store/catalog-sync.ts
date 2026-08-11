@@ -15,6 +15,8 @@ type ImageCacheEntry = {
 
 type CatalogSyncState = {
   lastSyncAt: string | null;
+  /** Son TAM (delta olmayan) senkronun zamanı — güvenlik ağı bu alanı kullanır. */
+  lastFullSyncAt: string | null;
   priceListVersion: string | null;
   imageCatalogVersion: string | null;
   showStock: boolean;
@@ -81,6 +83,7 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
   persist(
     (set, get) => ({
       lastSyncAt: null,
+      lastFullSyncAt: null,
       priceListVersion: null,
       imageCatalogVersion: null,
       showStock: true,
@@ -148,6 +151,9 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
             showStock,
             salesEnabled: payload.salesEnabled ?? true,
             lastSyncAt: payload.serverTime,
+            lastFullSyncAt: payload.isDelta
+              ? state.lastFullSyncAt
+              : payload.serverTime,
             priceListVersion: payload.priceListVersion,
             imageCatalogVersion: payload.imageCatalogVersion,
             pendingImageCount,
