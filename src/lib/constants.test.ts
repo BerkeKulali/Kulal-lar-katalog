@@ -70,7 +70,7 @@ describe("isValidSurfaceForBrand", () => {
 describe("getSizesForBrand", () => {
   it("bien'e özel ölçüleri ekler", () => {
     const sizes = getSizesForBrand("bien");
-    for (const s of ["15x60", "45x45", "50x50", "61x61", "120x180", "80x320", "160x320"]) {
+    for (const s of ["15x60", "45x45", "50x50", "61x61", "120x180", "80x320", "160x320", "120x280"]) {
       assert.ok(sizes.includes(s), `${s} bien'de olmalı`);
     }
   });
