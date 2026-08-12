@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { endPriceFromFirst } from "@/lib/prices";
+import { turkishIncludes } from "@/lib/text-match";
 
 type PriceRow = {
   id: string;
@@ -31,7 +32,7 @@ function rowMatchesFilters(
     (!filters.surface || row.surface === filters.surface) &&
     (!filters.quality || row.quality === filters.quality) &&
     (!filters.familyName ||
-      row.familyName.toLowerCase().includes(filters.familyName.toLowerCase()))
+      turkishIncludes(row.familyName, filters.familyName))
   );
 }
 

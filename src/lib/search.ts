@@ -1,5 +1,6 @@
 import type { Quality, Surface } from "@/generated/prisma/client";
 import { getAllCatalogSizes } from "@/lib/constants";
+import { turkishFold } from "@/lib/text-match";
 import { buildPriceSummary, type PriceSummary } from "@/lib/prices";
 import { buildStockSummary, EMPTY_STOCK_SUMMARY, type StockSummary } from "@/lib/stock";
 import { pickSizeListImage, toImageCandidates } from "@/lib/product-image";
@@ -44,7 +45,7 @@ type SearchFamily = {
 };
 
 export function normalizeSearchQuery(query: string) {
-  return query.trim().toLowerCase();
+  return turkishFold(query.trim());
 }
 
 export function familyMatchesQuery(
@@ -54,8 +55,8 @@ export function familyMatchesQuery(
 ) {
   const q = normalizeSearchQuery(query);
   if (!q) return true;
-  if (familyName.toLowerCase().includes(q)) return true;
-  return codes.some((code) => code.toLowerCase().includes(q));
+  if (turkishFold(familyName).includes(q)) return true;
+  return codes.some((code) => turkishFold(code).includes(q));
 }
 
 /** Renk/tip filtresi. Boş filtre her şeyi geçirir. */

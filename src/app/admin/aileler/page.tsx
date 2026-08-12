@@ -17,6 +17,7 @@ import {
 import { getSurfacesForBrand } from "@/lib/constants";
 import { DEFAULT_PRODUCT_FEATURES, type ProductFeatureFlags } from "@/lib/product-features";
 import { GURAL_PACKAGING_BY_SIZE } from "@/lib/gural-packaging";
+import { turkishFold } from "@/lib/text-match";
 import { slugify } from "@/lib/utils";
 
 type Brand = { id: string; name: string; slug: string };
@@ -160,13 +161,13 @@ export default function AdminFamiliesPage() {
   const previewCount = countMatrixVariants(createPayloadMatrix);
 
   const filteredFamilies = useMemo(() => {
-    const q = familySearch.trim().toLowerCase();
+    const q = turkishFold(familySearch.trim());
     if (!q) return families;
     return families.filter(
       (f) =>
-        f.name.toLowerCase().includes(q) ||
-        f.slug.toLowerCase().includes(q) ||
-        f.brandName.toLowerCase().includes(q)
+        turkishFold(f.name).includes(q) ||
+        turkishFold(f.slug).includes(q) ||
+        turkishFold(f.brandName).includes(q)
     );
   }, [families, familySearch]);
 
