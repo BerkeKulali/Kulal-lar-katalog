@@ -221,9 +221,12 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
         );
       },
     }),
-    // v3: Önceki sürümde admin senkronunda stok 0'a kısılıp localStorage'a
-    // yazılıyordu. Sürümü yükseltmek bu bayat önbelleği geçersiz kılar; herkes
-    // düzeltilmiş stok mantığıyla temiz bir tam senkron alır.
-    { name: "kulalilar-catalog-sync-v3", skipHydration: true }
+    // v4: v3 önbelleğinde lastFullSyncAt hiç yoktu / bazı tarayıcılarda
+    // eski (hatalı) senkron mantığıyla üretilmiş eksik veri barınıyor olabilir.
+    // Key'i değiştirmek eski önbelleği tamamen geçersiz kılar: her tarayıcı
+    // yeni kodu yüklediği an localStorage'da hiçbir veri bulamaz, hasLocalData
+    // false olur ve ilk senkron kesin olarak TAM senkron yapılır — herhangi bir
+    // zamanlama/lastFullSyncAt hesabına bağlı kalmadan.
+    { name: "kulalilar-catalog-sync-v4", skipHydration: true }
   )
 );
