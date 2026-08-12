@@ -14,6 +14,8 @@ export const STRIP_TILE_SIZES = [
   "40x120",
   "60x120",
   "80x160",
+  "80x320",
+  "160x320",
 ] as const;
 
 export function isStripTileSize(size?: string | null) {

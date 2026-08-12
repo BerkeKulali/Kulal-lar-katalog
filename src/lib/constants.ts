@@ -47,7 +47,7 @@ const BRAND_EXTRA_SURFACES: Record<string, readonly string[]> = {
   gural: ["SGR", "GLS", "SOFT_ANTISLIP", "ANTISLIP", "R10", "R11"],
 };
 
-const BIEN_EXTRA_SIZES = ["15x60", "45x45", "50x50", "61x61", "120x180"];
+const BIEN_EXTRA_SIZES = ["15x60", "45x45", "50x50", "61x61", "120x180", "80x320", "160x320"];
 
 const BRAND_EXTRA_SIZES: Record<string, readonly string[]> = {
   bien: BIEN_EXTRA_SIZES,
@@ -109,6 +109,8 @@ export const SIZE_LAYOUT: Record<
   { columns: 1 | 2; perPage: number; aspect: string }
 > = {
   "15x60": { columns: 2, perPage: 6, aspect: "4/1" },
+  "80x320": { columns: 2, perPage: 6, aspect: "4/1" },
+  "160x320": { columns: 2, perPage: 6, aspect: "2/1" },
   "20x120": { columns: 2, perPage: 6, aspect: "6/1" },
   "30x60": { columns: 2, perPage: 4, aspect: "2/1" },
   "30x90": { columns: 2, perPage: 6, aspect: "3/1" },
