@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 /** Ürün segmenti filtre önizlemesi (JSON). Yetki: campaigns. */
 export async function GET(request: Request) {
-  const auth = await requireAdminPermission("campaigns");
+  const auth = await requireAdminPermission("productFilter");
   if (!auth.admin) return auth.response;
 
   const { searchParams } = new URL(request.url);

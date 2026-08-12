@@ -6,7 +6,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 /** Kayıtlı segmenti sil. Yetki: campaigns. */
 export async function DELETE(_request: Request, context: RouteContext) {
-  const auth = await requireAdminPermission("campaigns");
+  const auth = await requireAdminPermission("productFilter");
   if (!auth.admin) return auth.response;
 
   const { id } = await context.params;

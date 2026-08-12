@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 export default async function AdminProductFilterPage() {
   const admin = await requireAdmin();
   if (!admin) redirect("/admin/login");
-  if (!hasPermission(admin, "campaigns")) redirect("/admin");
+  if (!hasPermission(admin, "productFilter")) redirect("/admin");
 
   const brands = admin.brandId
     ? []

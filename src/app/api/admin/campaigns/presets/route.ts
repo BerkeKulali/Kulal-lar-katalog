@@ -7,7 +7,7 @@ import { isPrismaSurface } from "@/lib/surface";
 
 /** Kayıtlı ürün segmenti filtreleri listesi. Yetki: campaigns. */
 export async function GET() {
-  const auth = await requireAdminPermission("campaigns");
+  const auth = await requireAdminPermission("productFilter");
   if (!auth.admin) return auth.response;
 
   const presets = await prisma.productFilterPreset.findMany({
@@ -32,7 +32,7 @@ export async function GET() {
 
 /** Segmenti isimlendirip kaydet (örn. "Güral 250 m² altı ürünler"). Yetki: campaigns. */
 export async function POST(request: Request) {
-  const auth = await requireAdminPermission("campaigns");
+  const auth = await requireAdminPermission("productFilter");
   if (!auth.admin) return auth.response;
 
   const body = await request.json();

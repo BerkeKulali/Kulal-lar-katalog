@@ -67,6 +67,9 @@ describe("getEffectivePermissions", () => {
     assert.ok(perms.includes("prices"));
     // "admins" yalnızca SUPER varsayılanında olmalı.
     assert.equal(perms.includes("admins"), false);
+    // "productFilter" (ürün filtreleme aracı) da elle açılana kadar
+    // varsayılanda kapalı — "campaigns" (afiş/duyuru) ile karıştırılmasın.
+    assert.equal(perms.includes("productFilter"), false);
   });
 
   it("boş liste varsayılana düşer", () => {

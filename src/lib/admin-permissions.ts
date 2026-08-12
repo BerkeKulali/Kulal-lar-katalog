@@ -10,6 +10,7 @@ export const ADMIN_PERMISSIONS = [
   "import",
   "salespeople",
   "campaigns",
+  "productFilter",
   "admins",
 ] as const;
 
@@ -24,7 +25,8 @@ export const PERMISSION_LABELS: Record<AdminPermission, string> = {
   orders: "Siparişler",
   import: "Excel import / export",
   salespeople: "Plasiyerler ve bayiler",
-  campaigns: "Kampanyalar",
+  campaigns: "Kampanyalar (afiş & duyuru)",
+  productFilter: "Ürün filtreleme (segment & export)",
   admins: "Admin kullanıcıları",
 };
 
@@ -104,7 +106,7 @@ export const ADMIN_NAV: {
   {
     href: "/admin/kampanyalar/urunler",
     label: "Ürün segmentleri (filtre & export)",
-    permission: "campaigns",
+    permission: "productFilter",
   },
   {
     href: "/admin/duyurular",
