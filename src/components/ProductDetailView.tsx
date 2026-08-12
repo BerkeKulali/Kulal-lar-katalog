@@ -14,6 +14,7 @@ import { featureBadges } from "@/lib/product-features";
 import { pickVariantDisplayImage, toImageCandidates } from "@/lib/product-image";
 import { isPlaceholderImage, optimizeCatalogImage } from "@/lib/image-url";
 import { useCatalogSyncStore } from "@/store/catalog-sync";
+import { useDisplayPrefsStore } from "@/store/display-prefs";
 import { formatPrice, formatStock, qualityLabel, sortQualities } from "@/lib/utils";
 import { PalletFillIcon, TruckIcon } from "@/components/PackagingIcons";
 import {
@@ -145,6 +146,8 @@ export function ProductDetailView({
   const getSyncedPrice = useCatalogSyncStore((s) => s.getSyncedPrice);
   const getVariant = useCatalogSyncStore((s) => s.getVariant);
   const syncedShowStock = useCatalogSyncStore((s) => s.showStock);
+  const showPrices = useDisplayPrefsStore((s) => s.showPrices);
+  const showStockPref = useDisplayPrefsStore((s) => s.showStockPref);
   const syncedSalesEnabled = useCatalogSyncStore((s) => s.salesEnabled);
   const hasSyncData = useCatalogSyncStore(
     (s) => Object.keys(s.variants).length > 0
@@ -243,7 +246,9 @@ export function ProductDetailView({
 
   const hasPrice = displayPrice != null && displayPrice > 0;
 
-  const canShowStock = hasSyncData ? syncedShowStock : initialShowStock;
+  const permittedShowStock = hasSyncData ? syncedShowStock : initialShowStock;
+  // Yetki + kullanıcı tercihi (Stoklu göster kapalıysa, yetkisi olsa bile gizle).
+  const canShowStock = permittedShowStock && showStockPref;
   const salesEnabled = hasSyncData ? syncedSalesEnabled : initialSalesEnabled;
 
   // Senkron mağazasındaki stok sayısı, bu sayfanın kendi (taze) SSR verisinden
@@ -253,7 +258,9 @@ export function ProductDetailView({
   // güncel olduğuna `updatedAt` ile bakılır: senkron verisi bu sayfanın kendi
   // stok zaman damgasından daha yeni DEĞİLSE, taze SSR değeri kullanılır.
   const syncedVariant =
-    canShowStock && selected && hasSyncData ? getVariant(selected.id) : undefined;
+    permittedShowStock && selected && hasSyncData
+      ? getVariant(selected.id)
+      : undefined;
   const syncIsFresh =
     syncedVariant != null &&
     selected?.stockUpdatedAt != null &&
@@ -261,7 +268,7 @@ export function ProductDetailView({
   const syncedStockTotal = syncIsFresh ? syncedVariant!.stockM2 : undefined;
 
   const totalStock =
-    canShowStock && selected
+    permittedShowStock && selected
       ? syncedStockTotal ??
         selected.stockLines.reduce((sum, line) => sum + line.quantityM2, 0)
       : 0;
@@ -462,14 +469,16 @@ export function ProductDetailView({
                   </p>
                 </div>
               )}
-              <div className="product-detail-stat">
-                <p className="product-detail-stat-label">Fiyat</p>
-                <p
-                  className={`product-detail-stat-value${!hasPrice ? " product-detail-stat-value--muted" : ""}`}
-                >
-                  {hasPrice ? formatPrice(displayPrice!) : "Girilmedi"}
-                </p>
-              </div>
+              {showPrices && (
+                <div className="product-detail-stat">
+                  <p className="product-detail-stat-label">Fiyat</p>
+                  <p
+                    className={`product-detail-stat-value${!hasPrice ? " product-detail-stat-value--muted" : ""}`}
+                  >
+                    {hasPrice ? formatPrice(displayPrice!) : "Girilmedi"}
+                  </p>
+                </div>
+              )}
               <div className="product-detail-stat">
                 <p className="product-detail-stat-label">Palet m²</p>
                 <p className="product-detail-stat-value">

@@ -1,13 +1,20 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { AppShell } from "@/components/AppShell";
 import { BrandCatalogTile } from "@/components/BrandCatalogTile";
 import { DeviceGate } from "@/components/DeviceGate";
+import { DisplayPrefsToggle } from "@/components/DisplayPrefsToggle";
 import { HomeSearchSection } from "@/components/HomeSearchSection";
 import { SyncStatusLine } from "@/components/SyncStatusLine";
 import { SiteHeader } from "@/components/SiteHeader";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { formatSizeLabel } from "@/lib/constants";
 import { HOME_COLORS, HOME_MATERIAL_TYPES } from "@/lib/product-attributes";
+import { getAdminSession } from "@/lib/admin-auth";
+import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
+import { resolveStockVisibility } from "@/lib/stock-visibility";
+import { EMPTY_STOCK_SUMMARY } from "@/lib/stock";
 import {
   getActiveAnnouncements,
   getActiveCampaigns,
@@ -18,14 +25,26 @@ import {
 
 export default async function HomePage() {
   const audience = await getCatalogAudienceFromCookies();
-  const [brands, settings, announcements, searchIndex, campaigns] =
+  const cookieStore = await cookies();
+  const salespersonId = cookieStore.get(SALESPERSON_ID_COOKIE)?.value;
+  const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
+  const [brands, settings, announcements, rawSearchIndex, campaigns, admin] =
     await Promise.all([
       getBrands(audience),
       getAppSettings(),
       getActiveAnnouncements(),
       getGlobalSearchCatalog(audience),
       getActiveCampaigns(audience),
+      getAdminSession(),
     ]);
+  const showStock = await resolveStockVisibility({
+    isAdmin: Boolean(admin),
+    salespersonId,
+    deviceToken,
+  });
+  const searchIndex = showStock
+    ? rawSearchIndex
+    : rawSearchIndex.map((item) => ({ ...item, stock: EMPTY_STOCK_SUMMARY }));
   // Duyurular, o izleyiciye kapalı markaların adını içeriyorsa gizlenir.
   // (Önceden metinde "qua" geçmesi koda gömülü olarak filtreleniyordu; artık
   // kural veritabanındaki marka görünürlüğünden türetiliyor.)
@@ -51,7 +70,14 @@ export default async function HomePage() {
   return (
     <DeviceGate>
       <AppShell className="pb-24">
-        <SiteHeader />
+        <SiteHeader
+          rightSlot={
+            <>
+              <DisplayPrefsToggle initialShowStock={showStock} />
+              <ThemeToggle />
+            </>
+          }
+        />
         <HomeSearchSection searchIndex={searchIndex}>
         <section className="mt-6 px-5">
           <SyncStatusLine serverPriceDate={lastUpdate} />

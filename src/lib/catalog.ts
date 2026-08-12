@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { normalizeSize, getSizesForBrand } from "@/lib/constants";
 import { buildPriceSummary, type PriceSummary } from "@/lib/prices";
+import { buildStockSummary } from "@/lib/stock";
 import type { Quality } from "@/generated/prisma/client";
 import { pickSizeListImage, toImageCandidates } from "@/lib/product-image";
 import { buildFamilySearchItems, type GlobalSearchItem } from "@/lib/search";
@@ -108,6 +109,7 @@ async function _getCatalogFamilies(
           quality: true,
           price: true,
           imageUrl: true,
+          stockLines: { select: { quantityM2: true } },
         },
       },
     },
@@ -124,6 +126,17 @@ async function _getCatalogFamilies(
       normalized
     ),
     prices: buildPriceSummary(family.variants),
+    // Ham (yetkiden bağımsız) stok toplamı — sayfa bileşeni bunu
+    // resolveStockVisibility sonucuna göre gösterip göstermeyeceğine karar
+    // verir (bkz. ProductDetailPage'deki showStock ? v.stockLines : [] deseni).
+    // Burada, bu önbellekli sorgunun paylaşılan sonucuna gömülmez; sadece
+    // her istekte taze hesaplanan boolean'a göre çağıran yerde filtrelenir.
+    stock: buildStockSummary(
+      family.variants.map((v) => ({
+        quality: v.quality,
+        stockM2: v.stockLines.reduce((s, l) => s + l.quantityM2, 0),
+      }))
+    ),
   }));
 }
 
@@ -371,6 +384,7 @@ async function _getGlobalSearchCatalog(
           price: true,
           code: true,
           imageUrl: true,
+          stockLines: { select: { quantityM2: true } },
         },
       },
     },
@@ -389,7 +403,10 @@ async function _getGlobalSearchCatalog(
         color: family.color,
         materialType: family.materialType,
       },
-      family.variants
+      family.variants.map((v) => ({
+        ...v,
+        stockM2: v.stockLines.reduce((s, l) => s + l.quantityM2, 0),
+      }))
     )
   );
 }

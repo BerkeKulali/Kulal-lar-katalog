@@ -5,6 +5,7 @@ import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { AppShell } from "@/components/AppShell";
 import { CatalogBrandBar } from "@/components/CatalogSizeHeader";
 import { DeviceGate } from "@/components/DeviceGate";
+import { DisplayPrefsToggle } from "@/components/DisplayPrefsToggle";
 import { FamilyClickTracker } from "@/components/FamilyClickTracker";
 import { ProductDetailView } from "@/components/ProductDetailView";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -56,7 +57,11 @@ export default async function ProductDetailPage({
       <AppShell className="pb-24">
         <FamilyClickTracker familyId={family.id} />
         <SiteHeader />
-        <CatalogBrandBar brandSlug={brand.slug} brandName={brand.name} />
+        <CatalogBrandBar
+          brandSlug={brand.slug}
+          brandName={brand.name}
+          right={<DisplayPrefsToggle initialShowStock={showStock} />}
+        />
         <div className="pb-2">
           <Link
             href={`/katalog/${brand.slug}/${size}?${kaliteQuery(kaliteFilter)}`}

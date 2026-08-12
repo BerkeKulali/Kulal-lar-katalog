@@ -1,12 +1,18 @@
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { AppShell } from "@/components/AppShell";
 import { CatalogSizeHeader } from "@/components/CatalogSizeHeader";
 import { DeviceGate } from "@/components/DeviceGate";
+import { DisplayPrefsToggle } from "@/components/DisplayPrefsToggle";
 import { ProductListWithSearch } from "@/components/ProductListWithSearch";
 import { SiteHeader } from "@/components/SiteHeader";
 import { getSizeLayout, normalizeSize } from "@/lib/constants";
+import { getAdminSession } from "@/lib/admin-auth";
 import { getBrandBySlug, getCatalogFamilies } from "@/lib/catalog";
+import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
+import { resolveStockVisibility } from "@/lib/stock-visibility";
+import { EMPTY_STOCK_SUMMARY } from "@/lib/stock";
 import { kaliteFilterLabel, kaliteQuery, parseKaliteFilter } from "@/lib/utils";
 import type { Quality } from "@/generated/prisma/client";
 
@@ -27,13 +33,25 @@ export default async function ProductListPage({
   const brand = await getBrandBySlug(brandSlug, audience);
   if (!brand) notFound();
 
-  const families = await getCatalogFamilies(
-    brandSlug,
-    size,
-    qualityForQuery,
-    audience
-  );
+  const cookieStore = await cookies();
+  const salespersonId = cookieStore.get(SALESPERSON_ID_COOKIE)?.value;
+  const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
+  const [families, admin] = await Promise.all([
+    getCatalogFamilies(brandSlug, size, qualityForQuery, audience),
+    getAdminSession(),
+  ]);
   if (!families) notFound();
+
+  // Stok görünürlüğü tek noktadan: admin / plasiyer / bayi (bkz. detay sayfası).
+  const showStock = await resolveStockVisibility({
+    isAdmin: Boolean(admin),
+    salespersonId,
+    deviceToken,
+  });
+  const visibleFamilies = families.map((f) => ({
+    ...f,
+    stock: showStock ? f.stock : EMPTY_STOCK_SUMMARY,
+  }));
 
   const layout = getSizeLayout(size);
   const gridClass =
@@ -56,9 +74,10 @@ export default async function ProductListPage({
           qualityLabel={headerQualityLabel}
           brandSlug={brand.slug}
           brandName={brand.name}
+          right={<DisplayPrefsToggle initialShowStock={showStock} />}
         />
         <ProductListWithSearch
-          families={families}
+          families={visibleFamilies}
           brandSlug={brand.slug}
           size={size}
           aspect={layout.aspect}

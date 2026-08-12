@@ -145,6 +145,27 @@ html {
   color: var(--background);
 }
 
+.theme-chip--sm {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.6875rem;
+}
+
+/* ── Katalog izleme sayfalarındaki "Fiyatlı / Stoklu göster" aç-kapa ── */
+.display-prefs-toggle {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.catalog-size-header-solo-right {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 1.25rem;
+  margin-top: 0.5rem;
+}
+
 /* ── Katalog arama + ölçü başlığı ── */
 .catalog-search-wrap {
   padding-top: 0.25rem;
@@ -1101,6 +1122,28 @@ button.catalog-picker-chip:not(.catalog-picker-chip--disabled):hover {
 .product-price-sep {
   margin: 0 0.3rem;
   opacity: 0.4;
+}
+
+.product-stock-block {
+  margin-top: 0.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.product-stock-line {
+  text-align: left;
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  letter-spacing: 0.03em;
+  color: var(--app-muted);
+}
+
+.product-stock-label {
+  margin-right: 0.35rem;
+  font-weight: 600;
+  color: var(--product-title-color);
+  opacity: 0.65;
 }
 
 /* ── Giriş: marka kutuları (kare, hafif gölge) ── */

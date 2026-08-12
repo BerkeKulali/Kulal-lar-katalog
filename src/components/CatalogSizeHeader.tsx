@@ -9,6 +9,7 @@ export function CatalogSizeHeader({
   qualityLabel,
   brandSlug,
   brandName,
+  right,
 }: {
   backHref: string;
   backLabel?: string;
@@ -16,6 +17,7 @@ export function CatalogSizeHeader({
   qualityLabel?: string;
   brandSlug?: string;
   brandName?: string;
+  right?: React.ReactNode;
 }) {
   const hasBrandMark = Boolean(brandSlug || brandName);
 
@@ -35,6 +37,9 @@ export function CatalogSizeHeader({
     return (
       <header className="catalog-size-header catalog-size-header--solo pb-2 pt-1">
         {main}
+        {right && (
+          <div className="catalog-size-header-solo-right">{right}</div>
+        )}
       </header>
     );
   }
@@ -44,7 +49,9 @@ export function CatalogSizeHeader({
       <div className="catalog-size-header-grid">
         <BrandHeaderMark brandSlug={brandSlug} brandName={brandName} />
         {main}
-        <div className="catalog-size-header-spacer" aria-hidden />
+        <div className="catalog-size-header-spacer" aria-hidden={!right}>
+          {right}
+        </div>
       </div>
     </header>
   );
@@ -54,12 +61,14 @@ export function CatalogBrandBar({
   brandSlug,
   brandName,
   children,
+  right,
 }: {
   brandSlug?: string;
   brandName?: string;
   children?: React.ReactNode;
+  right?: React.ReactNode;
 }) {
-  if (!brandSlug && !brandName && !children) return null;
+  if (!brandSlug && !brandName && !children && !right) return null;
 
   return (
     <div className="catalog-brand-bar pb-2 pt-1">
@@ -70,7 +79,9 @@ export function CatalogBrandBar({
         ) : (
           <div className="catalog-size-header-main" />
         )}
-        <div className="catalog-size-header-spacer" aria-hidden />
+        <div className="catalog-size-header-spacer" aria-hidden={!right}>
+          {right}
+        </div>
       </div>
     </div>
   );

@@ -88,6 +88,7 @@ export function LiveSearchResults({
                 name={`${family.name} · ${family.size.toUpperCase()}`}
                 imageUrl={family.imageUrl}
                 prices={prices}
+                stock={family.stock}
                 aspect={aspectForSize(family.size)}
                 size={family.size}
               />

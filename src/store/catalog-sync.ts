@@ -6,6 +6,7 @@ import type { SyncFamilyRow, SyncPayload, SyncVariantRow } from "@/lib/sync-type
 import { buildPriceSummary } from "@/lib/prices";
 import { pickSizeListImage, toImageCandidates } from "@/lib/product-image";
 import type { Quality, Surface } from "@/generated/prisma/client";
+import { buildStockSummary, type StockSummary } from "@/lib/stock";
 import { resolveProductImage } from "@/lib/image-url";
 
 type ImageCacheEntry = {
@@ -50,6 +51,7 @@ type CatalogSyncState = {
     size: string
   ) => string | null;
   getFamilyStockForVariant: (variantId: string) => number | undefined;
+  getFamilyStockForSize: (familyId: string, size: string) => StockSummary;
   getSyncedPrice: (variantId: string) => number | null | undefined;
 };
 
@@ -204,6 +206,19 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
             surface: v.surface as Surface,
             quality: v.quality as Quality,
             price: v.price,
+          }))
+        );
+      },
+
+      getFamilyStockForSize: (familyId, size) => {
+        const normalized = size.toLowerCase();
+        const rows = Object.values(get().variants).filter(
+          (v) => v.familyId === familyId && v.size === normalized
+        );
+        return buildStockSummary(
+          rows.map((v) => ({
+            quality: v.quality as Quality,
+            stockM2: v.stockM2,
           }))
         );
       },

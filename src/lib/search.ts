@@ -1,6 +1,7 @@
 import type { Quality, Surface } from "@/generated/prisma/client";
 import { getAllCatalogSizes } from "@/lib/constants";
 import { buildPriceSummary, type PriceSummary } from "@/lib/prices";
+import { buildStockSummary, EMPTY_STOCK_SUMMARY, type StockSummary } from "@/lib/stock";
 import { pickSizeListImage, toImageCandidates } from "@/lib/product-image";
 import type { SyncFamilyRow, SyncVariantRow } from "@/lib/sync-types";
 
@@ -14,6 +15,7 @@ export type GlobalSearchItem = {
   imageUrl: string | null;
   size: string;
   prices: PriceSummary;
+  stock: StockSummary;
   codes: string[];
   color: string | null;
   materialType: string | null;
@@ -26,6 +28,8 @@ type SearchVariant = {
   price: number | null;
   code?: string | null;
   imageUrl?: string | null;
+  /** Zaten stok görme yetkisi olmayan cihazlar için 0 gelir/gelmelidir. */
+  stockM2?: number;
 };
 
 type SearchFamily = {
@@ -119,6 +123,14 @@ export function buildFamilySearchItems(
           price: v.price,
         }))
       ),
+      stock: sizeVariants.some((v) => v.stockM2 !== undefined)
+        ? buildStockSummary(
+            sizeVariants.map((v) => ({
+              quality: v.quality,
+              stockM2: v.stockM2 ?? 0,
+            }))
+          )
+        : EMPTY_STOCK_SUMMARY,
       codes: allCodes,
       color: family.color ?? null,
       materialType: family.materialType ?? null,
@@ -160,6 +172,7 @@ export function buildGlobalSearchItems(
         price: v.price,
         code: v.code,
         imageUrl: v.imageUrl,
+        stockM2: v.stockM2,
       }))
     );
   });
