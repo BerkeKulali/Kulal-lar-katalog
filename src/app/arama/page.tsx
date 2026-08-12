@@ -1,10 +1,8 @@
 import { cookies } from "next/headers";
 import { AppShell } from "@/components/AppShell";
 import { DeviceGate } from "@/components/DeviceGate";
-import { DisplayPrefsToggle } from "@/components/DisplayPrefsToggle";
 import { SearchPageView } from "@/components/SearchPageView";
 import { SiteHeader } from "@/components/SiteHeader";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { getAdminSession } from "@/lib/admin-auth";
 import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { getGlobalSearchCatalog } from "@/lib/catalog";
@@ -39,18 +37,12 @@ export default async function SearchPage({
   return (
     <DeviceGate>
       <AppShell className="pb-24">
-        <SiteHeader
-          rightSlot={
-            <>
-              <DisplayPrefsToggle initialShowStock={showStock} />
-              <ThemeToggle />
-            </>
-          }
-        />
+        <SiteHeader />
         <SearchPageView
           searchIndex={searchIndex}
           initialColor={normalizeColor(renk)}
           initialMaterialType={normalizeMaterialType(tip)}
+          initialShowStock={showStock}
         />
       </AppShell>
     </DeviceGate>

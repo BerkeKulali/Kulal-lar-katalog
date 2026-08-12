@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { DisplayPrefsToggle } from "@/components/DisplayPrefsToggle";
 import { LiveSearchResults } from "@/components/LiveSearchResults";
 import { StickySearchBar } from "@/components/SearchBar";
 import { SearchFilterChips } from "@/components/SearchFilterChips";
@@ -10,10 +11,12 @@ export function SearchPageView({
   searchIndex,
   initialColor = null,
   initialMaterialType = null,
+  initialShowStock = false,
 }: {
   searchIndex: GlobalSearchItem[];
   initialColor?: string | null;
   initialMaterialType?: string | null;
+  initialShowStock?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [color, setColor] = useState<string | null>(initialColor);
@@ -33,13 +36,18 @@ export function SearchPageView({
         onMaterialType={setMaterialType}
       />
       {active ? (
-        <LiveSearchResults
-          query={query}
-          color={color}
-          materialType={materialType}
-          fallbackItems={searchIndex}
-          showBrand
-        />
+        <>
+          <div className="mt-3 flex justify-end px-5">
+            <DisplayPrefsToggle initialShowStock={initialShowStock} />
+          </div>
+          <LiveSearchResults
+            query={query}
+            color={color}
+            materialType={materialType}
+            fallbackItems={searchIndex}
+            showBrand
+          />
+        </>
       ) : (
         <p className="mt-8 px-5 text-sm text-zinc-500">
           Yazmaya başlayın ya da yukarıdan tip/renk seçin — sonuçlar anında

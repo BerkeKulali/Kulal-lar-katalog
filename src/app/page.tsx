@@ -4,11 +4,9 @@ import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { AppShell } from "@/components/AppShell";
 import { BrandCatalogTile } from "@/components/BrandCatalogTile";
 import { DeviceGate } from "@/components/DeviceGate";
-import { DisplayPrefsToggle } from "@/components/DisplayPrefsToggle";
 import { HomeSearchSection } from "@/components/HomeSearchSection";
 import { SyncStatusLine } from "@/components/SyncStatusLine";
 import { SiteHeader } from "@/components/SiteHeader";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { formatSizeLabel } from "@/lib/constants";
 import { HOME_COLORS, HOME_MATERIAL_TYPES } from "@/lib/product-attributes";
 import { getAdminSession } from "@/lib/admin-auth";
@@ -70,15 +68,8 @@ export default async function HomePage() {
   return (
     <DeviceGate>
       <AppShell className="pb-24">
-        <SiteHeader
-          rightSlot={
-            <>
-              <DisplayPrefsToggle initialShowStock={showStock} />
-              <ThemeToggle />
-            </>
-          }
-        />
-        <HomeSearchSection searchIndex={searchIndex}>
+        <SiteHeader />
+        <HomeSearchSection searchIndex={searchIndex} initialShowStock={showStock}>
         <section className="mt-6 px-5">
           <SyncStatusLine serverPriceDate={lastUpdate} />
         </section>
