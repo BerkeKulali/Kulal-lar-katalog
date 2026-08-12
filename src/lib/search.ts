@@ -56,7 +56,14 @@ export function familyMatchesQuery(
   const q = normalizeSearchQuery(query);
   if (!q) return true;
   if (turkishFold(familyName).includes(q)) return true;
-  return codes.some((code) => turkishFold(code).includes(q));
+  // "code" alanı bazı markalarda (ör. GÜRAL fiyat listesi importu) gerçek
+  // bir SKU değil, tedarikçinin ham ürün adı metni ("ANTIQUE 60X60 SİDAN
+  // PARLAK" gibi) — cümle içindeki herhangi bir yerde substring araması
+  // yapmak, aramayla hiç ilgisi olmayan kelimelerin (ör. "sid" → "sidan")
+  // yanlışlıkla eşleşmesine yol açıyordu. Kodun BAŞINDAN eşleşmeyi aramak
+  // (startsWith), gerçek kısa kodların yine bulunmasını sağlarken bu
+  // rastgele iç-metin eşleşmelerini engelliyor.
+  return codes.some((code) => turkishFold(code).startsWith(q));
 }
 
 /** Renk/tip filtresi. Boş filtre her şeyi geçirir. */

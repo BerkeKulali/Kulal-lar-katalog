@@ -424,10 +424,6 @@ export function ProductDetailView({
                 )}
               </div>
             )}
-            {selected.code && (
-              <p className="product-detail-code">{selected.code}</p>
-            )}
-
             {similar.length > 0 && (
               <button
                 type="button"
