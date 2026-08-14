@@ -11,6 +11,9 @@ import { Prisma } from "@/generated/prisma/client";
 /** Turso parametre limitini aşmamak için IN sorguları bu boyutta parçalanır. */
 const CODE_QUERY_CHUNK = 100;
 
+/** Liste bu sayıda varyanttan sonra kesilir (bkz. campaign-filter-query.ts ile aynı üst sınır). */
+const VARIANT_LIST_CAP = 5000;
+
 /** Netsis kodu atama ekranı için varyant listesi. Yetki: stock. */
 export async function GET(request: Request) {
   const auth = await requireAdminPermission("netsis");
@@ -79,7 +82,7 @@ async function listVariants(opts: {
         select: { name: true, brand: { select: { name: true } } },
       },
     },
-    take: 1000,
+    take: VARIANT_LIST_CAP,
   });
 
   // Netsis kodları ayrı ve parçalı çekilir: ilişkinin tek sorguda yüklenmesi
@@ -110,7 +113,10 @@ async function listVariants(opts: {
     codes: codesByVariant.get(v.id) ?? [],
   }));
 
-  return NextResponse.json({ items });
+  return NextResponse.json({
+    items,
+    truncated: variants.length >= VARIANT_LIST_CAP,
+  });
 }
 
 type SaveEntry = { variantId: string; codes: string[] };

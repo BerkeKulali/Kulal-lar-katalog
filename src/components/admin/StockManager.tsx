@@ -36,6 +36,7 @@ export function StockManager({ brands }: { brands: Brand[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [truncated, setTruncated] = useState(false);
 
   // Manuel stok
   const [manualQty, setManualQty] = useState("");
@@ -61,9 +62,11 @@ export function StockManager({ brands }: { brands: Brand[] }) {
       if (!res.ok) {
         setMessage(data.error ?? "Liste yüklenemedi");
         setItems([]);
+        setTruncated(false);
       } else {
         setItems(data.items ?? []);
         setSelected(new Set());
+        setTruncated(Boolean(data.truncated));
       }
     } catch {
       setMessage("Liste yüklenemedi");
@@ -320,6 +323,13 @@ export function StockManager({ brands }: { brands: Brand[] }) {
         <span>{loading ? "Yükleniyor…" : `${items.length} varyant`}</span>
         <span>{selectedCount > 0 && `${selectedCount} seçili`}</span>
       </div>
+
+      {truncated && (
+        <p className="text-xs text-amber-500">
+          Liste {items.length}+ üründe kesildi — tüm sonuçlar gösterilmiyor.
+          Daha dar bir marka veya arama filtresi kullanın.
+        </p>
+      )}
 
       {message && <p className="text-sm text-green-600">{message}</p>}
 

@@ -8,6 +8,9 @@ import { chunk, qualityLabel } from "@/lib/utils";
 /** Turso parametre limitini aşmamak için IN sorguları bu boyutta parçalanır. */
 const CHUNK = 100;
 
+/** Liste bu sayıda varyanttan sonra kesilir (bkz. campaign-filter-query.ts ile aynı üst sınır). */
+const VARIANT_LIST_CAP = 5000;
+
 /** Stok yönetimi ekranı için varyant + mevcut stok listesi. Yetki: stock. */
 export async function GET(request: Request) {
   const auth = await requireAdminPermission("stock");
@@ -55,7 +58,7 @@ export async function GET(request: Request) {
           select: { name: true, brand: { select: { name: true } } },
         },
       },
-      take: 1000,
+      take: VARIANT_LIST_CAP,
     });
 
     // Mevcut stok, parçalı gruplama ile toplanır (Turso parametre limiti).
@@ -84,7 +87,10 @@ export async function GET(request: Request) {
       locked: v.stockLocked,
     }));
 
-    return NextResponse.json({ items });
+    return NextResponse.json({
+      items,
+      truncated: variants.length >= VARIANT_LIST_CAP,
+    });
   } catch (err) {
     console.error("GET /api/admin/stock/list failed:", err);
     return NextResponse.json(

@@ -36,6 +36,7 @@ export function NetsisAssignEditor({ brands }: { brands: Brand[] }) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<SaveConflict[]>([]);
+  const [truncated, setTruncated] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,9 +55,11 @@ export function NetsisAssignEditor({ brands }: { brands: Brand[] }) {
       if (!res.ok) {
         setMessage(data.error ?? "Liste yüklenemedi");
         setItems([]);
+        setTruncated(false);
       } else {
         setItems(data.items ?? []);
         setEdited({});
+        setTruncated(Boolean(data.truncated));
       }
     } catch {
       setMessage("Liste yüklenemedi");
@@ -213,6 +216,13 @@ export function NetsisAssignEditor({ brands }: { brands: Brand[] }) {
         </span>
         <span>{changed.length > 0 && `${changed.length} değişiklik`}</span>
       </div>
+
+      {truncated && (
+        <p className="text-xs text-amber-500">
+          Liste {items.length}+ üründe kesildi — tüm sonuçlar gösterilmiyor.
+          Daha dar bir marka veya arama filtresi kullanın.
+        </p>
+      )}
 
       {message && (
         <p
