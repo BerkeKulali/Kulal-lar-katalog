@@ -173,19 +173,33 @@ export function ProductDetailView({
     [variantsForSize]
   );
 
+  // Kalite seçenekleri, AKTİF yüzeye göre hesaplanır (yalnızca `surface`
+  // state'i null olduğunda tüm yüzeyler değil — bu, kullanıcı henüz bir
+  // yüzeye tıklamamışken, varsayılan (ilk) yüzeyde bulunmayan ama BAŞKA bir
+  // yüzeyde bulunan bir kaliteyi seçilebilir gösterip sayfayı boş bırakan
+  // bir hataya yol açıyordu: ör. ?kalite=1 ile gelen bir bağlantı, aktif
+  // yüzeyde "1." kalitesi hiç yoksa eşleşen varyant bulunamıyordu).
+  const activeSurfaceForQualities = surface ?? surfaces[0] ?? null;
+
   const qualities = useMemo(() => {
-    const pool = surface
-      ? variantsForSize.filter((v) => v.surface === surface)
+    const pool = activeSurfaceForQualities
+      ? variantsForSize.filter((v) => v.surface === activeSurfaceForQualities)
       : variantsForSize;
     return sortQualities([...new Set(pool.map((v) => v.quality))]);
-  }, [variantsForSize, surface]);
+  }, [variantsForSize, activeSurfaceForQualities]);
+
+  // URL'den (?kalite=) veya önceki bir yüzey seçiminden gelen `quality`
+  // state'i, aktif yüzey için artık geçerli olmayabilir — bu durumda
+  // sessizce mevcut ilk seçeneğe düşülür, boş sayfa yerine.
+  const resolvedQuality =
+    quality != null && qualities.includes(quality) ? quality : (qualities[0] ?? null);
 
   const variantsForSurfaceQuality = useMemo(() => {
     const s = surface ?? surfaces[0];
-    const q = quality ?? qualities[0];
+    const q = resolvedQuality;
     if (!s || !q) return [];
     return variantsForSize.filter((v) => v.surface === s && v.quality === q);
-  }, [variantsForSize, surface, quality, surfaces, qualities]);
+  }, [variantsForSize, surface, resolvedQuality, surfaces]);
 
   const has3DChoice = useMemo(
     () =>
@@ -211,7 +225,7 @@ export function ProductDetailView({
 
   const selected = useMemo(() => {
     const s = surface ?? surfaces[0];
-    const q = quality ?? qualities[0];
+    const q = resolvedQuality;
     if (!s || !q) return null;
     return (
       variantsForSize.find(
@@ -225,15 +239,14 @@ export function ProductDetailView({
   }, [
     variantsForSize,
     surface,
-    quality,
+    resolvedQuality,
     surfaces,
-    qualities,
     resolvedFeature3D,
     resolvedFeatureRec,
   ]);
 
   const activeSurface = surface ?? surfaces[0] ?? null;
-  const activeQuality = quality ?? qualities[0] ?? null;
+  const activeQuality = resolvedQuality;
 
   const quantity = parseQtyM2(qtyText);
 
