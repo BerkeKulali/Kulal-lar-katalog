@@ -146,36 +146,67 @@ export async function applyNetsisStock(
     return result;
   }
 
-  // Yazım: her varyant için tek interaktif transaction (sil+yaz+updatedAt).
-  // Bu, önceden kanıtlanmış libsql/Turso uyumlu desendir. Tek bir varyantın
-  // hatası tüm içe aktarımı düşürmesin diye her biri ayrı sarılır.
-  for (const w of writes) {
+  // Yazım: varyantlar STOCK_CODE_QUERY_CHUNK boyutunda toplu (bulk) işlenir —
+  // her chunk için tek interaktif transaction içinde bir deleteMany + bir
+  // createMany (2 ifade), N varyant için N tek tek transaction yerine. Bu,
+  // yüzlerce ürünlük bir Netsis dosyasını dakikalar yerine saniyeler içinde
+  // yazar. ProductVariant.updatedAt artık AYRICA dokunulmuyor: delta senkron
+  // (sync-server.ts) zaten `stockLines.updatedAt` alanına bakıyor, StockLine
+  // satırı oluşturulunca bu otomatik güncelleniyor — ayrı bir dokunuş gereksizdi.
+  //
+  // Bir chunk'ın toplu yazımı BAŞARISIZ olursa (ör. tek bir satırdaki bir
+  // veri sorunu), o chunk tek tek (varyant başına, önceki "kanıtlanmış" desen)
+  // tekrar denenir — böylece hangi varyantın başarısız olduğu hâlâ tam olarak
+  // raporlanır, sadece normal/başarılı yol artık toplu ve hızlı.
+  async function writeChunkOneByOne(items: typeof writes) {
+    for (const w of items) {
+      try {
+        await prisma.$transaction(async (tx) => {
+          await tx.stockLine.deleteMany({ where: { variantId: w.variantId } });
+          await tx.stockLine.create({
+            data: {
+              variantId: w.variantId,
+              label: NETSIS_STOCK_LABEL,
+              quantityM2: w.quantityM2,
+            },
+          });
+        });
+        tally(w.quantityM2);
+      } catch (err) {
+        reportError(err, {
+          where: "applyNetsisStock:write",
+          variantId: w.variantId,
+        });
+        result.errors.push(
+          `Varyant ${w.variantId} yazılamadı: ${
+            err instanceof Error ? err.message : String(err)
+          }`
+        );
+      }
+    }
+  }
+
+  for (const batch of chunk(writes, STOCK_CODE_QUERY_CHUNK)) {
     try {
       await prisma.$transaction(async (tx) => {
-        await tx.stockLine.deleteMany({ where: { variantId: w.variantId } });
-        await tx.stockLine.create({
-          data: {
+        await tx.stockLine.deleteMany({
+          where: { variantId: { in: batch.map((w) => w.variantId) } },
+        });
+        await tx.stockLine.createMany({
+          data: batch.map((w) => ({
             variantId: w.variantId,
             label: NETSIS_STOCK_LABEL,
             quantityM2: w.quantityM2,
-          },
-        });
-        await tx.productVariant.update({
-          where: { id: w.variantId },
-          data: { updatedAt: new Date() },
+          })),
         });
       });
-      tally(w.quantityM2);
+      for (const w of batch) tally(w.quantityM2);
     } catch (err) {
       reportError(err, {
-        where: "applyNetsisStock:write",
-        variantId: w.variantId,
+        where: "applyNetsisStock:writeBatch",
+        batchSize: batch.length,
       });
-      result.errors.push(
-        `Varyant ${w.variantId} yazılamadı: ${
-          err instanceof Error ? err.message : String(err)
-        }`
-      );
+      await writeChunkOneByOne(batch);
     }
   }
 
