@@ -219,6 +219,7 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
           rows.map((v) => ({
             quality: v.quality as Quality,
             stockM2: v.stockM2,
+            stockUpdatedAt: v.stockUpdatedAt,
           }))
         );
       },

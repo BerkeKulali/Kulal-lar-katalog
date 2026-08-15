@@ -109,7 +109,7 @@ async function _getCatalogFamilies(
           quality: true,
           price: true,
           imageUrl: true,
-          stockLines: { select: { quantityM2: true } },
+          stockLines: { select: { quantityM2: true, updatedAt: true } },
         },
       },
     },
@@ -135,6 +135,12 @@ async function _getCatalogFamilies(
       family.variants.map((v) => ({
         quality: v.quality,
         stockM2: v.stockLines.reduce((s, l) => s + l.quantityM2, 0),
+        stockUpdatedAt:
+          v.stockLines.length > 0
+            ? new Date(
+                Math.max(...v.stockLines.map((l) => l.updatedAt.getTime()))
+              ).toISOString()
+            : null,
       }))
     ),
   }));
@@ -384,7 +390,7 @@ async function _getGlobalSearchCatalog(
           price: true,
           code: true,
           imageUrl: true,
-          stockLines: { select: { quantityM2: true } },
+          stockLines: { select: { quantityM2: true, updatedAt: true } },
         },
       },
     },
@@ -406,6 +412,12 @@ async function _getGlobalSearchCatalog(
       family.variants.map((v) => ({
         ...v,
         stockM2: v.stockLines.reduce((s, l) => s + l.quantityM2, 0),
+        stockUpdatedAt:
+          v.stockLines.length > 0
+            ? new Date(
+                Math.max(...v.stockLines.map((l) => l.updatedAt.getTime()))
+              ).toISOString()
+            : null,
       }))
     )
   );

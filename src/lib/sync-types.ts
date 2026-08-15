@@ -10,6 +10,8 @@ export type SyncVariantRow = {
   price: number | null;
   code: string | null;
   stockM2: number;
+  /** Bu varyantın stok satırlarının en son yazılma zamanı (ISO), yoksa null. */
+  stockUpdatedAt: string | null;
   imageUrl: string | null;
   imageUpdatedAt: string | null;
   updatedAt: string;

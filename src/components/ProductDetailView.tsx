@@ -255,16 +255,21 @@ export function ProductDetailView({
   // DAHA ESKİ olabilir — ör. cihaz uzun süredir aynı sekmede açık, arka plan
   // senkronu henüz bir stok güncellemesini yakalamamış olabilir. Böyle
   // durumda eski (yüksek) stok sayısı donup kalmasın diye, hangisinin daha
-  // güncel olduğuna `updatedAt` ile bakılır: senkron verisi bu sayfanın kendi
-  // stok zaman damgasından daha yeni DEĞİLSE, taze SSR değeri kullanılır.
+  // güncel olduğuna `stockUpdatedAt` ile bakılır: senkron verisi bu sayfanın
+  // kendi stok zaman damgasından daha yeni DEĞİLSE, taze SSR değeri kullanılır.
+  // Not: burada varyantın GENEL `updatedAt`'i değil, özel olarak stok
+  // satırlarının kendi zaman damgası (`stockUpdatedAt`) karşılaştırılır —
+  // genel `updatedAt` artık stok yazımlarında dokunulmuyor (bkz.
+  // netsis-stock-apply.ts), bu yüzden stok tazeliği için güvenilir değil.
   const syncedVariant =
     permittedShowStock && selected && hasSyncData
       ? getVariant(selected.id)
       : undefined;
   const syncIsFresh =
     syncedVariant != null &&
+    syncedVariant.stockUpdatedAt != null &&
     selected?.stockUpdatedAt != null &&
-    syncedVariant.updatedAt >= selected.stockUpdatedAt;
+    syncedVariant.stockUpdatedAt >= selected.stockUpdatedAt;
   const syncedStockTotal = syncIsFresh ? syncedVariant!.stockM2 : undefined;
 
   const totalStock =

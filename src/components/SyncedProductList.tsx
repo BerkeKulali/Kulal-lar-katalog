@@ -57,14 +57,23 @@ export function SyncedProductList({
           ...synced.end,
         },
       };
-      // Stok, senkron mağazasındaki değer varsa ondan (daha taze/kişiye
-      // özel yetkiye göre sıfırlanmış olabilir), yoksa sayfanın kendi
-      // sunucu-taraflı (showStock'a göre zaten filtrelenmiş) değerinden.
+      // Stok: senkron mağazasındaki değer sunucunun kendi (taze) SSR
+      // değerinden DAHA ESKİ olabilir — ör. cihaz uzun süredir aynı sekmede
+      // açık, arka plan senkronu henüz bir stok güncellemesini (ör. Netsis
+      // içe aktarımı) yakalamamış olabilir. Bu yüzden körlemesine "senkron
+      // verisi varsa onu kullan" yapılmaz — ProductDetailView'daki aynı
+      // desenle, `updatedAt` karşılaştırılıp yalnızca senkron verisi
+      // sunucununkinden daha eski DEĞİLSE tercih edilir.
       const syncedStock = getFamilyStockForSize(family.id, size);
-      const mergedStock =
-        syncedStock.first != null || syncedStock.end != null
-          ? syncedStock
-          : (family.stock ?? EMPTY_STOCK_SUMMARY);
+      const serverStock = family.stock ?? EMPTY_STOCK_SUMMARY;
+      const hasSyncedStock =
+        syncedStock.first != null || syncedStock.end != null;
+      const syncStockIsFresh =
+        hasSyncedStock &&
+        syncedStock.updatedAt != null &&
+        serverStock.updatedAt != null &&
+        syncedStock.updatedAt >= serverStock.updatedAt;
+      const mergedStock = syncStockIsFresh ? syncedStock : serverStock;
       const syncedImage = getFamilyImageForSize(family.id, size);
       return {
         ...family,

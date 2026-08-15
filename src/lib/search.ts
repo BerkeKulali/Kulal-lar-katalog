@@ -31,6 +31,7 @@ type SearchVariant = {
   imageUrl?: string | null;
   /** Zaten stok görme yetkisi olmayan cihazlar için 0 gelir/gelmelidir. */
   stockM2?: number;
+  stockUpdatedAt?: string | null;
 };
 
 type SearchFamily = {
@@ -136,6 +137,7 @@ export function buildFamilySearchItems(
             sizeVariants.map((v) => ({
               quality: v.quality,
               stockM2: v.stockM2 ?? 0,
+              stockUpdatedAt: v.stockUpdatedAt ?? null,
             }))
           )
         : EMPTY_STOCK_SUMMARY,
@@ -181,6 +183,7 @@ export function buildGlobalSearchItems(
         code: v.code,
         imageUrl: v.imageUrl,
         stockM2: v.stockM2,
+        stockUpdatedAt: v.stockUpdatedAt,
       }))
     );
   });

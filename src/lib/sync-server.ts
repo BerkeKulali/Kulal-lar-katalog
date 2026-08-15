@@ -76,6 +76,12 @@ export async function buildCatalogSync(since?: Date, showStock = false) {
       stockM2: showStock
         ? v.stockLines.reduce((s, l) => s + l.quantityM2, 0)
         : 0,
+      stockUpdatedAt:
+        showStock && v.stockLines.length > 0
+          ? new Date(
+              Math.max(...v.stockLines.map((l) => l.updatedAt.getTime()))
+            ).toISOString()
+          : null,
       imageUrl: v.imageUrl,
       imageUpdatedAt: v.imageUpdatedAt?.toISOString() ?? null,
       updatedAt: v.updatedAt.toISOString(),
