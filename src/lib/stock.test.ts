@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildStockSummary, EMPTY_STOCK_SUMMARY } from "@/lib/stock";
+import { buildStockSummary, EMPTY_STOCK_SUMMARY, hasStock } from "@/lib/stock";
 
 describe("buildStockSummary", () => {
   it("kaliteye göre toplar", () => {
@@ -48,5 +48,27 @@ describe("buildStockSummary", () => {
       end: null,
       updatedAt: null,
     });
+  });
+});
+
+describe("hasStock", () => {
+  it("1. kalitede pozitif stok varsa true döner", () => {
+    assert.equal(hasStock({ first: 12, end: null }), true);
+  });
+
+  it("END kalitesinde pozitif stok varsa true döner", () => {
+    assert.equal(hasStock({ first: null, end: 4 }), true);
+  });
+
+  it("tüm alanlar null ise false döner", () => {
+    assert.equal(hasStock({ first: null, end: null }), false);
+  });
+
+  it("tüm alanlar 0 ise false döner", () => {
+    assert.equal(hasStock({ first: 0, end: 0 }), false);
+  });
+
+  it("biri 0 diğeri pozitifse true döner", () => {
+    assert.equal(hasStock({ first: 0, end: 7 }), true);
   });
 });

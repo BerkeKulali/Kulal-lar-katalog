@@ -46,3 +46,12 @@ export const EMPTY_STOCK_SUMMARY: StockSummary = {
   end: null,
   updatedAt: null,
 };
+
+/**
+ * Herhangi bir kalitede (1. veya END) pozitif stok var mı. "Sadece stoğu
+ * olanlar" filtresi (DisplayPrefsToggle) için — kart/arama sonucu düzeyinde
+ * tek bir evet/hayır sorusu.
+ */
+export function hasStock(summary: Pick<StockSummary, "first" | "end">): boolean {
+  return (summary.first ?? 0) > 0 || (summary.end ?? 0) > 0;
+}

@@ -5,16 +5,17 @@ import { useCatalogSyncStore } from "@/store/catalog-sync";
 import { useDisplayPrefsStore } from "@/store/display-prefs";
 
 /**
- * Katalog izleme sayfalarının (marka+ölçü listesi, ürün detayı, arama)
- * sağ üstüne konan küçük "Fiyatlı / Stoklu" aç-kapa düğmeleri. Tercih
- * localStorage'da kalıcıdır (bkz. store/display-prefs.ts).
+ * Katalog izleme sayfalarının (marka+ölçü listesi, ölçü listesi, ürün
+ * detayı, arama) sağ üstüne konan küçük "Fiyatlı / Stoklu / Sadece Stoklu"
+ * aç-kapa düğmeleri. Tercih localStorage'da kalıcıdır (bkz.
+ * store/display-prefs.ts).
  *
- * "Stoklu" düğmesi yalnızca bu cihazın zaten stok görme YETKİSİ varsa
- * gösterilir — yetkisi olmayana veri hiç senkronlanmadığı için toggle
- * göstermenin bir anlamı yok. `initialShowStock`, sayfa sunucu tarafında
- * resolveStockVisibility ile hesaplanan değerdir; senkron verisi
- * yüklenene kadar (ilk boya) o kullanılır, sonra canlı değere geçilir —
- * ProductDetailView'daki canShowStock deseninin birebir aynısı.
+ * "Stoklu" ve "Sadece Stoklu" düğmeleri yalnızca bu cihazın zaten stok
+ * görme YETKİSİ varsa gösterilir — yetkisi olmayana veri hiç
+ * senkronlanmadığı için toggle göstermenin bir anlamı yok. `initialShowStock`,
+ * sayfa sunucu tarafında resolveStockVisibility ile hesaplanan değerdir;
+ * senkron verisi yüklenene kadar (ilk boya) o kullanılır, sonra canlı değere
+ * geçilir — ProductDetailView'daki canShowStock deseninin birebir aynısı.
  */
 export function DisplayPrefsToggle({
   initialShowStock = false,
@@ -27,8 +28,10 @@ export function DisplayPrefsToggle({
 
   const showPrices = useDisplayPrefsStore((s) => s.showPrices);
   const showStockPref = useDisplayPrefsStore((s) => s.showStockPref);
+  const onlyInStock = useDisplayPrefsStore((s) => s.onlyInStock);
   const setShowPrices = useDisplayPrefsStore((s) => s.setShowPrices);
   const setShowStockPref = useDisplayPrefsStore((s) => s.setShowStockPref);
+  const setOnlyInStock = useDisplayPrefsStore((s) => s.setOnlyInStock);
 
   const syncedShowStock = useCatalogSyncStore((s) => s.showStock);
   const hasSyncData = useCatalogSyncStore(
@@ -54,6 +57,16 @@ export function DisplayPrefsToggle({
           className={`theme-chip theme-chip--sm${showStockPref ? " theme-chip--active" : ""}`}
         >
           Stoklu
+        </button>
+      )}
+      {canShowStock && (
+        <button
+          type="button"
+          aria-pressed={onlyInStock}
+          onClick={() => setOnlyInStock(!onlyInStock)}
+          className={`theme-chip theme-chip--sm${onlyInStock ? " theme-chip--active" : ""}`}
+        >
+          Sadece Stoklu
         </button>
       )}
     </div>

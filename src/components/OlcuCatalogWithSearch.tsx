@@ -6,6 +6,9 @@ import { StickySearchBar } from "@/components/SearchBar";
 import { SyncedProductList } from "@/components/SyncedProductList";
 import { familyMatchesQuery } from "@/lib/search";
 import type { PriceSummary } from "@/lib/prices";
+import { EMPTY_STOCK_SUMMARY, hasStock, type StockSummary } from "@/lib/stock";
+import { useCatalogSyncStore } from "@/store/catalog-sync";
+import { useDisplayPrefsStore } from "@/store/display-prefs";
 
 type FamilyItem = {
   id: string;
@@ -13,6 +16,7 @@ type FamilyItem = {
   slug: string;
   imageUrl?: string | null;
   prices: PriceSummary;
+  stock?: StockSummary;
 };
 
 type BrandGroup = {
@@ -38,17 +42,43 @@ export function OlcuCatalogWithSearch({
   const [query, setQuery] = useState("");
   const isSearching = query.trim().length > 0;
 
+  const getFamilyStockForSize = useCatalogSyncStore(
+    (s) => s.getFamilyStockForSize
+  );
+  const hasSyncData = useCatalogSyncStore(
+    (s) => Object.keys(s.variants).length > 0
+  );
+  const onlyInStock = useDisplayPrefsStore((s) => s.onlyInStock);
+
   const filteredGroups = useMemo(() => {
-    if (!isSearching) return groups;
+    // Bir ailenin ekranda stoklu sayılıp sayılmayacağı — SyncedProductList'in
+    // içindeki aynı senkron-tazelik desenini burada da uygularız, yoksa
+    // "sadece stoğu olanlar" açıkken içi SyncedProductList tarafından
+    // boşaltılan ama başlığı hâlâ görünen bir marka bölümü kalır.
+    const familyHasStock = (family: FamilyItem) => {
+      const serverStock = family.stock ?? EMPTY_STOCK_SUMMARY;
+      if (!hasSyncData) return hasStock(serverStock);
+      const syncedStock = getFamilyStockForSize(family.id, size);
+      const hasSyncedStock = syncedStock.first != null || syncedStock.end != null;
+      const syncStockIsFresh =
+        hasSyncedStock &&
+        syncedStock.updatedAt != null &&
+        serverStock.updatedAt != null &&
+        syncedStock.updatedAt >= serverStock.updatedAt;
+      return hasStock(syncStockIsFresh ? syncedStock : serverStock);
+    };
+
     return groups
       .map((group) => ({
         ...group,
-        families: group.families.filter((family) =>
-          familyMatchesQuery(family.name, [], query)
-        ),
+        families: group.families
+          .filter((family) =>
+            isSearching ? familyMatchesQuery(family.name, [], query) : true
+          )
+          .filter((family) => (onlyInStock ? familyHasStock(family) : true)),
       }))
       .filter((group) => group.families.length > 0);
-  }, [groups, query, isSearching]);
+  }, [groups, query, isSearching, onlyInStock, hasSyncData, getFamilyStockForSize, size]);
 
   const totalResults = filteredGroups.reduce(
     (sum, group) => sum + group.families.length,

@@ -9,13 +9,23 @@ import {
   itemMatchesAttributes,
   type GlobalSearchItem,
 } from "@/lib/search";
-import { EMPTY_STOCK_SUMMARY } from "@/lib/stock";
+import { EMPTY_STOCK_SUMMARY, hasStock, type StockSummary } from "@/lib/stock";
+import type { PriceSummary } from "@/lib/prices";
 import { useCatalogSyncStore } from "@/store/catalog-sync";
+import { useDisplayPrefsStore } from "@/store/display-prefs";
+
+type MergedResult = {
+  item: GlobalSearchItem;
+  prices: PriceSummary;
+  stock: StockSummary;
+};
 
 export function LiveSearchResults({
   query,
   color = null,
   materialType = null,
+  size = null,
+  brandSlug = null,
   fallbackItems = [],
   className = "mt-8 catalog-grid-2 grid grid-cols-2 gap-6 px-5",
   showBrand = false,
@@ -23,6 +33,8 @@ export function LiveSearchResults({
   query: string;
   color?: string | null;
   materialType?: string | null;
+  size?: string | null;
+  brandSlug?: string | null;
   fallbackItems?: GlobalSearchItem[];
   className?: string;
   showBrand?: boolean;
@@ -36,6 +48,7 @@ export function LiveSearchResults({
   const hasSyncData = useCatalogSyncStore(
     (s) => Object.keys(s.families).length > 0
   );
+  const onlyInStock = useDisplayPrefsStore((s) => s.onlyInStock);
 
   // Öğe kümesi ve isim/renk/tip gibi editoryal alanlar HER ZAMAN sunucudan
   // gelen (SSR, unstable_cache + admin mutasyonunda invalidate edilen) taze
@@ -52,15 +65,60 @@ export function LiveSearchResults({
   const items = fallbackItems;
 
   const hasQuery = query.trim().length > 0;
-  const hasFilter = hasQuery || Boolean(color) || Boolean(materialType);
+  const hasFilter =
+    hasQuery || Boolean(color) || Boolean(materialType) || Boolean(size) || Boolean(brandSlug);
 
-  const filtered = useMemo(() => {
+  const results = useMemo<MergedResult[]>(() => {
     if (!hasFilter) return [];
-    return items
+
+    const matched = items
       .filter((item) => familyMatchesQuery(item.name, item.codes, query))
-      .filter((item) => itemMatchesAttributes(item, color, materialType))
+      .filter((item) => itemMatchesAttributes(item, { color, materialType, size, brandSlug }))
       .sort(compareSearchItems);
-  }, [items, query, color, materialType, hasFilter]);
+
+    const merged = matched.map((item) => {
+      const synced = hasSyncData
+        ? getFamilyPricesForSize(item.familyId, item.size)
+        : { first: {}, end: {} };
+      const prices = {
+        first: { ...item.prices.first, ...synced.first },
+        end: { ...item.prices.end, ...synced.end },
+      };
+
+      // Stok: senkron mağazasındaki değer, sunucunun kendi taze SSR
+      // değerinden daha eski olabilir (cihaz uzun süredir aynı sekmede
+      // açık, arka plan senkronu henüz bir stok güncellemesini
+      // yakalamamış olabilir) — bu yüzden yalnızca senkron verisi
+      // sunucununkinden daha eski DEĞİLSE tercih edilir.
+      const syncedStock = hasSyncData
+        ? getFamilyStockForSize(item.familyId, item.size)
+        : EMPTY_STOCK_SUMMARY;
+      const serverStock = item.stock ?? EMPTY_STOCK_SUMMARY;
+      const hasSyncedStock = syncedStock.first != null || syncedStock.end != null;
+      const syncStockIsFresh =
+        hasSyncedStock &&
+        syncedStock.updatedAt != null &&
+        serverStock.updatedAt != null &&
+        syncedStock.updatedAt >= serverStock.updatedAt;
+      const stock = syncStockIsFresh ? syncedStock : serverStock;
+
+      return { item, prices, stock };
+    });
+
+    return onlyInStock ? merged.filter((r) => hasStock(r.stock)) : merged;
+  }, [
+    items,
+    query,
+    color,
+    materialType,
+    size,
+    brandSlug,
+    hasFilter,
+    hasSyncData,
+    getFamilyPricesForSize,
+    getFamilyStockForSize,
+    onlyInStock,
+  ]);
 
   if (!hasFilter) return null;
 
@@ -68,59 +126,31 @@ export function LiveSearchResults({
     <section className={className}>
       <p className="col-span-2 text-xs text-zinc-500">
         {hasQuery ? `"${query.trim()}" için ` : ""}
-        {filtered.length} sonuç
+        {results.length} sonuç
       </p>
-      {filtered.length === 0 ? (
+      {results.length === 0 ? (
         <p className="col-span-2 py-8 text-center text-sm text-zinc-500">
           Eşleşen ürün bulunamadı.
         </p>
       ) : (
-        filtered.map((family) => {
-          const synced = hasSyncData
-            ? getFamilyPricesForSize(family.familyId, family.size)
-            : { first: {}, end: {} };
-          const prices = {
-            first: { ...family.prices.first, ...synced.first },
-            end: { ...family.prices.end, ...synced.end },
-          };
-
-          // Stok: senkron mağazasındaki değer, sunucunun kendi taze SSR
-          // değerinden daha eski olabilir (cihaz uzun süredir aynı sekmede
-          // açık, arka plan senkronu henüz bir stok güncellemesini
-          // yakalamamış olabilir) — bu yüzden yalnızca senkron verisi
-          // sunucununkinden daha eski DEĞİLSE tercih edilir.
-          const syncedStock = hasSyncData
-            ? getFamilyStockForSize(family.familyId, family.size)
-            : EMPTY_STOCK_SUMMARY;
-          const serverStock = family.stock ?? EMPTY_STOCK_SUMMARY;
-          const hasSyncedStock =
-            syncedStock.first != null || syncedStock.end != null;
-          const syncStockIsFresh =
-            hasSyncedStock &&
-            syncedStock.updatedAt != null &&
-            serverStock.updatedAt != null &&
-            syncedStock.updatedAt >= serverStock.updatedAt;
-          const stock = syncStockIsFresh ? syncedStock : serverStock;
-
-          return (
-            <div key={family.id}>
-              {showBrand && family.brandName && (
-                <p className="mb-1 text-center text-[10px] text-zinc-500">
-                  {family.brandName}
-                </p>
-              )}
-              <ProductCard
-                href={`/katalog/${family.brandSlug}/${family.size}/${family.slug}`}
-                name={`${family.name} · ${family.size.toUpperCase()}`}
-                imageUrl={family.imageUrl}
-                prices={prices}
-                stock={stock}
-                aspect={aspectForSize(family.size)}
-                size={family.size}
-              />
-            </div>
-          );
-        })
+        results.map(({ item: family, prices, stock }) => (
+          <div key={family.id}>
+            {showBrand && family.brandName && (
+              <p className="mb-1 text-center text-[10px] text-zinc-500">
+                {family.brandName}
+              </p>
+            )}
+            <ProductCard
+              href={`/katalog/${family.brandSlug}/${family.size}/${family.slug}`}
+              name={`${family.name} · ${family.size.toUpperCase()}`}
+              imageUrl={family.imageUrl}
+              prices={prices}
+              stock={stock}
+              aspect={aspectForSize(family.size)}
+              size={family.size}
+            />
+          </div>
+        ))
       )}
     </section>
   );

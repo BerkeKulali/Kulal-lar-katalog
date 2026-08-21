@@ -1,12 +1,18 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { AppShell } from "@/components/AppShell";
 import { CatalogSizeHeader } from "@/components/CatalogSizeHeader";
 import { DeviceGate } from "@/components/DeviceGate";
+import { DisplayPrefsToggle } from "@/components/DisplayPrefsToggle";
 import { OlcuCatalogWithSearch } from "@/components/OlcuCatalogWithSearch";
 import { SiteHeader } from "@/components/SiteHeader";
 import { getSizeLayout, normalizeSize } from "@/lib/constants";
+import { getAdminSession } from "@/lib/admin-auth";
 import { getCatalogFamiliesGroupedByBrand } from "@/lib/catalog";
+import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
+import { resolveStockVisibility } from "@/lib/stock-visibility";
+import { EMPTY_STOCK_SUMMARY } from "@/lib/stock";
 import { kaliteFilterLabel, kaliteQuery, parseKaliteFilter } from "@/lib/utils";
 import type { Quality } from "@/generated/prisma/client";
 
@@ -25,11 +31,31 @@ export default async function SizeCatalogPage({
     kaliteFilter === "ALL" ? undefined : (kaliteFilter as Quality);
 
   const audience = await getCatalogAudienceFromCookies();
-  const groups = await getCatalogFamiliesGroupedByBrand(
-    size,
-    qualityForQuery,
-    audience
-  );
+  const cookieStore = await cookies();
+  const salespersonId = cookieStore.get(SALESPERSON_ID_COOKIE)?.value;
+  const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
+  const [groups, admin] = await Promise.all([
+    getCatalogFamiliesGroupedByBrand(size, qualityForQuery, audience),
+    getAdminSession(),
+  ]);
+
+  // Stok görünürlüğü tek noktadan: admin / plasiyer / bayi (bkz. marka+ölçü
+  // ve ürün detayı sayfalarındaki aynı desen). getCatalogFamiliesGroupedByBrand
+  // her zaman ham (yetkiden bağımsız) stok döndürür — burada filtrelenmezse
+  // stok görme yetkisi olmayan bir cihaz da gerçek stok sayılarını görürdü.
+  const showStock = await resolveStockVisibility({
+    isAdmin: Boolean(admin),
+    salespersonId,
+    deviceToken,
+  });
+  const visibleGroups = groups.map((group) => ({
+    ...group,
+    families: group.families.map((f) => ({
+      ...f,
+      stock: showStock ? f.stock : EMPTY_STOCK_SUMMARY,
+    })),
+  }));
+
   const layout = getSizeLayout(size);
   const gridClass =
     layout.columns === 2
@@ -44,6 +70,7 @@ export default async function SizeCatalogPage({
           backHref="/katalog"
           backLabel="Markalar"
           size={size}
+          right={<DisplayPrefsToggle initialShowStock={showStock} />}
         />
 
         <section className="catalog-quality-row mb-2 mt-2 flex flex-wrap justify-center gap-2 px-5">
@@ -59,7 +86,7 @@ export default async function SizeCatalogPage({
         </section>
 
         <OlcuCatalogWithSearch
-          groups={groups}
+          groups={visibleGroups}
           size={size}
           aspect={layout.aspect}
           gridClass={gridClass}

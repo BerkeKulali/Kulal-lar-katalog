@@ -3,8 +3,9 @@
 import { useMemo } from "react";
 import { ProductCard } from "@/components/ProductCard";
 import { useCatalogSyncStore } from "@/store/catalog-sync";
+import { useDisplayPrefsStore } from "@/store/display-prefs";
 import type { PriceSummary } from "@/lib/prices";
-import { EMPTY_STOCK_SUMMARY, type StockSummary } from "@/lib/stock";
+import { EMPTY_STOCK_SUMMARY, hasStock, type StockSummary } from "@/lib/stock";
 
 type FamilyItem = {
   id: string;
@@ -42,10 +43,11 @@ export function SyncedProductList({
   const hasSyncData = useCatalogSyncStore(
     (s) => Object.keys(s.variants).length > 0
   );
+  const onlyInStock = useDisplayPrefsStore((s) => s.onlyInStock);
 
   const items = useMemo(() => {
-    if (!hasSyncData) return families;
-    return families.map((family) => {
+    const merged = families.map((family) => {
+      if (!hasSyncData) return family;
       const synced = getFamilyPricesForSize(family.id, size);
       const mergedPrices = {
         first: {
@@ -82,12 +84,17 @@ export function SyncedProductList({
         imageUrl: syncedImage ?? family.imageUrl,
       };
     });
+
+    return onlyInStock
+      ? merged.filter((family) => hasStock(family.stock ?? EMPTY_STOCK_SUMMARY))
+      : merged;
   }, [
     families,
     getFamilyPricesForSize,
     getFamilyStockForSize,
     getFamilyImageForSize,
     hasSyncData,
+    onlyInStock,
     size,
   ]);
 

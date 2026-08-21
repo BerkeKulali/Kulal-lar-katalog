@@ -67,14 +67,22 @@ export function familyMatchesQuery(
   return codes.some((code) => turkishFold(code).startsWith(q));
 }
 
-/** Renk/tip filtresi. Boş filtre her şeyi geçirir. */
+export type SearchAttributeFilters = {
+  color?: string | null;
+  materialType?: string | null;
+  size?: string | null;
+  brandSlug?: string | null;
+};
+
+/** Renk/tip/ebat/marka filtresi. Boş filtre alanları her şeyi geçirir. */
 export function itemMatchesAttributes(
-  item: Pick<GlobalSearchItem, "color" | "materialType">,
-  color?: string | null,
-  materialType?: string | null
+  item: Pick<GlobalSearchItem, "color" | "materialType" | "size" | "brandSlug">,
+  filters: SearchAttributeFilters
 ) {
-  if (color && item.color !== color) return false;
-  if (materialType && item.materialType !== materialType) return false;
+  if (filters.color && item.color !== filters.color) return false;
+  if (filters.materialType && item.materialType !== filters.materialType) return false;
+  if (filters.size && item.size !== filters.size) return false;
+  if (filters.brandSlug && item.brandSlug !== filters.brandSlug) return false;
   return true;
 }
 

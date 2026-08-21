@@ -2,17 +2,33 @@
 
 import { COLORS, MATERIAL_TYPES } from "@/lib/product-attributes";
 
-/** Arama sayfası renk/tip filtre çipleri. Her boyut tek seçim; tekrar tıkla = kaldır. */
+export type SearchFilterOption = { id: string; label: string };
+
+/** Arama sayfası tip/renk/ebat/marka filtre çipleri. Her boyut tek seçim; tekrar tıkla = kaldır. */
 export function SearchFilterChips({
   color,
   materialType,
+  size,
+  brandSlug,
+  sizeOptions,
+  brandOptions,
   onColor,
   onMaterialType,
+  onSize,
+  onBrandSlug,
 }: {
   color: string | null;
   materialType: string | null;
+  size: string | null;
+  brandSlug: string | null;
+  /** Katalogda gerçekten var olan ölçüler (doğru sırayla) — arama sonuçlarından türetilir. */
+  sizeOptions: SearchFilterOption[];
+  /** Katalogda gerçekten var olan markalar — arama sonuçlarından türetilir. */
+  brandOptions: SearchFilterOption[];
   onColor: (id: string | null) => void;
   onMaterialType: (id: string | null) => void;
+  onSize: (id: string | null) => void;
+  onBrandSlug: (id: string | null) => void;
 }) {
   return (
     <div className="mt-3 space-y-3 px-5">
@@ -61,6 +77,52 @@ export function SearchFilterChips({
           })}
         </div>
       </div>
+
+      {brandOptions.length > 1 && (
+        <div>
+          <p className="mb-1.5 text-[10px] font-semibold tracking-[0.2em] text-zinc-500">
+            MARKA
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {brandOptions.map((b) => {
+              const active = brandSlug === b.id;
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => onBrandSlug(active ? null : b.id)}
+                  className={`catalog-size-chip catalog-filter-chip ${active ? "catalog-size-chip--active" : ""}`}
+                >
+                  {b.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {sizeOptions.length > 0 && (
+        <div>
+          <p className="mb-1.5 text-[10px] font-semibold tracking-[0.2em] text-zinc-500">
+            EBAT
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {sizeOptions.map((s) => {
+              const active = size === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => onSize(active ? null : s.id)}
+                  className={`catalog-size-chip catalog-filter-chip ${active ? "catalog-size-chip--active" : ""}`}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
