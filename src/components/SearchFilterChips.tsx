@@ -4,7 +4,15 @@ import { COLORS, MATERIAL_TYPES } from "@/lib/product-attributes";
 
 export type SearchFilterOption = { id: string; label: string };
 
-/** Arama sayfası tip/renk/ebat/marka filtre çipleri. Her boyut tek seçim; tekrar tıkla = kaldır. */
+const SELECT_CLASS =
+  "theme-select w-full rounded-lg border px-3 py-2 text-sm";
+
+/**
+ * Arama sayfası filtreleri. TİP ve MARKA (kısa listeler) çip olarak kalır;
+ * RENK (12) ve EBAT (17'ye kadar) aşağı açılır menü — hepsi çip olunca
+ * arama kutusunun altı sonuç görünmeden önce kalabalık bir duvara
+ * dönüşüyordu. Her boyut tek seçim; "Tümü" = filtreyi kaldır.
+ */
 export function SearchFilterChips({
   color,
   materialType,
@@ -53,29 +61,52 @@ export function SearchFilterChips({
         </div>
       </div>
 
-      <div>
-        <p className="mb-1.5 text-[10px] font-semibold tracking-[0.2em] text-zinc-500">
-          RENK
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {COLORS.map((c) => {
-            const active = color === c.id;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => onColor(active ? null : c.id)}
-                className={`catalog-size-chip catalog-filter-chip inline-flex items-center gap-1.5 ${active ? "catalog-size-chip--active" : ""}`}
-              >
-                <span
-                  className="inline-block h-3 w-3 rounded-full border border-black/20"
-                  style={{ background: c.hex }}
-                />
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label
+            htmlFor="search-filter-renk"
+            className="mb-1.5 block text-[10px] font-semibold tracking-[0.2em] text-zinc-500"
+          >
+            RENK
+          </label>
+          <select
+            id="search-filter-renk"
+            value={color ?? ""}
+            onChange={(e) => onColor(e.target.value || null)}
+            className={SELECT_CLASS}
+          >
+            <option value="">Tümü</option>
+            {COLORS.map((c) => (
+              <option key={c.id} value={c.id}>
                 {c.label}
-              </button>
-            );
-          })}
+              </option>
+            ))}
+          </select>
         </div>
+
+        {sizeOptions.length > 0 && (
+          <div>
+            <label
+              htmlFor="search-filter-ebat"
+              className="mb-1.5 block text-[10px] font-semibold tracking-[0.2em] text-zinc-500"
+            >
+              EBAT
+            </label>
+            <select
+              id="search-filter-ebat"
+              value={size ?? ""}
+              onChange={(e) => onSize(e.target.value || null)}
+              className={SELECT_CLASS}
+            >
+              <option value="">Tümü</option>
+              {sizeOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {brandOptions.length > 1 && (
@@ -94,29 +125,6 @@ export function SearchFilterChips({
                   className={`catalog-size-chip catalog-filter-chip ${active ? "catalog-size-chip--active" : ""}`}
                 >
                   {b.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {sizeOptions.length > 0 && (
-        <div>
-          <p className="mb-1.5 text-[10px] font-semibold tracking-[0.2em] text-zinc-500">
-            EBAT
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {sizeOptions.map((s) => {
-              const active = size === s.id;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => onSize(active ? null : s.id)}
-                  className={`catalog-size-chip catalog-filter-chip ${active ? "catalog-size-chip--active" : ""}`}
-                >
-                  {s.label}
                 </button>
               );
             })}
