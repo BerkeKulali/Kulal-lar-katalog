@@ -4,12 +4,12 @@ import { useMemo } from "react";
 import { ProductCard } from "@/components/ProductCard";
 import { aspectForSize } from "@/lib/constants";
 import {
-  buildGlobalSearchItems,
   compareSearchItems,
   familyMatchesQuery,
   itemMatchesAttributes,
   type GlobalSearchItem,
 } from "@/lib/search";
+import { EMPTY_STOCK_SUMMARY } from "@/lib/stock";
 import { useCatalogSyncStore } from "@/store/catalog-sync";
 
 export function LiveSearchResults({
@@ -27,21 +27,29 @@ export function LiveSearchResults({
   className?: string;
   showBrand?: boolean;
 }) {
-  const families = useCatalogSyncStore((s) => s.families);
-  const variants = useCatalogSyncStore((s) => s.variants);
   const getFamilyPricesForSize = useCatalogSyncStore(
     (s) => s.getFamilyPricesForSize
+  );
+  const getFamilyStockForSize = useCatalogSyncStore(
+    (s) => s.getFamilyStockForSize
   );
   const hasSyncData = useCatalogSyncStore(
     (s) => Object.keys(s.families).length > 0
   );
 
-  const items = useMemo(() => {
-    if (hasSyncData) {
-      return buildGlobalSearchItems(families, variants);
-    }
-    return fallbackItems;
-  }, [fallbackItems, families, hasSyncData, variants]);
+  // Öğe kümesi ve isim/renk/tip gibi editoryal alanlar HER ZAMAN sunucudan
+  // gelen (SSR, unstable_cache + admin mutasyonunda invalidate edilen) taze
+  // `fallbackItems`e dayanır. Önceden burada `hasSyncData` true olduğu anda
+  // TÜM öğe listesi istemcinin senkron mağazasından (`buildGlobalSearchItems`)
+  // yeniden kuruluyordu — mağaza yalnızca periyodik/arka planda senkronlanan
+  // yerel bir önbellek olduğundan, bir admin renk/tip gibi bir alanı toplu
+  // güncellediğinde (ör. materialType="ahşap") kullanıcının cihazındaki eski
+  // önbellek verisi doğru SSR sonucunun üstüne yazıyor, "hard refresh'te bir
+  // an doğru sonuç görünüp sonra yanlışa dönme" şeklinde gözlemlenen hataya
+  // yol açıyordu. Fiyat ve stok gibi gerçek-zamanlı/sık değişen alanlar ise
+  // aşağıda ProductDetailView/SyncedProductList ile aynı desenle, öğe bazında
+  // ve (stok için) tazelik kontrolüyle senkron mağazasından bindirilir.
+  const items = fallbackItems;
 
   const hasQuery = query.trim().length > 0;
   const hasFilter = hasQuery || Boolean(color) || Boolean(materialType);
@@ -76,6 +84,24 @@ export function LiveSearchResults({
             end: { ...family.prices.end, ...synced.end },
           };
 
+          // Stok: senkron mağazasındaki değer, sunucunun kendi taze SSR
+          // değerinden daha eski olabilir (cihaz uzun süredir aynı sekmede
+          // açık, arka plan senkronu henüz bir stok güncellemesini
+          // yakalamamış olabilir) — bu yüzden yalnızca senkron verisi
+          // sunucununkinden daha eski DEĞİLSE tercih edilir.
+          const syncedStock = hasSyncData
+            ? getFamilyStockForSize(family.familyId, family.size)
+            : EMPTY_STOCK_SUMMARY;
+          const serverStock = family.stock ?? EMPTY_STOCK_SUMMARY;
+          const hasSyncedStock =
+            syncedStock.first != null || syncedStock.end != null;
+          const syncStockIsFresh =
+            hasSyncedStock &&
+            syncedStock.updatedAt != null &&
+            serverStock.updatedAt != null &&
+            syncedStock.updatedAt >= serverStock.updatedAt;
+          const stock = syncStockIsFresh ? syncedStock : serverStock;
+
           return (
             <div key={family.id}>
               {showBrand && family.brandName && (
@@ -88,7 +114,7 @@ export function LiveSearchResults({
                 name={`${family.name} · ${family.size.toUpperCase()}`}
                 imageUrl={family.imageUrl}
                 prices={prices}
-                stock={family.stock}
+                stock={stock}
                 aspect={aspectForSize(family.size)}
                 size={family.size}
               />
