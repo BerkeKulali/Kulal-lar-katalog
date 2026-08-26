@@ -15,6 +15,12 @@
 //   NETSIS_MAX_AGE_MIN  Opsiyonel. Dosya bu dakikadan eskiyse gönderme (bayat koruması).
 //
 // Çıkış kodu 0 = başarı, 1 = hata (Task Scheduler "son çalışma sonucu"nda görünür).
+//
+// NOT: process.exit() kasıtlı olarak kullanılmıyor — Node'un yerleşik fetch'i
+// (undici) bazı sürümlerde, istek biter bitmez zorla process.exit() çağrılırsa
+// "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)" ile çöküyor (bilinen
+// bir Node hatası). Bunun yerine process.exitCode ayarlanır ve olay döngüsünün
+// kendiliğinden, düzgünce kapanmasına izin verilir.
 
 import { readdir, stat, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -22,8 +28,7 @@ import path from "node:path";
 function requireEnv(name) {
   const v = process.env[name]?.trim();
   if (!v) {
-    console.error(`[netsis-sync] Eksik ortam değişkeni: ${name}`);
-    process.exit(1);
+    throw new Error(`Eksik ortam değişkeni: ${name}`);
   }
   return v;
 }
@@ -63,17 +68,15 @@ async function main() {
 
   const file = await newestFile(dir, exts);
   if (!file) {
-    console.error(`[netsis-sync] Klasörde uygun dosya yok: ${dir} (${exts.join(", ")})`);
-    process.exit(1);
+    throw new Error(`Klasörde uygun dosya yok: ${dir} (${exts.join(", ")})`);
   }
 
   if (maxAgeMin > 0) {
     const ageMin = (Date.now() - file.mtimeMs) / 60000;
     if (ageMin > maxAgeMin) {
-      console.error(
-        `[netsis-sync] En yeni dosya çok eski (${ageMin.toFixed(0)} dk > ${maxAgeMin} dk): ${file.name}. Gönderilmedi.`
+      throw new Error(
+        `En yeni dosya çok eski (${ageMin.toFixed(0)} dk > ${maxAgeMin} dk): ${file.name}. Gönderilmedi.`
       );
-      process.exit(1);
     }
   }
 
@@ -92,8 +95,7 @@ async function main() {
       body: form,
     });
   } catch (err) {
-    console.error(`[netsis-sync] Bağlantı hatası: ${err?.message ?? err}`);
-    process.exit(1);
+    throw new Error(`Bağlantı hatası: ${err?.message ?? err}`);
   }
 
   const text = await res.text();
@@ -105,8 +107,7 @@ async function main() {
   }
 
   if (!res.ok) {
-    console.error(`[netsis-sync] Sunucu ${res.status}:`, JSON.stringify(data));
-    process.exit(1);
+    throw new Error(`Sunucu ${res.status}: ${JSON.stringify(data)}`);
   }
 
   log(
@@ -118,10 +119,11 @@ async function main() {
   if (data.unmatchedCodes?.length) {
     log(`Eşleşmeyen (ilk 20): ${data.unmatchedCodes.slice(0, 20).join(", ")}`);
   }
-  process.exit(0);
+
+  process.exitCode = 0;
 }
 
 main().catch((err) => {
-  console.error("[netsis-sync] Beklenmeyen hata:", err);
-  process.exit(1);
+  console.error("[netsis-sync] Hata:", err?.message ?? err);
+  process.exitCode = 1;
 });
