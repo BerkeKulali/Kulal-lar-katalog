@@ -16,7 +16,7 @@
 '  yolda o harf yoksa direkt yazabilirsiniz.
 ' ============================================================
 
-TIB = Chr(304) ' Turkce buyuk nokta olu I (U+0130)
+TIB = ChrW(304) ' Turkce buyuk nokta olu I (U+0130) - Unicode kod noktasi icin ChrW gerekli, Chr sadece 0-255 (ANSI) kabul eder
 
 ' <<< BURAYI KENDI EXCEL DOSYANIZIN TAM YOLUYLA DEGISTIRIN >>>
 excelPath = "C:\Users\berke.kulali\Desktop\KATALOG STOK\STOK SAB" & TIB & "T BAK" & TIB & "YE.xlsx"
