@@ -138,4 +138,39 @@ describe("parseNetsisBalanceRows", () => {
     assert.equal(errors.length, 1);
     assert.match(errors[0], /Geçersiz bakiye/);
   });
+
+  it("gerçek Netsis pivot başlıklarını (STOK_KODU/BAKIYE, alt çizgili, büyük harf) tanır ve ilgisiz sütunları yok sayar", () => {
+    // Ofis Excel'inin fiili başlıkları — "Stok Kodu" değil "STOK_KODU" gibi.
+    // Aradaki GRUP/URETIM_BITTI/GIRIS/CIKIS/SATILABILIR_STOK gibi sütunlar
+    // hiçbir anahtarla eşleşmemeli, yalnızca STOK_KODU ve BAKIYE okunmalı.
+    const { balances, errors } = parseNetsisBalanceRows([
+      {
+        STOK_KODU: "AN011",
+        STOK_ADI: "AKIN 3/4 ÇALPARA ÇEKVALF",
+        GRUP: "AKIN",
+        URETIM_BITTI: "X",
+        KAYITTARIHI: "02.07.2019 00:00",
+        ALIS_FIAT1: "140",
+        OLCU_BR1: "AD",
+        GIRIS: "1079",
+        CIKIS: "995",
+        BAKIYE: "84",
+        SIPARIS: "0",
+        SATILABILIR_STOK: "84",
+      },
+      {
+        STOK_KODU: "AN016",
+        STOK_ADI: "AKIN 2 1/2 ÇALPARA ÇEKVALF",
+        GRUP: "AKIN",
+        GIRIS: "0",
+        CIKIS: "0",
+        BAKIYE: "0",
+        SIPARIS: "0",
+        SATILABILIR_STOK: "0",
+      },
+    ]);
+    assert.equal(errors.length, 0);
+    assert.equal(balances.get("AN011"), 84);
+    assert.equal(balances.get("AN016"), 0);
+  });
 });
