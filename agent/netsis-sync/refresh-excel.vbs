@@ -78,6 +78,7 @@ Else
 End If
 
 startTime = Timer
+pollCount = 0
 Do
   stillRefreshing = False
   For Each conn In wb.Connections
@@ -91,6 +92,12 @@ Do
     Err.Clear
   Next
   If Not stillRefreshing Then Exit Do
+  pollCount = pollCount + 1
+  ' Her ~20 saniyede bir "hala calisiyorum, takilmadim" mesaji - sabirsizlikla
+  ' Ctrl+C ile erken durdurmayi onlemek icin.
+  If pollCount Mod 10 = 0 Then
+    Log "...hala yenileniyor (" & Int(Timer - startTime) & " sn gecti, lutfen bekleyin, kesmeyin)"
+  End If
   WScript.Sleep 2000
 Loop While (Timer - startTime) < maxWaitSeconds
 
