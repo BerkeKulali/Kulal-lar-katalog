@@ -35,6 +35,27 @@ Sub Log(msg)
   WScript.Echo "[excel-refresh " & Now & "] " & msg
 End Sub
 
+' Verilen basligin (ornek: "STOK_KODU") gectigi ilk hucreyi arar,
+' "satir,sutun" seklinde dondurur; bulamazsa "" doner.
+Function FindHeaderRowCol(ws, headerText, maxRow, maxCol)
+  Dim r, c, v
+  FindHeaderRowCol = ""
+  On Error Resume Next
+  For r = 1 To maxRow
+    For c = 1 To maxCol
+      v = ws.Cells(r, c).Value
+      If Err.Number = 0 Then
+        If UCase(Trim(CStr(v))) = UCase(headerText) Then
+          FindHeaderRowCol = r & "," & c
+          Exit Function
+        End If
+      Else
+        Err.Clear
+      End If
+    Next
+  Next
+End Function
+
 On Error Resume Next
 
 Set excelApp = CreateObject("Excel.Application")
@@ -104,10 +125,50 @@ Do
 Loop While (Timer - startTime) < maxWaitSeconds
 
 If stillRefreshing Then
-  Log "UYARI: " & maxWaitSeconds & " saniye sonra hala yenileniyor gorunuyor, yine de kaydetmeyi deneyecegim."
+  Log "UYARI: " & maxWaitSeconds & " saniye sonra hala yenileniyor gorunuyor (bu baglanti turunde bu bayrak guvenilir olmayabilir), yine de kaydetmeyi deneyecegim."
 Else
   Log "Yenileme tamamlandi, kaydediliyor."
 End If
+
+' Kaydetmeden hemen once dosyadaki birkac gercek deger yazdiriliyor - bu
+' yenilemenin GERCEKTEN olup olmadigini gozle gormek icin. Bu satirlardaki
+' STOK_KODU/BAKIYE degerlerini Netsis'teki (veya depodaki) guncel degerle
+' karsilastirin - eslesirse yenileme gercekten calisiyor demektir.
+Dim foundSample
+foundSample = False
+For Each ws In wb.Worksheets
+  Dim stokPos, bakiyePos
+  stokPos = FindHeaderRowCol(ws, "STOK_KODU", 15, 40)
+  If stokPos <> "" Then
+    bakiyePos = FindHeaderRowCol(ws, "BAKIYE", 15, 40)
+    If bakiyePos <> "" Then
+      Dim sp, bp, hdrRow, stokCol, bakiyeCol
+      sp = Split(stokPos, ",")
+      bp = Split(bakiyePos, ",")
+      hdrRow = CInt(sp(0))
+      stokCol = CInt(sp(1))
+      bakiyeCol = CInt(bp(1))
+      Log "Ornek veri (sayfa: " & ws.Name & "):"
+      Dim i, r, kod, bal, shown
+      shown = 0
+      For i = 1 To 15
+        r = hdrRow + i
+        kod = ws.Cells(r, stokCol).Value
+        If Trim(CStr(kod)) = "" Then Exit For
+        bal = ws.Cells(r, bakiyeCol).Value
+        Log "  " & kod & " -> BAKIYE=" & bal
+        shown = shown + 1
+        If shown >= 5 Then Exit For
+      Next
+      foundSample = True
+    End If
+  End If
+  If foundSample Then Exit For
+Next
+If Not foundSample Then
+  Log "UYARI: STOK_KODU/BAKIYE basliklari bulunamadi, ornek deger gosterilemedi."
+End If
+Err.Clear
 
 wb.Save
 If Err.Number <> 0 Then
