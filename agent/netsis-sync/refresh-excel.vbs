@@ -6,8 +6,10 @@
 '
 '    cscript //nologo refresh-excel.vbs
 '
-'  Not: ilk basarili calismada yenileme ~5 dakika surdu - bu normal,
-'  Netsis'ten canli veri cekildigi icin biraz zaman alabiliyor.
+'  Not: dosyayi elle actiginizda yenileme ~10 saniyede bitiyor - demek ki
+'  baglantilarda "dosya acilirken yenile" zaten acik. Bu yuzden script
+'  ayrica RefreshAll cagirmiyor, sadece acip kisa bir bekleme payi
+'  biraktiktan sonra kaydediyor.
 '
 '  Not 2: dosya yolundaki Turkce buyuk "I" (I noktali) karakteri, dosya
 '  aktarimi sirasinda bozulmaya karsi ChrW(304) ile kod noktasindan
@@ -21,7 +23,13 @@ TIB = ChrW(304) ' Turkce buyuk nokta olu I (U+0130) - Unicode kod noktasi icin C
 ' <<< BURAYI KENDI EXCEL DOSYANIZIN TAM YOLUYLA DEGISTIRIN >>>
 excelPath = "C:\Users\berke.kulali\Desktop\KATALOG STOK\STOK SAB" & TIB & "T BAK" & TIB & "YE.xlsx"
 
-maxWaitSeconds = 600   ' yenileme en fazla bu kadar (saniye) surer varsayilir (10 dk)
+' Elle actiginizda yenileme ~10 saniyede bitiyor - demek ki baglantilarda
+' "Dosya acilirken yenile" (refresh on open) zaten acik, dosya kendiliginden
+' yenileniyor. Bu yuzden ayrica RefreshAll/CalculateUntilAsyncQueriesDone
+' COM cagirmiyoruz - bu ekstra cagrilar bu baglanti turunde takilmaya
+' sebep oluyor gibi gorunuyor. Sadece acip, otomatik yenilemenin bitmesini
+' (varsa) kisa sure bekleyip kaydediyoruz.
+maxWaitSeconds = 120   ' guvenlik payi - elle acildiginda ~10 sn suruyor
 
 Sub Log(msg)
   WScript.Echo "[excel-refresh " & Now & "] " & msg
@@ -61,21 +69,15 @@ For Each conn In wb.Connections
 Next
 Log "Toplam " & connCount & " baglanti bulundu."
 
-wb.RefreshAll
-Err.Clear
+' NOT: burada bilerek RefreshAll / CalculateUntilAsyncQueriesDone COM
+' cagirmiyoruz - dosya acilirken baglantilar zaten kendiliginden
+' yenileniyor (elle actiginizda gozlemlediginiz ~10 saniyelik yenileme
+' budur). Asagidaki dongu sadece bu otomatik yenilemenin muhtemelen
+' cok kisa surecek son kismini bekliyor, guvenlik payi olarak.
 
-' Excel'in arka planda calisan (background) baglanti yenilemesini
-' isleyebilmesi icin mesaj kuyrugunu "pompalayan" bir cagri gerekiyor -
-' aksi halde RefreshAll donse bile Refreshing bayragi hic guncellenmeyip
-' asagidaki bekleme donguisu sonsuza kadar surebilir. Bu yontem Microsoft'un
-' kendi onerdigi yontem; eski Excel surumlerinde metod yoksa sessizce gecilir.
-excelApp.CalculateUntilAsyncQueriesDone
-If Err.Number <> 0 Then
-  Log "CalculateUntilAsyncQueriesDone kullanilamadi (eski Excel olabilir), elle bekleme denenecek."
-  Err.Clear
-Else
-  Log "CalculateUntilAsyncQueriesDone tamamlandi."
-End If
+' Otomatik yenileme henuz baslamamis olabilir diye kucuk bir baslangic
+' bekleme payi - dongu "zaten bitmis" sanip hemen kaydetmesin diye.
+WScript.Sleep 3000
 
 startTime = Timer
 pollCount = 0
