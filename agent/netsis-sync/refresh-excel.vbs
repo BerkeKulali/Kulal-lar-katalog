@@ -10,9 +10,9 @@
 '  Netsis'ten canli veri cekildigi icin biraz zaman alabiliyor.
 '
 '  Not 2: dosya yolundaki Turkce buyuk "I" (I noktali) karakteri, dosya
-'  aktarimi sirasinda bozulmaya karsi Chr(304) ile kod noktasindan
+'  aktarimi sirasinda bozulmaya karsi ChrW(304) ile kod noktasindan
 '  olusturuluyor - dogrudan harf olarak yazmiyoruz. Yolu degistirmeniz
-'  gerekirse, TIB harfi gecen yerlerde yine Chr(304) kullanin ya da
+'  gerekirse, TIB harfi gecen yerlerde yine ChrW(304) kullanin ya da
 '  yolda o harf yoksa direkt yazabilirsiniz.
 ' ============================================================
 
@@ -63,6 +63,19 @@ Log "Toplam " & connCount & " baglanti bulundu."
 
 wb.RefreshAll
 Err.Clear
+
+' Excel'in arka planda calisan (background) baglanti yenilemesini
+' isleyebilmesi icin mesaj kuyrugunu "pompalayan" bir cagri gerekiyor -
+' aksi halde RefreshAll donse bile Refreshing bayragi hic guncellenmeyip
+' asagidaki bekleme donguisu sonsuza kadar surebilir. Bu yontem Microsoft'un
+' kendi onerdigi yontem; eski Excel surumlerinde metod yoksa sessizce gecilir.
+excelApp.CalculateUntilAsyncQueriesDone
+If Err.Number <> 0 Then
+  Log "CalculateUntilAsyncQueriesDone kullanilamadi (eski Excel olabilir), elle bekleme denenecek."
+  Err.Clear
+Else
+  Log "CalculateUntilAsyncQueriesDone tamamlandi."
+End If
 
 startTime = Timer
 Do
