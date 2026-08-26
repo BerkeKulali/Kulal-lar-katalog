@@ -15,5 +15,12 @@ REM set "NETSIS_MAX_AGE_MIN=240"     REM en yeni dosya 4 saatten eskiyse gonderm
 REM set "NETSIS_DRY_RUN=1"           REM ilk testte yazmadan dene
 
 REM node kurulu olmali (https://nodejs.org LTS). "node --version" ile dogrula.
-node "%~dp0sync.mjs"
+REM Node'u PATH yerine bilinen kurulum konumlarindan doğrudan buluyoruz -
+REM boylece Node kurulduktan sonra sunucu/oturum yeniden baslatilmasa
+REM bile (Task Scheduler'in eski PATH onbellegi kullanmasi riski olmadan)
+REM calisir.
+set "NODE_EXE=node"
+if exist "%ProgramFiles%\nodejs\node.exe" set "NODE_EXE=%ProgramFiles%\nodejs\node.exe"
+if exist "%ProgramFiles(x86)%\nodejs\node.exe" set "NODE_EXE=%ProgramFiles(x86)%\nodejs\node.exe"
+"%NODE_EXE%" "%~dp0sync.mjs"
 exit /b %ERRORLEVEL%
