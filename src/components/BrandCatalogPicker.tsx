@@ -43,6 +43,11 @@ export function BrandCatalogPicker({
     [brandSlug, quality]
   );
 
+  const allSizesHref = useMemo(
+    () => `/katalog/${brandSlug}/tumu?${kaliteQuery(quality)}`,
+    [brandSlug, quality]
+  );
+
   if (sizes.length === 0) {
     return (
       <p className="text-center text-sm text-zinc-500">
@@ -92,6 +97,11 @@ export function BrandCatalogPicker({
               {formatSizeLabel(size)}
             </Link>
           ))}
+        </div>
+        <div className="catalog-picker-grid mt-3">
+          <Link href={allSizesHref} className="catalog-picker-chip">
+            Tümü
+          </Link>
         </div>
       </section>
     </div>

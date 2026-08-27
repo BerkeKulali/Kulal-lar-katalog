@@ -6,6 +6,7 @@ export function CatalogSizeHeader({
   backHref,
   backLabel,
   size,
+  sizeLabel,
   qualityLabel,
   brandSlug,
   brandName,
@@ -14,6 +15,8 @@ export function CatalogSizeHeader({
   backHref: string;
   backLabel?: string;
   size: string;
+  /** Verilirse `size`'ın formatSizeDisplay biçimi yerine bu metin gösterilir (örn. "tumu" sentinel'i için "TÜMÜ"). */
+  sizeLabel?: string;
   qualityLabel?: string;
   brandSlug?: string;
   brandName?: string;
@@ -26,7 +29,7 @@ export function CatalogSizeHeader({
       <Link href={backHref} className="catalog-back-link">
         ← {backLabel ?? "Ölçüler"}
       </Link>
-      <p className="catalog-size-title">{formatSizeDisplay(size)}</p>
+      <p className="catalog-size-title">{sizeLabel ?? formatSizeDisplay(size)}</p>
       {qualityLabel && (
         <p className="catalog-size-quality">{qualityLabel}</p>
       )}
