@@ -18,6 +18,12 @@ type CatalogSyncState = {
   lastSyncAt: string | null;
   /** Son TAM (delta olmayan) senkronun zamanı — güvenlik ağı bu alanı kullanır. */
   lastFullSyncAt: string | null;
+  /**
+   * Bilinen tüm varyantlar arasında en son stok yazılma zamanı (ISO) — yani
+   * "stok gerçekte ne zaman güncellendi" (Netsis senkronu veya elle düzenleme).
+   * `showStock` false ise (stok görünürlüğü kapalıysa) null tutulur.
+   */
+  lastStockUpdatedAt: string | null;
   priceListVersion: string | null;
   imageCatalogVersion: string | null;
   showStock: boolean;
@@ -55,6 +61,18 @@ type CatalogSyncState = {
   getSyncedPrice: (variantId: string) => number | null | undefined;
 };
 
+function latestStockUpdatedAt(
+  variants: Record<string, SyncVariantRow>
+): string | null {
+  let latest: string | null = null;
+  for (const v of Object.values(variants)) {
+    if (v.stockUpdatedAt && (!latest || v.stockUpdatedAt > latest)) {
+      latest = v.stockUpdatedAt;
+    }
+  }
+  return latest;
+}
+
 function countPendingImages(
   variants: Record<string, SyncVariantRow>,
   families: Record<string, SyncFamilyRow>,
@@ -86,6 +104,7 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
     (set, get) => ({
       lastSyncAt: null,
       lastFullSyncAt: null,
+      lastStockUpdatedAt: null,
       priceListVersion: null,
       imageCatalogVersion: null,
       showStock: true,
@@ -156,6 +175,9 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
             lastFullSyncAt: payload.isDelta
               ? state.lastFullSyncAt
               : payload.serverTime,
+            lastStockUpdatedAt: showStock
+              ? latestStockUpdatedAt(variants)
+              : null,
             priceListVersion: payload.priceListVersion,
             imageCatalogVersion: payload.imageCatalogVersion,
             pendingImageCount,

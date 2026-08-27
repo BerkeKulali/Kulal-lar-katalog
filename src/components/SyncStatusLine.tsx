@@ -2,6 +2,24 @@
 
 import { useCatalogSyncStore } from "@/store/catalog-sync";
 
+// ProductDetailView.tsx'teki "Stok güncellendi" biçimiyle birebir aynı
+// (gün/ay/yıl + saat:dakika, İstanbul saat dilimi) - tutarlı görünüm için.
+const STOCK_UPDATED_FMT = new Intl.DateTimeFormat("tr-TR", {
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Europe/Istanbul",
+});
+
+function formatStockUpdated(iso: string | null): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return STOCK_UPDATED_FMT.format(d);
+}
+
 export function SyncStatusLine({
   serverPriceDate,
 }: {
@@ -9,6 +27,7 @@ export function SyncStatusLine({
 }) {
   const lastSyncAt = useCatalogSyncStore((s) => s.lastSyncAt);
   const priceListVersion = useCatalogSyncStore((s) => s.priceListVersion);
+  const lastStockUpdatedAt = useCatalogSyncStore((s) => s.lastStockUpdatedAt);
   const isSyncing = useCatalogSyncStore((s) => s.isSyncing);
   const lastError = useCatalogSyncStore((s) => s.lastError);
   const pendingImageCount = useCatalogSyncStore((s) => s.pendingImageCount);
@@ -34,6 +53,8 @@ export function SyncStatusLine({
       }).format(new Date(lastSyncAt))
     : null;
 
+  const stockLabel = formatStockUpdated(lastStockUpdatedAt);
+
   let imageStatus: string | null = null;
   if (isDownloadingImages && imageDownloadProgress) {
     const { done, total } = imageDownloadProgress;
@@ -50,6 +71,11 @@ export function SyncStatusLine({
           {" "}
           · Senkron {syncLabel}
           {isSyncing ? " …" : ""}
+        </span>
+      )}
+      {stockLabel && (
+        <span className="block text-zinc-600">
+          Stok güncellendi: {stockLabel}
         </span>
       )}
       {imageStatus && (
