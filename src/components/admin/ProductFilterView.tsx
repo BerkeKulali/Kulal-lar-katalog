@@ -11,6 +11,17 @@ import { qualityLabel } from "@/lib/utils";
 
 const ALL_SIZES = getAllCatalogSizes();
 
+// En sık kullanılan ebat/yüzey seçenekleri buton olarak hep görünür kalır;
+// geri kalanı kalabalık yaratmasın diye "Diğer ebatlar/yüzeyler" altında
+// katlanır (kayıtlı bir segment PRIMARY_* dışında bir değer seçtiyse
+// applyPreset panel(ler)i otomatik açar, bkz. aşağıda).
+const PRIMARY_SIZES = ["60x120", "60x60", "30x60", "30x90"];
+const PRIMARY_SURFACES = ["MAT", "SLP", "FLP"];
+const SECONDARY_SIZES = ALL_SIZES.filter((s) => !PRIMARY_SIZES.includes(s));
+const SECONDARY_SURFACES = SURFACES.filter(
+  (s) => !PRIMARY_SURFACES.includes(s)
+);
+
 type Brand = { id: string; name: string };
 type MaterialType = { id: string; label: string };
 
@@ -57,11 +68,16 @@ export function ProductFilterView({
   const [brandIds, setBrandIds] = useState<string[]>([]);
   const [materialType, setMaterialType] = useState("");
   const [quality, setQuality] = useState<"" | "FIRST" | "END">("");
-  const [basis, setBasis] = useState<Basis>("family");
+  // Stok her zaman varyant bazında filtrelenir - aile toplamı seçeneği
+  // arayüzden kaldırıldı (bkz. familyTotalStockM2, yine de bilgi amaçlı
+  // sonuç tablosunda gösterilmeye devam ediyor).
+  const basis: Basis = "variant";
   const [minM2, setMinM2] = useState("");
   const [maxM2, setMaxM2] = useState("250");
   const [sizes, setSizes] = useState<string[]>([]);
   const [surfaces, setSurfaces] = useState<string[]>([]);
+  const [sizesExpanded, setSizesExpanded] = useState(false);
+  const [surfacesExpanded, setSurfacesExpanded] = useState(false);
 
   const [rows, setRows] = useState<FilterRow[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -156,11 +172,18 @@ export function ProductFilterView({
     setBrandIds(preset.brandIds);
     setMaterialType(preset.materialType ?? "");
     setQuality(preset.quality ?? "");
-    setBasis(preset.basis);
     setMinM2(preset.minM2 != null ? String(preset.minM2) : "");
     setMaxM2(preset.maxM2 != null ? String(preset.maxM2) : "");
-    setSizes(preset.sizes ?? []);
-    setSurfaces(preset.surfaces ?? []);
+    const presetSizes = preset.sizes ?? [];
+    const presetSurfaces = preset.surfaces ?? [];
+    setSizes(presetSizes);
+    setSurfaces(presetSurfaces);
+    if (presetSizes.some((s) => !PRIMARY_SIZES.includes(s))) {
+      setSizesExpanded(true);
+    }
+    if (presetSurfaces.some((s) => !PRIMARY_SURFACES.includes(s))) {
+      setSurfacesExpanded(true);
+    }
     setMessage(`"${preset.name}" segmenti yüklendi — Filtrele'ye basın`);
   }
 
@@ -265,7 +288,7 @@ export function ProductFilterView({
         <div>
           <p className="theme-muted mb-1.5 text-xs">Ebat (boş = tümü)</p>
           <div className="flex flex-wrap gap-2">
-            {ALL_SIZES.map((s) => (
+            {PRIMARY_SIZES.map((s) => (
               <button
                 key={s}
                 type="button"
@@ -276,13 +299,44 @@ export function ProductFilterView({
                 {formatSizeLabel(s)}
               </button>
             ))}
+            {!sizesExpanded && (
+              <button
+                type="button"
+                onClick={() => setSizesExpanded(true)}
+                className="theme-chip"
+              >
+                + Diğer ebatlar ({SECONDARY_SIZES.length})
+              </button>
+            )}
           </div>
+          {sizesExpanded && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {SECONDARY_SIZES.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  aria-pressed={sizes.includes(s)}
+                  onClick={() => toggleSize(s)}
+                  className={`theme-chip${sizes.includes(s) ? " theme-chip--active" : ""}`}
+                >
+                  {formatSizeLabel(s)}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setSizesExpanded(false)}
+                className="theme-chip"
+              >
+                Daralt
+              </button>
+            </div>
+          )}
         </div>
 
         <div>
           <p className="theme-muted mb-1.5 text-xs">Yüzey (boş = tümü)</p>
           <div className="flex flex-wrap gap-2">
-            {SURFACES.map((s) => (
+            {PRIMARY_SURFACES.map((s) => (
               <button
                 key={s}
                 type="button"
@@ -293,7 +347,38 @@ export function ProductFilterView({
                 {surfaceDisplayLabel(s)}
               </button>
             ))}
+            {!surfacesExpanded && (
+              <button
+                type="button"
+                onClick={() => setSurfacesExpanded(true)}
+                className="theme-chip"
+              >
+                + Diğer yüzeyler ({SECONDARY_SURFACES.length})
+              </button>
+            )}
           </div>
+          {surfacesExpanded && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {SECONDARY_SURFACES.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  aria-pressed={surfaces.includes(s)}
+                  onClick={() => toggleSurface(s)}
+                  className={`theme-chip${surfaces.includes(s) ? " theme-chip--active" : ""}`}
+                >
+                  {surfaceDisplayLabel(s)}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setSurfacesExpanded(false)}
+                className="theme-chip"
+              >
+                Daralt
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-4">
@@ -323,18 +408,6 @@ export function ProductFilterView({
               <option value="">Tümü</option>
               <option value="FIRST">1. Kalite</option>
               <option value="END">END</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="theme-muted mb-1 block text-xs">Stok bazı</label>
-            <select
-              value={basis}
-              onChange={(e) => setBasis(e.target.value as Basis)}
-              className="theme-select border px-3 py-2 text-sm"
-            >
-              <option value="family">Aile toplamı</option>
-              <option value="variant">Varyant bazında</option>
             </select>
           </div>
 
