@@ -35,13 +35,25 @@ function normalizeKey(key: string): string {
     .replace(/\s+/g, " ");
 }
 
-function pickColumn(row: Record<string, unknown>, keys: string[]): unknown {
+// Bir satirin tum sutunlarini TEK SEFERDE normalize edip Map'e koyar - bu Map
+// ayni satir icin birden fazla pickColumn cagrisinda (kod + etiket + miktar gibi)
+// TEKRAR TEKRAR normalize edilmeden yeniden kullanilir. 16 binin uzerinde satirlik
+// Netsis dokumlerinde, satir basina 2-3 kez tekrarlanan bu normalizasyonu tek
+// sefere indirerek ayristirma maliyetini onemli olcude dusurur.
+function buildNormalizedRow(row: Record<string, unknown>): Map<string, unknown> {
   const map = new Map<string, unknown>();
   for (const [k, v] of Object.entries(row)) {
     map.set(normalizeKey(k), v);
   }
+  return map;
+}
+
+function pickColumn(
+  normalizedRow: Map<string, unknown>,
+  keys: string[]
+): unknown {
   for (const key of keys) {
-    if (map.has(key)) return map.get(key);
+    if (normalizedRow.has(key)) return normalizedRow.get(key);
   }
   return undefined;
 }
@@ -101,20 +113,21 @@ export function parseNetsisStockRows(
 
   for (const [index, row] of rows.entries()) {
     const rowNum = index + 2;
-    const codeRaw = pickColumn(row, CODE_KEYS);
+    const normalizedRow = buildNormalizedRow(row);
+    const codeRaw = pickColumn(normalizedRow, CODE_KEYS);
     const code = codeRaw != null ? String(codeRaw).trim().toUpperCase() : "";
     if (!code) {
       errors.push(`Satır ${rowNum}: Ürün kodu boş`);
       continue;
     }
 
-    const labelRaw = pickColumn(row, LABEL_KEYS);
+    const labelRaw = pickColumn(normalizedRow, LABEL_KEYS);
     const label =
       labelRaw != null && String(labelRaw).trim()
         ? String(labelRaw).trim()
         : "GENEL";
 
-    const qtyRaw = pickColumn(row, QTY_KEYS);
+    const qtyRaw = pickColumn(normalizedRow, QTY_KEYS);
     const quantityM2 = parseStockQuantity(qtyRaw);
     if (quantityM2 == null || quantityM2 <= 0) {
       continue;
@@ -193,19 +206,20 @@ export function parseNetsisBalanceRows(
 
   for (const [index, row] of rows.entries()) {
     const rowNum = index + 2;
-    const codeRaw = pickColumn(row, STOCK_CODE_KEYS);
+    const normalizedRow = buildNormalizedRow(row);
+    const codeRaw = pickColumn(normalizedRow, STOCK_CODE_KEYS);
     const code = codeRaw != null ? String(codeRaw).trim().toUpperCase() : "";
     if (!code) {
       // Tamamen boş satırları sessizce atla; yalnızca bakiyesi olup kodu
       // olmayan satırları hata say.
-      const balanceRaw = pickColumn(row, BALANCE_KEYS);
+      const balanceRaw = pickColumn(normalizedRow, BALANCE_KEYS);
       if (balanceRaw != null && String(balanceRaw).trim() !== "") {
         errors.push(`Satır ${rowNum}: Stok kodu boş`);
       }
       continue;
     }
 
-    const balanceRaw = pickColumn(row, BALANCE_KEYS);
+    const balanceRaw = pickColumn(normalizedRow, BALANCE_KEYS);
     // Boş bakiye 0 kabul edilir (Netsis bazen boş bırakır).
     const quantity =
       balanceRaw == null || String(balanceRaw).trim() === ""
