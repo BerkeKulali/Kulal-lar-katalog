@@ -1,7 +1,8 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { idbStateStorage, clearLegacyLocalStorageSync } from "@/lib/idb-storage";
 import type { SyncFamilyRow, SyncPayload, SyncVariantRow } from "@/lib/sync-types";
 import { buildPriceSummary } from "@/lib/prices";
 import { pickSizeListImage, toImageCandidates } from "@/lib/product-image";
@@ -98,6 +99,12 @@ function countPendingImages(
 
   return count;
 }
+
+/**
+ * Bkz. src/lib/idb-storage.ts — bu isim hem IndexedDB anahtarı hem de
+ * (bir kerelik temizlik için) eski localStorage anahtarı olarak kullanılıyor.
+ */
+const STORAGE_KEY = "kulalilar-catalog-sync-v4";
 
 export const useCatalogSyncStore = create<CatalogSyncState>()(
   persist(
@@ -265,6 +272,18 @@ export const useCatalogSyncStore = create<CatalogSyncState>()(
     // yeni kodu yüklediği an localStorage'da hiçbir veri bulamaz, hasLocalData
     // false olur ve ilk senkron kesin olarak TAM senkron yapılır — herhangi bir
     // zamanlama/lastFullSyncAt hesabına bağlı kalmadan.
-    { name: "kulalilar-catalog-sync-v4", skipHydration: true }
+    {
+      name: STORAGE_KEY,
+      // localStorage kotası (~5-10MB) bu mağazanın binlerce varyant/aile
+      // kaydını taşıyamıyordu ("QuotaExceededError" — bkz. idb-storage.ts).
+      // IndexedDB'ye taşındı; skipHydration zaten async storage ile uyumlu.
+      storage: createJSONStorage(() => idbStateStorage),
+      skipHydration: true,
+    }
   )
 );
+
+// Eski localStorage kaydı artık okunmuyor — dururken yer kaplamasın diye
+// bir kerelik temizlik (bkz. idb-storage.ts).
+clearLegacyLocalStorageSync(STORAGE_KEY);
+
