@@ -1,6 +1,7 @@
 "use client";
 
 import { useCatalogSyncStore } from "@/store/catalog-sync";
+import { useDeviceStore } from "@/store/device";
 
 // ProductDetailView.tsx'teki "Stok güncellendi" biçimiyle birebir aynı
 // (gün/ay/yıl + saat:dakika, İstanbul saat dilimi) - tutarlı görünüm için.
@@ -35,6 +36,9 @@ export function SyncStatusLine({
   const imageDownloadProgress = useCatalogSyncStore(
     (s) => s.imageDownloadProgress
   );
+  // Bayilerde otomatik görsel indirme kapalı (bkz. sync-client.ts) - o
+  // yüzden hiç ilerlemeyecek bir "İndirilmemiş görsel" sayacı göstermeyelim.
+  const isDealer = useDeviceStore((s) => s.actorType) === "dealer";
 
   const displayDate = priceListVersion
     ? new Intl.DateTimeFormat("tr-TR", {
@@ -56,11 +60,13 @@ export function SyncStatusLine({
   const stockLabel = formatStockUpdated(lastStockUpdatedAt);
 
   let imageStatus: string | null = null;
-  if (isDownloadingImages && imageDownloadProgress) {
-    const { done, total } = imageDownloadProgress;
-    imageStatus = `Görseller indiriliyor: ${done}/${total}`;
-  } else if (pendingImageCount > 0) {
-    imageStatus = `İndirilmemiş yeni görsel: ${pendingImageCount}`;
+  if (!isDealer) {
+    if (isDownloadingImages && imageDownloadProgress) {
+      const { done, total } = imageDownloadProgress;
+      imageStatus = `Görseller indiriliyor: ${done}/${total}`;
+    } else if (pendingImageCount > 0) {
+      imageStatus = `İndirilmemiş yeni görsel: ${pendingImageCount}`;
+    }
   }
 
   return (

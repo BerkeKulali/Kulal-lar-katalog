@@ -5,6 +5,7 @@ import {
 } from "@/lib/offline-images";
 import { SYNC_INTERVAL_MS, FULL_SYNC_MAX_AGE_MS } from "@/lib/sync-types";
 import { useCatalogSyncStore } from "@/store/catalog-sync";
+import { readDeviceFromCookies } from "@/store/device";
 
 let downloadInFlight: Promise<void> | null = null;
 
@@ -70,7 +71,10 @@ export async function runCatalogSync() {
     }
 
     const pending = useCatalogSyncStore.getState().pendingImageCount;
-    if (pending > 0 && isWifiConnection()) {
+    // Bayiler (dealer) zaten dükkanda, sabit bir bilgisayardan/internetten
+    // kullanıyor - offline erişim ihtiyaçları yok. Otomatik toplu görsel
+    // indirmeyi yalnızca saha plasiyerleri için yapıyoruz.
+    if (pending > 0 && isWifiConnection() && !isDealerDevice()) {
       void downloadPendingImages();
     }
   } catch (e) {
@@ -78,6 +82,10 @@ export async function runCatalogSync() {
   } finally {
     store.setSyncing(false);
   }
+}
+
+function isDealerDevice(): boolean {
+  return readDeviceFromCookies()?.actorType === "dealer";
 }
 
 export async function downloadPendingImages() {
