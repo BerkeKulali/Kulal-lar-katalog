@@ -212,6 +212,16 @@ model Salesperson {
   filterToolEnabled Boolean     @default(false)
   lockedDeviceId    String?     @unique
   lockedDevice   Device?     @relation("SalespersonDeviceLock", fields: [lockedDeviceId], references: [id], onDelete: SetNull)
+  /**
+   * Doluysa bu plasiyer kullanıcı adı/şifreyle sınırsız cihazdan giriş
+   * yapabilir (bkz. salesperson-account.ts) - lockedDeviceId bu modda hiç
+   * kullanılmaz. Admin panelinden atanır; plasiyerin kendi kaydolduğu bir
+   * akış yok (Dealer'dan farkı budur).
+   */
+  username          String?     @unique
+  /** scrypt hash (bkz. src/lib/password.ts). */
+  password          String?
+  passwordChangedAt DateTime?
   devices        Device[]
   accessRequests AccessRequest[]
   orders         Order[]

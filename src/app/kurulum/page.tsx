@@ -10,7 +10,7 @@ export default async function SetupPage({
 }) {
   const { error } = await searchParams;
   const salespeople = await prisma.salesperson.findMany({
-    where: { isActive: true },
+    where: { isActive: true, username: null },
     orderBy: { name: "asc" },
     select: { id: true, name: true, lockedDeviceId: true },
   });
@@ -26,7 +26,10 @@ export default async function SetupPage({
         <p className="theme-muted text-xs">
           Plasiyer girişi admin onayına tabidir. Bayi girişi kullanıcı adı/şifre
           iledir: ilk kayıt admin onayı bekler, onaylandıktan sonra aynı kullanıcı
-          adı/şifreyle istediğiniz her cihazdan giriş yapabilirsiniz.
+          adı/şifreyle istediğiniz her cihazdan giriş yapabilirsiniz. Bazı
+          plasiyerler için de admin tarafından kullanıcı adı/şifre tanımlanmış
+          olabilir; bu durumda "Kullanıcı adı ile giriş yap" seçeneğiyle
+          istediğiniz her cihazdan (tablet + telefon) giriş yapabilirsiniz.
         </p>
         <p className="theme-muted text-xs">
           Her zaman aynı adresi kullanın (ör.{" "}

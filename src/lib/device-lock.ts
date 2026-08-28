@@ -55,6 +55,9 @@ export type AuthorizedDevice = {
  * Token geçerli ve cihaz hâlâ yetkiliyse cihaz kaydını döner, aksi halde null.
  * Yetki kuralları:
  * - Plasiyerin tablet kilidi varsa yalnızca kilitli cihaz geçerlidir.
+ * - Herhangi bir plasiyer cihazı için bağlı Salesperson.isActive true olmalı
+ *   (kullanıcı adı/şifreli çoklu cihaz modunda da geçerli - admin pasife
+ *   çekince o plasiyerin tüm cihazları anında yetkisiz sayılır).
  * - Kullanıcı adı/şifre ile giriş yapmış bayi cihazı (dealerId dolu) için,
  *   bağlı Dealer hesabı hâlâ onaylı (APPROVED) ve aktif olmalı — admin bir
  *   bayiyi reddedip/devre dışı bırakırsa o bayinin tüm mevcut cihaz oturumları
@@ -70,7 +73,7 @@ export async function getAuthorizedDevice(
       salespersonId: true,
       dealerId: true,
       salesperson: {
-        select: { lockedDeviceId: true },
+        select: { lockedDeviceId: true, isActive: true },
       },
       dealer: {
         select: { status: true, isActive: true },
@@ -82,6 +85,15 @@ export async function getAuthorizedDevice(
 
   const lockId = device.salesperson?.lockedDeviceId;
   if (lockId && lockId !== device.id) return null;
+
+  // Dealer dalıyla simetri: bir plasiyer pasife çekilirse (isActive=false),
+  // kullanıcı adı/şifreyle çoklu cihaz modunda olsun tek-cihaz-kilitli eski
+  // modda olsun, o plasiyerin TÜM cihazları anında yetkisiz sayılır.
+  if (device.salespersonId) {
+    if (!device.salesperson || device.salesperson.isActive === false) {
+      return null;
+    }
+  }
 
   if (device.dealerId) {
     if (!device.dealer || device.dealer.status !== "APPROVED" || !device.dealer.isActive) {
@@ -111,6 +123,10 @@ export async function unlockSalespersonTablet(salespersonId: string) {
 /** Plasiyer başına yalnızca kilitli tablet kalsın; eski kurulum kayıtlarını siler. */
 export async function pruneDuplicateDevices(): Promise<{ removed: number }> {
   const salespeople = await prisma.salesperson.findMany({
+    // Kullanıcı adı/şifreli (çoklu cihaz modundaki) plasiyerler bu
+    // temizlikten muaf - amaçları zaten birden fazla cihaz bağlı kalması
+    // (bkz. salesperson-account.ts / createDeviceForSalesperson).
+    where: { username: null },
     select: { id: true, lockedDeviceId: true },
   });
 

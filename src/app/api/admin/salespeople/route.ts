@@ -27,7 +27,7 @@ export async function GET() {
           registeredAt: true,
         },
       },
-      _count: { select: { orders: true, visits: true } },
+      _count: { select: { orders: true, visits: true, devices: true } },
     },
   });
 
@@ -42,6 +42,11 @@ export async function GET() {
       visitCount: sp._count.visits,
       isTabletLocked: Boolean(sp.lockedDeviceId),
       lockedDevice: sp.lockedDevice,
+      // Doluysa bu plasiyer kullanıcı adı/şifreyle çoklu cihaz modunda
+      // (bkz. salesperson-account.ts); deviceCount o moddaki bağlı cihaz
+      // sayısını gösterir (eski tek-cihaz modunda her zaman 0 veya 1).
+      username: sp.username,
+      deviceCount: sp._count.devices,
       createdAt: sp.createdAt,
     })),
   });
@@ -76,6 +81,8 @@ export async function POST(request: Request) {
       visitCount: 0,
       isTabletLocked: false,
       lockedDevice: null,
+      username: null,
+      deviceCount: 0,
     },
   });
 }
