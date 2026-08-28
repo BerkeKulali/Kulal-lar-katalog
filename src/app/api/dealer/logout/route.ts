@@ -11,15 +11,23 @@ import {
 } from "@/lib/device-cookie";
 
 /**
- * Bayi kendi cihazından çıkış yapar. Yalnızca dealerId dolu (kullanıcı
- * adı/şifreyle giriş yapmış) cihazlar için çalışır - bu cihazın Device
- * kaydı silinir (bayi sınırsız cihazdan giriş yapabildiği için diğer
- * cihazları etkilenmez), sonra cookie'ler temizlenir.
+ * Bayi kendi cihazından çıkış yapar. Cookie temizleme HER ZAMAN çalışır -
+ * bu yalnızca kullanıcının kendi tarayıcısındaki yerel oturum işaretini
+ * silmektir, hiçbir güvenlik riski taşımaz. Device kaydı yalnızca gerçekten
+ * bir bayi cihazıysa (dealerId dolu) silinir - bayi sınırsız cihazdan giriş
+ * yapabildiği için diğer cihazları etkilenmez. dealerId boşsa (ör. bayi
+ * hesapları kullanıcı adı/şifre sistemine geçmeden ÖNCE oluşturulmuş eski/
+ * bozuk bir cihaz kaydıysa) Device silinmez ama cookie'ler yine de temizlenir
+ * - aksi halde kullanıcı kendi bozuk oturumundan asla çıkamazdı (canlıda
+ * yaşanan gerçek bir kesinti, bkz. commit geçmişi).
  *
  * Plasiyer için BİLEREK yok: plasiyer hâlâ tek-cihaza-kilitli, şifresiz
  * modelde (bkz. device-lock.ts) - kendi kendine çıkış, admin onayı olmadan
  * aynı tabletin başka bir isimle kullanılmasına izin verirdi. Bu, mevcut
- * /api/device/reset'teki "yalnızca admin" kısıtının aynı gerekçesi.
+ * /api/device/reset'teki "yalnızca admin" kısıtının aynı gerekçesi. (Device
+ * kaydı yalnızca dealerId doluyken silindiği için bir plasiyer bu route'u
+ * çağırsa bile tablet kilidi/Device kaydı bozulmaz - yalnızca kendi
+ * tarayıcısındaki cookie'ler temizlenir.)
  */
 export async function POST() {
   const cookieStore = await cookies();
@@ -31,14 +39,7 @@ export async function POST() {
       select: { id: true, dealerId: true },
     });
 
-    if (device && !device.dealerId) {
-      return NextResponse.json(
-        { error: "Bu işlem yalnızca bayi cihazları için kullanılabilir" },
-        { status: 403 }
-      );
-    }
-
-    if (device) {
+    if (device && device.dealerId) {
       await prisma.device.delete({ where: { id: device.id } }).catch(() => {});
     }
   }
