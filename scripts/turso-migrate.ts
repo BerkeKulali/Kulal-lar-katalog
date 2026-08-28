@@ -273,6 +273,39 @@ async function ensureNetsisSyncLogTable(
   );
 }
 
+/**
+ * Salesperson.username/password/passwordChangedAt kolonlarını ve
+ * benzersiz index'ini idempotent ekler. Bu özelliğin İLK sürümü
+ * (20260828145253_add_salesperson_credentials, sonradan production
+ * hatası nedeniyle revert edildi - bkz. commit 18aa52d) production'da
+ * en azından "username" kolonunu başarıyla eklemişti; migration dosyası
+ * repo'dan silindiği için bu, _turso_migrations tablosunda hiç
+ * iz bırakmadı. Bu yüzden ikinci sürüm (farklı migration adıyla) aynı
+ * ALTER TABLE'ı ham SQL olarak tekrar çalıştırınca "duplicate column
+ * name" hatası aldı. Varlık kontrolü yaparak bu durumu (ve production'ın
+ * o ara kalmış herhangi bir kısmi durumunu) güvenle telafi eder.
+ */
+async function ensureSalespersonCredentialsColumns(
+  client: ReturnType<typeof createClient>
+) {
+  const cols = await client.execute(`PRAGMA table_info("Salesperson")`);
+  const names = new Set(cols.rows.map((r) => String(r.name)));
+  if (!names.has("username")) {
+    await client.execute(`ALTER TABLE "Salesperson" ADD COLUMN "username" TEXT`);
+  }
+  if (!names.has("password")) {
+    await client.execute(`ALTER TABLE "Salesperson" ADD COLUMN "password" TEXT`);
+  }
+  if (!names.has("passwordChangedAt")) {
+    await client.execute(
+      `ALTER TABLE "Salesperson" ADD COLUMN "passwordChangedAt" DATETIME`
+    );
+  }
+  await client.execute(
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Salesperson_username_key" ON "Salesperson"("username")`
+  );
+}
+
 async function listMigrationDirs() {
   const entries = await readdir(migrationsRoot, { withFileTypes: true });
   return entries
@@ -343,6 +376,8 @@ async function main() {
       await ensureVariantStockLockedColumns(client);
     } else if (dir === "20260724121000_netsis_sync_log") {
       await ensureNetsisSyncLogTable(client);
+    } else if (dir === "20260828191432_add_salesperson_credentials") {
+      await ensureSalespersonCredentialsColumns(client);
     } else {
       await client.executeMultiple(sql);
     }
