@@ -32,13 +32,19 @@ export async function GET(request: Request) {
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
+  // NOT: dealerId/salespersonId'ye göre filtrelenmiyor - kullanıcı adı/şifre
+  // sisteminden ÖNCE oluşturulmuş "eski, tek-seferlik" bayi cihazlarının
+  // (bkz. /api/admin/dealers'daki "legacyDevices") ikisi de boş ama bir
+  // label'ı var; bunları da göstermek için groupDeviceActivity'ye bırakılıyor
+  // (bkz. login-activity.ts - gerçekten isimsiz olanları o eliyor).
   const devices = await prisma.device.findMany({
     where: {
       lastSeenAt: { gte: dayStart, lt: dayEnd },
-      OR: [{ dealerId: { not: null } }, { salespersonId: { not: null } }],
     },
     select: {
+      id: true,
       lastSeenAt: true,
+      label: true,
       dealer: { select: { id: true, name: true, isActive: true } },
       salesperson: { select: { id: true, name: true, isActive: true } },
     },

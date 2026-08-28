@@ -1,5 +1,7 @@
 export type DeviceActivityRecord = {
+  id: string;
   lastSeenAt: Date;
+  label: string | null;
   dealer: { id: string; name: string; isActive: boolean } | null;
   salesperson: { id: string; name: string; isActive: boolean } | null;
 };
@@ -17,8 +19,15 @@ export type LoginActivityRow = {
  * Bir günde "aktif" (lastSeenAt o gün içinde olan) cihazları bayi/plasiyer
  * bazında tekilleştirir - aynı kişinin birden çok cihazı varsa (tablet +
  * telefon) tek satırda, en son görülen zamanla ve cihaz sayısıyla gösterilir.
- * Ne dealer ne salesperson'a bağlı cihazlar (eski, isimsiz tek-seferlik bayi
- * kayıtları) yok sayılır - listede gösterilecek bir isim yok.
+ *
+ * Ne dealer ne salesperson'a bağlı ama bir label'ı olan cihazlar, kullanıcı
+ * adı/şifre sisteminden ÖNCE oluşturulmuş "eski, tek-seferlik" bayi
+ * cihazlarıdır (bkz. prisma/schema.prisma Device.showStock yorumu ve
+ * /api/admin/dealers'daki "legacyDevices" - aynı kavram). Bunların arkasında
+ * bir Dealer kaydı olmadığı için birden çok cihazı tek kişide toplayacak bir
+ * kimlik yok - her biri kendi cihaz id'siyle ayrı, tek cihazlık bir satır
+ * olarak "dealer" tipinde gösterilir. Ne dealer/salesperson'a bağlı ne de
+ * label'ı olan cihazlar (gerçekten isimsiz) yok sayılır.
  *
  * Saf fonksiyon: DB'ye dokunmaz, en son görülen üstte olacak şekilde
  * sıralanmış bir dizi döner.
@@ -43,7 +52,14 @@ export function groupDeviceActivity(
             name: device.salesperson.name,
             isActive: device.salesperson.isActive,
           }
-        : null;
+        : device.label
+          ? {
+              type: "dealer" as const,
+              id: `legacy:${device.id}`,
+              name: device.label,
+              isActive: true,
+            }
+          : null;
     if (!actor) continue;
 
     const key = `${actor.type}:${actor.id}`;

@@ -5,9 +5,14 @@ import {
   type DeviceActivityRecord,
 } from "@/lib/login-activity";
 
+let counter = 0;
+
 function dev(over: Partial<DeviceActivityRecord> = {}): DeviceActivityRecord {
+  counter += 1;
   return {
+    id: `dev-${counter}`,
     lastSeenAt: new Date("2026-08-28T09:00:00+03:00"),
+    label: null,
     dealer: null,
     salesperson: null,
     ...over,
@@ -41,9 +46,27 @@ describe("groupDeviceActivity", () => {
     assert.deepEqual(types, ["dealer", "salesperson"]);
   });
 
-  it("ne bayiye ne plasiyere bağlı cihazları (isimsiz eski kayıtlar) atlar", () => {
+  it("ne bayiye, ne plasiyere, ne de bir label'a bağlı cihazları (gerçekten isimsiz) atlar", () => {
     const rows = groupDeviceActivity([dev(), dev()]);
     assert.equal(rows.length, 0);
+  });
+
+  it("kullanıcı adı/şifre öncesi eski (label'lı, dealerId/salespersonId'siz) bayi cihazlarını bayi olarak gösterir", () => {
+    const rows = groupDeviceActivity([
+      dev({ id: "legacy-1", label: "Bayi - Serce", lastSeenAt: new Date("2026-08-28T12:21:00+03:00") }),
+    ]);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].actorType, "dealer");
+    assert.equal(rows[0].name, "Bayi - Serce");
+    assert.equal(rows[0].deviceCount, 1);
+  });
+
+  it("iki farklı eski (label'lı) cihazı ayrı satırlarda tutar - aralarında ortak bir kimlik yok", () => {
+    const rows = groupDeviceActivity([
+      dev({ id: "legacy-1", label: "Bayi - Serce" }),
+      dev({ id: "legacy-2", label: "Bayi - Onur Hıncal" }),
+    ]);
+    assert.equal(rows.length, 2);
   });
 
   it("pasif hesabı da listeler, isActive bilgisini korur", () => {
