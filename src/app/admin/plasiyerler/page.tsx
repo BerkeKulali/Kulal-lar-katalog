@@ -19,9 +19,6 @@ type Plasiyer = {
     lastSeenAt: string;
     registeredAt: string;
   } | null;
-  /** Doluysa kullanıcı adı/şifreyle çoklu cihaz modunda (bkz. deviceCount). */
-  username: string | null;
-  deviceCount: number;
 };
 
 type AccessRequest = {
@@ -48,14 +45,6 @@ export default function AdminPlasiyerlerPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [actionId, setActionId] = useState<string | null>(null);
-  const [credentialsFormId, setCredentialsFormId] = useState<string | null>(null);
-  const [credUsername, setCredUsername] = useState("");
-  const [credPassword, setCredPassword] = useState("");
-  const [credentialsSetFor, setCredentialsSetFor] = useState<{
-    name: string;
-    username: string;
-    password: string;
-  } | null>(null);
 
   const loadData = useCallback(async () => {
     const [salespeopleRes, requestsRes] = await Promise.all([
@@ -276,75 +265,6 @@ export default function AdminPlasiyerlerPage() {
     await loadData();
   }
 
-  function openCredentialsForm(sp: Plasiyer) {
-    setCredentialsFormId(sp.id);
-    setCredUsername(sp.username ?? "");
-    setCredPassword("");
-    setCredentialsSetFor(null);
-    setError(null);
-    setMessage(null);
-  }
-
-  function cancelCredentialsForm() {
-    setCredentialsFormId(null);
-    setCredPassword("");
-  }
-
-  async function submitCredentials(sp: Plasiyer) {
-    setActionId(sp.id);
-    setError(null);
-    setMessage(null);
-
-    const res = await fetch(`/api/admin/salespeople/${sp.id}/credentials`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username: credUsername, password: credPassword }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-    setActionId(null);
-
-    if (!res.ok) {
-      setError(data.error ?? "Kullanıcı adı/şifre atanamadı");
-      return;
-    }
-
-    setCredentialsSetFor({
-      name: sp.name,
-      username: data.salesperson?.username ?? credUsername,
-      password: credPassword,
-    });
-    setCredentialsFormId(null);
-    setCredPassword("");
-    await loadData();
-  }
-
-  async function clearCredentials(sp: Plasiyer) {
-    const ok = window.confirm(
-      `"${sp.name}" için çoklu cihaz girişini kapatmak istediğinize emin misiniz? Kullanıcı adı/şifre silinir; şu anki cihazları etkilemez, ama bu bilgilerle yeni bir cihazdan giriş yapılamaz.`
-    );
-    if (!ok) return;
-
-    setActionId(sp.id);
-    setError(null);
-    setMessage(null);
-
-    const res = await fetch(`/api/admin/salespeople/${sp.id}/credentials`, {
-      method: "DELETE",
-    });
-
-    const data = await res.json().catch(() => ({}));
-    setActionId(null);
-
-    if (!res.ok) {
-      setError(data.error ?? "Kapatılamadı");
-      return;
-    }
-
-    setMessage(`"${sp.name}" için çoklu cihaz girişi kapatıldı`);
-    await loadData();
-  }
-
   async function handleRequestAction(
     requestId: string,
     action: "approve" | "reject"
@@ -404,24 +324,6 @@ export default function AdminPlasiyerlerPage() {
         <p className="mb-4 border border-red-900 bg-red-950/40 px-3 py-2 text-sm text-red-300">
           {error}
         </p>
-      )}
-      {credentialsSetFor && (
-        <div className="mb-4 flex items-start justify-between gap-3 border border-amber-800 bg-amber-950/30 px-3 py-2 text-sm text-amber-200">
-          <p>
-            {`"${credentialsSetFor.name}" için kullanıcı adı: `}
-            <span className="font-mono">{credentialsSetFor.username}</span>
-            {", şifre: "}
-            <span className="font-mono">{credentialsSetFor.password}</span>
-            {" — bunu plasiyere iletin, bu bilgi bir daha gösterilmeyecek."}
-          </p>
-          <button
-            type="button"
-            onClick={() => setCredentialsSetFor(null)}
-            className="shrink-0 text-amber-400 hover:text-white"
-          >
-            Kapat
-          </button>
-        </div>
       )}
 
       <form
@@ -525,11 +427,6 @@ export default function AdminPlasiyerlerPage() {
                   Son görülme {formatDate(sp.lockedDevice.lastSeenAt)}
                 </p>
               )}
-              {sp.username && (
-                <p className="mt-1 text-[11px] text-zinc-500">
-                  Kullanıcı adı: {sp.username} · {sp.deviceCount} cihaz bağlı
-                </p>
-              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -610,35 +507,6 @@ export default function AdminPlasiyerlerPage() {
                   >
                     Düzenle
                   </button>
-                  {sp.username ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => openCredentialsForm(sp)}
-                        disabled={actionId === sp.id}
-                        className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
-                      >
-                        Şifreyi sıfırla
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => clearCredentials(sp)}
-                        disabled={actionId === sp.id}
-                        className="border border-amber-800 px-3 py-1.5 text-xs text-amber-300 hover:border-amber-500 disabled:opacity-40"
-                      >
-                        Çoklu cihazı kapat
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => openCredentialsForm(sp)}
-                      disabled={actionId === sp.id}
-                      className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
-                    >
-                      Çoklu cihaz için kullanıcı adı/şifre oluştur
-                    </button>
-                  )}
                   <button
                     type="button"
                     onClick={() => toggleActive(sp)}
@@ -658,47 +526,6 @@ export default function AdminPlasiyerlerPage() {
                 </>
               )}
             </div>
-
-            {credentialsFormId === sp.id && (
-              <div className="flex w-full flex-col gap-2 border-t border-zinc-800 pt-3 sm:flex-row sm:items-center">
-                <input
-                  type="text"
-                  value={credUsername}
-                  onChange={(e) => setCredUsername(e.target.value)}
-                  placeholder="kullanıcı adı"
-                  className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm sm:w-40"
-                  autoFocus
-                />
-                <input
-                  type="text"
-                  value={credPassword}
-                  onChange={(e) => setCredPassword(e.target.value)}
-                  placeholder="şifre (en az 6 karakter)"
-                  className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm sm:w-48"
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => submitCredentials(sp)}
-                    disabled={
-                      actionId === sp.id ||
-                      credUsername.trim().length < 3 ||
-                      credPassword.length < 6
-                    }
-                    className="border border-zinc-600 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
-                  >
-                    Kaydet
-                  </button>
-                  <button
-                    type="button"
-                    onClick={cancelCredentialsForm}
-                    className="px-3 py-1.5 text-xs text-zinc-500 hover:text-white"
-                  >
-                    İptal
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         ))}
       </div>

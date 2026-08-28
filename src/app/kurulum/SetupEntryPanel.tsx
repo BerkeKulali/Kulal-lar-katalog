@@ -12,7 +12,6 @@ type SalespersonOption = {
 type RequestStatus = "NONE" | "PENDING" | "APPROVED" | "REJECTED";
 type EntryMode = "dealer" | "salesperson" | "admin";
 type DealerAuthMode = "login" | "signup";
-type SalespersonAuthMode = "request" | "login";
 
 export function SetupEntryPanel({
   salespeople,
@@ -39,16 +38,6 @@ export function SetupEntryPanel({
   const [dealerSignupPassword, setDealerSignupPassword] = useState("");
   const [dealerMessage, setDealerMessage] = useState("");
   const [dealerError, setDealerError] = useState("");
-
-  // "İsimle talep gönder" (mevcut, admin onaylı tek-cihaz akışı) yerine
-  // kullanıcı adı/şifreli çoklu cihaz girişi de sunulur - dealer'daki
-  // login/signup ikilisinin plasiyer için tek yönlü karşılığı (bkz.
-  // handleSalespersonLogin, /api/salesperson/login).
-  const [salespersonAuthMode, setSalespersonAuthMode] =
-    useState<SalespersonAuthMode>("request");
-  const [spUsername, setSpUsername] = useState("");
-  const [spPassword, setSpPassword] = useState("");
-  const [spLoginError, setSpLoginError] = useState("");
 
   const selectedSalespersonName = useMemo(
     () => salespeople.find((sp) => sp.id === salespersonId)?.name ?? "",
@@ -106,30 +95,6 @@ export function SetupEntryPanel({
       router.refresh();
     } catch {
       setDealerError("Sunucuya bağlanılamadı");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleSalespersonLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setSpLoginError("");
-    try {
-      const res = await fetch("/api/salesperson/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: spUsername, password: spPassword }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setSpLoginError(data.error ?? "Giriş yapılamadı");
-        return;
-      }
-      router.push("/");
-      router.refresh();
-    } catch {
-      setSpLoginError("Sunucuya bağlanılamadı");
     } finally {
       setLoading(false);
     }
@@ -389,7 +354,7 @@ export function SetupEntryPanel({
         </p>
       )}
 
-      {mode === "salesperson" && salespersonAuthMode === "request" && (
+      {mode === "salesperson" && (
         <form
           onSubmit={handleSalespersonRequest}
           className="space-y-3 border border-zinc-800 p-4"
@@ -434,67 +399,6 @@ export function SetupEntryPanel({
               {loading ? "Gönderiliyor…" : "Admin onayı iste"}
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              setSalespersonAuthMode("login");
-              setSpLoginError("");
-            }}
-            className="w-full text-center text-xs text-zinc-400 underline underline-offset-2"
-          >
-            Kullanıcı adım/şifrem var, giriş yapayım
-          </button>
-        </form>
-      )}
-
-      {mode === "salesperson" && salespersonAuthMode === "login" && (
-        <form
-          onSubmit={handleSalespersonLogin}
-          className="space-y-3 border border-zinc-800 p-4"
-        >
-          <p className="text-xs text-zinc-400">
-            Admin tarafından size atanmış kullanıcı adı ve şifreyle herhangi
-            bir cihazdan (tablet, telefon...) giriş yapabilirsiniz.
-          </p>
-          <input
-            type="text"
-            value={spUsername}
-            onChange={(e) => setSpUsername(e.target.value)}
-            placeholder="Kullanıcı adı"
-            autoCapitalize="none"
-            disabled={loading}
-            className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
-          />
-          <input
-            type="password"
-            value={spPassword}
-            onChange={(e) => setSpPassword(e.target.value)}
-            placeholder="Şifre"
-            disabled={loading}
-            className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
-          />
-          {spLoginError && (
-            <p className="rounded border border-red-900 bg-red-950/30 px-3 py-2 text-xs text-red-300">
-              {spLoginError}
-            </p>
-          )}
-          <button
-            type="submit"
-            disabled={loading || !spUsername.trim() || !spPassword}
-            className="w-full border border-white py-2 text-sm font-semibold disabled:opacity-40"
-          >
-            {loading ? "Giriş yapılıyor…" : "Giriş yap"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSalespersonAuthMode("request");
-              setSpLoginError("");
-            }}
-            className="w-full text-center text-xs text-zinc-400 underline underline-offset-2"
-          >
-            Kullanıcı adım/şifrem yok, isimle talep göndereyim
-          </button>
         </form>
       )}
 
