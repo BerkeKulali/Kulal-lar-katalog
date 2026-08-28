@@ -12,7 +12,7 @@ import {
   getBrandSizeCatalog,
   getCatalogFamilies,
 } from "@/lib/catalog";
-import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
+import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
 import { resolveStockVisibility } from "@/lib/stock-visibility";
 import { EMPTY_STOCK_SUMMARY } from "@/lib/stock";
 import { kaliteFilterLabel, kaliteQuery, parseKaliteFilter } from "@/lib/utils";
@@ -47,7 +47,6 @@ export default async function AllSizesProductPage({
   if (!brand) notFound();
 
   const cookieStore = await cookies();
-  const salespersonId = cookieStore.get(SALESPERSON_ID_COOKIE)?.value;
   const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
 
   const [{ sizes }, admin] = await Promise.all([
@@ -58,7 +57,6 @@ export default async function AllSizesProductPage({
   // Stok görünürlüğü tek noktadan: admin / plasiyer / bayi (bkz. [size]/page.tsx).
   const showStock = await resolveStockVisibility({
     isAdmin: Boolean(admin),
-    salespersonId,
     deviceToken,
   });
 

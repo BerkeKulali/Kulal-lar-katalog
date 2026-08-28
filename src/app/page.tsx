@@ -10,7 +10,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { formatSizeLabel } from "@/lib/constants";
 import { HOME_COLORS, HOME_MATERIAL_TYPES } from "@/lib/product-attributes";
 import { getAdminSession } from "@/lib/admin-auth";
-import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
+import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
 import { resolveStockVisibility } from "@/lib/stock-visibility";
 import { EMPTY_STOCK_SUMMARY } from "@/lib/stock";
 import {
@@ -24,7 +24,6 @@ import {
 export default async function HomePage() {
   const audience = await getCatalogAudienceFromCookies();
   const cookieStore = await cookies();
-  const salespersonId = cookieStore.get(SALESPERSON_ID_COOKIE)?.value;
   const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
   const [brands, settings, announcements, rawSearchIndex, campaigns, admin] =
     await Promise.all([
@@ -37,7 +36,6 @@ export default async function HomePage() {
     ]);
   const showStock = await resolveStockVisibility({
     isAdmin: Boolean(admin),
-    salespersonId,
     deviceToken,
   });
   const searchIndex = showStock

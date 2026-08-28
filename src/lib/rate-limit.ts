@@ -114,6 +114,20 @@ export async function checkRateLimitShared(
   }
 }
 
+/**
+ * NOT (guvenlik denetimi, Agu 2026): Bu fonksiyon normalde "istemci
+ * X-Forwarded-For header'ini kendi sahte IP'siyle gonderip rate-limit'i
+ * atlatabilir" riski tasir - ANCAK bu proje Vercel'de calisiyor
+ * (bkz. vercel.json) ve Vercel, kendi edge'ine gelen X-Forwarded-For
+ * header'ini HER ZAMAN kendi tespit ettigi gercek istemci IP'siyle
+ * ustune yazar; istemcinin gonderdigi deger yok sayilir ("we currently
+ * overwrite the X-Forwarded-For header and do not forward external IPs" -
+ * https://vercel.com/docs/headers/request-headers#x-forwarded-for).
+ * Yani bu ortamda deger zaten guvenilir. Bu istisna yalnizca Vercel'in
+ * ucretli "Trusted Proxy" ozelligi acilirsa (Enterprise) ya da Vercel
+ * ONUNE ayrica bir reverse proxy konursa gecersiz olur - boyle bir
+ * degisiklik yapilirsa burasi yeniden gozden gecirilmeli.
+ */
 export function clientIp(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0].trim();

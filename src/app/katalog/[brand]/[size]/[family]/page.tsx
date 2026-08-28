@@ -12,7 +12,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { formatSizeLabel, normalizeSize } from "@/lib/constants";
 import { getAdminSession } from "@/lib/admin-auth";
 import { getAppSettings, getFamilyDetail } from "@/lib/catalog";
-import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
+import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
 import { resolveStockVisibility } from "@/lib/stock-visibility";
 import { kaliteQuery, parseKaliteFilter } from "@/lib/utils";
 
@@ -32,7 +32,6 @@ export default async function ProductDetailPage({
     kaliteFilter === "ALL" ? undefined : kaliteFilter;
   const audience = await getCatalogAudienceFromCookies();
   const cookieStore = await cookies();
-  const salespersonId = cookieStore.get(SALESPERSON_ID_COOKIE)?.value;
   const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
 
   // Birbirine bağlı olmayan işleri paralel yürüt (DB round-trip şelalesini azalt).
@@ -46,7 +45,6 @@ export default async function ProductDetailPage({
   // Stok görünürlüğü admin bayrağına bağlı olduğu için sonra çözülür.
   const showStock = await resolveStockVisibility({
     isAdmin: Boolean(admin),
-    salespersonId,
     deviceToken,
   });
 

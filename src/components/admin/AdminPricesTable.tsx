@@ -159,6 +159,16 @@ export function AdminPricesTable({ rows }: { rows: PriceRow[] }) {
       return;
     }
 
+    const hasAnyFilter = Boolean(
+      bulkBrand || bulkSize || bulkSurface || bulkQuality || bulkFamily.trim()
+    );
+    if (!hasAnyFilter) {
+      const ok = window.confirm(
+        "Hicbir filtre secmediniz. Bu islem TUM markalardaki TUM urunlerin fiyatini degistirecek. Emin misiniz?"
+      );
+      if (!ok) return;
+    }
+
     setBulkSaving(true);
     setError(null);
     setMessage(null);
@@ -177,6 +187,7 @@ export function AdminPricesTable({ rows }: { rows: PriceRow[] }) {
             familyName: bulkFamily.trim() || null,
           },
           price: Math.round(price),
+          confirmAll: !hasAnyFilter,
         }),
       });
 

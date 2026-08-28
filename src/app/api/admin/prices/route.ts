@@ -116,6 +116,8 @@ export async function PATCH(request: Request) {
           quality?: string | null;
           familyName?: string | null;
         };
+        /** Hicbir filtre secilmeden tum katalogu guncellemeyi bilerek onaylar. */
+        confirmAll?: boolean;
       }
     | null;
   const mode = body?.mode ?? "single";
@@ -150,6 +152,23 @@ export async function PATCH(request: Request) {
         );
       }
       brandIdFilter = brand.id;
+    }
+
+    // Hicbir filtre secilmemisse (marka/olcu/yuzey/kalite/aile hepsi bos)
+    // bu istek TUM markalardaki TUM urun varyantlarini eslestirir - yanlislikla
+    // (bos formla) gonderilen bir istek tum katalogu sessizce yeniden
+    // fiyatlandirabilirdi. Bu durumda istemcinin ac olarak confirmAll:true
+    // gondermesini zorunlu kil (bkz. AdminPricesTable.tsx'teki window.confirm).
+    const hasAnyFilter = Boolean(size || surface || quality || familyName || brandIdFilter);
+    if (!hasAnyFilter && body?.confirmAll !== true) {
+      return NextResponse.json(
+        {
+          error:
+            "Hicbir filtre secilmedi: bu islem TUM markalardaki TUM urunlerin fiyatini degistirir. Onaylamak icin confirmAll gonderin.",
+          requiresConfirmation: true,
+        },
+        { status: 400 }
+      );
     }
 
     const targetRows = await prisma.productVariant.findMany({

@@ -6,7 +6,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { getAdminSession } from "@/lib/admin-auth";
 import { getCatalogAudienceFromCookies } from "@/lib/catalog-audience";
 import { getGlobalSearchCatalog } from "@/lib/catalog";
-import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
+import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
 import { normalizeColor, normalizeMaterialType } from "@/lib/product-attributes";
 import { resolveStockVisibility } from "@/lib/stock-visibility";
 import { EMPTY_STOCK_SUMMARY } from "@/lib/stock";
@@ -18,7 +18,6 @@ export default async function SearchPage({
 }) {
   const audience = await getCatalogAudienceFromCookies();
   const cookieStore = await cookies();
-  const salespersonId = cookieStore.get(SALESPERSON_ID_COOKIE)?.value;
   const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
   const [rawSearchIndex, { renk, tip }, admin] = await Promise.all([
     getGlobalSearchCatalog(audience),
@@ -27,7 +26,6 @@ export default async function SearchPage({
   ]);
   const showStock = await resolveStockVisibility({
     isAdmin: Boolean(admin),
-    salespersonId,
     deviceToken,
   });
   const searchIndex = showStock

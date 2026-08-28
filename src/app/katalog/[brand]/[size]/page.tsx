@@ -10,7 +10,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { getSizeLayout, normalizeSize } from "@/lib/constants";
 import { getAdminSession } from "@/lib/admin-auth";
 import { getBrandBySlug, getCatalogFamilies } from "@/lib/catalog";
-import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
+import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
 import { resolveStockVisibility } from "@/lib/stock-visibility";
 import { EMPTY_STOCK_SUMMARY } from "@/lib/stock";
 import { kaliteFilterLabel, kaliteQuery, parseKaliteFilter } from "@/lib/utils";
@@ -34,7 +34,6 @@ export default async function ProductListPage({
   if (!brand) notFound();
 
   const cookieStore = await cookies();
-  const salespersonId = cookieStore.get(SALESPERSON_ID_COOKIE)?.value;
   const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
   const [families, admin] = await Promise.all([
     getCatalogFamilies(brandSlug, size, qualityForQuery, audience),
@@ -45,7 +44,6 @@ export default async function ProductListPage({
   // Stok görünürlüğü tek noktadan: admin / plasiyer / bayi (bkz. detay sayfası).
   const showStock = await resolveStockVisibility({
     isAdmin: Boolean(admin),
-    salespersonId,
     deviceToken,
   });
   const visibleFamilies = families.map((f) => ({

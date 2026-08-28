@@ -10,7 +10,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { getSizeLayout, normalizeSize } from "@/lib/constants";
 import { getAdminSession } from "@/lib/admin-auth";
 import { getCatalogFamiliesGroupedByBrand } from "@/lib/catalog";
-import { DEVICE_TOKEN_COOKIE, SALESPERSON_ID_COOKIE } from "@/lib/device-cookie";
+import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
 import { resolveStockVisibility } from "@/lib/stock-visibility";
 import { EMPTY_STOCK_SUMMARY } from "@/lib/stock";
 import { kaliteFilterLabel, kaliteQuery, parseKaliteFilter } from "@/lib/utils";
@@ -32,7 +32,6 @@ export default async function SizeCatalogPage({
 
   const audience = await getCatalogAudienceFromCookies();
   const cookieStore = await cookies();
-  const salespersonId = cookieStore.get(SALESPERSON_ID_COOKIE)?.value;
   const deviceToken = cookieStore.get(DEVICE_TOKEN_COOKIE)?.value;
   const [groups, admin] = await Promise.all([
     getCatalogFamiliesGroupedByBrand(size, qualityForQuery, audience),
@@ -45,7 +44,6 @@ export default async function SizeCatalogPage({
   // stok görme yetkisi olmayan bir cihaz da gerçek stok sayılarını görürdü.
   const showStock = await resolveStockVisibility({
     isAdmin: Boolean(admin),
-    salespersonId,
     deviceToken,
   });
   const visibleGroups = groups.map((group) => ({

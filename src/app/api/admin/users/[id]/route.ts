@@ -67,6 +67,17 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
   }
 
+  // Süper admin hesapları (şifre/e-posta/rol/yetki dahil) yalnızca başka bir
+  // süper admin tarafından düzenlenebilir. Aksi halde "admins" yetkisi
+  // verilmiş sıradan bir admin, bir süper adminin şifresini sıfırlayıp
+  // hesabı ele geçirebilir ya da rolünü düşürebilirdi.
+  if (existing.role === "SUPER" && auth.admin.role !== "SUPER") {
+    return NextResponse.json(
+      { error: "Yalnızca süper adminler bir süper admin hesabını düzenleyebilir" },
+      { status: 403 }
+    );
+  }
+
   const body = await request.json().catch(() => ({}));
   const data: {
     name?: string;
@@ -242,6 +253,16 @@ export async function DELETE(_request: Request, context: RouteContext) {
   const existing = await prisma.adminUser.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Kullanıcı bulunamadı" }, { status: 404 });
+  }
+
+  // Süper admin hesapları yalnızca başka bir süper admin tarafından
+  // silinebilir - "admins" yetkisi verilmiş bir BRAND_MANAGER, rakip/üst
+  // süper adminleri silerek yetki devralamamalı.
+  if (existing.role === "SUPER" && auth.admin.role !== "SUPER") {
+    return NextResponse.json(
+      { error: "Yalnızca süper adminler bir süper admin hesabını silebilir" },
+      { status: 403 }
+    );
   }
 
   if (existing.role === "SUPER") {
