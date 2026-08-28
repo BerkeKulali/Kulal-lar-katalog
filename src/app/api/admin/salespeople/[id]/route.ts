@@ -19,7 +19,7 @@ export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const existing = await prisma.salesperson.findUnique({
     where: { id },
-    include: { _count: { select: { orders: true, devices: true } } },
+    select: { id: true, name: true, _count: { select: { orders: true, devices: true } } },
   });
 
   if (!existing) {
@@ -64,6 +64,13 @@ export async function PATCH(request: Request, context: RouteContext) {
   const salesperson = await prisma.salesperson.update({
     where: { id },
     data,
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      showStock: true,
+      filterToolEnabled: true,
+    },
   });
 
   if (
@@ -95,7 +102,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
   const { id } = await context.params;
   const existing = await prisma.salesperson.findUnique({
     where: { id },
-    include: { _count: { select: { orders: true, devices: true } } },
+    select: { id: true, name: true, _count: { select: { orders: true, devices: true } } },
   });
 
   if (!existing) {
@@ -109,6 +116,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     const salesperson = await prisma.salesperson.update({
       where: { id },
       data: { isActive: false },
+      select: { id: true, name: true, isActive: true },
     });
     invalidateSalespersonCache();
     return NextResponse.json({

@@ -70,7 +70,7 @@ export async function getAuthorizedDevice(
       salespersonId: true,
       dealerId: true,
       salesperson: {
-        select: { lockedDeviceId: true },
+        select: { lockedDeviceId: true, isActive: true },
       },
       dealer: {
         select: { status: true, isActive: true },
@@ -82,6 +82,10 @@ export async function getAuthorizedDevice(
 
   const lockId = device.salesperson?.lockedDeviceId;
   if (lockId && lockId !== device.id) return null;
+
+  if (device.salespersonId) {
+    if (!device.salesperson || device.salesperson.isActive === false) return null;
+  }
 
   if (device.dealerId) {
     if (!device.dealer || device.dealer.status !== "APPROVED" || !device.dealer.isActive) {
@@ -109,8 +113,15 @@ export async function unlockSalespersonTablet(salespersonId: string) {
 }
 
 /** Plasiyer başına yalnızca kilitli tablet kalsın; eski kurulum kayıtlarını siler. */
+/**
+ * Plasiyer başına yalnızca kilitli tablet kalsın; eski kurulum kayıtlarını
+ * siler. Kullanıcı adı/şifreli (çoklu cihaz modundaki) plasiyerler BİLEREK
+ * hariç tutulur - aksi halde admin paneli her açıldığında az önce eklenen
+ * ikinci/üçüncü cihaz (ör. telefon) burada silinirdi.
+ */
 export async function pruneDuplicateDevices(): Promise<{ removed: number }> {
   const salespeople = await prisma.salesperson.findMany({
+    where: { username: null },
     select: { id: true, lockedDeviceId: true },
   });
 

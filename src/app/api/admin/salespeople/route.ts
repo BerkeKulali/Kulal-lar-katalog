@@ -16,9 +16,21 @@ export async function GET() {
 
   await pruneDuplicateDevices();
 
+  // NOT: include yerine bilinçli olarak select kullanılıyor - schema'ya
+  // yeni bir alan eklendiğinde include TÜM scalar kolonları otomatik seçer
+  // (bkz. src/lib/salesperson-account.ts üstündeki not); burada yalnızca
+  // gerçekten kullanılan alanlar listelenir, blast radius'u sınırlı tutar.
   const salespeople = await prisma.salesperson.findMany({
     orderBy: [{ isActive: "desc" }, { name: "asc" }],
-    include: {
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      showStock: true,
+      filterToolEnabled: true,
+      lockedDeviceId: true,
+      username: true,
+      createdAt: true,
       lockedDevice: {
         select: {
           id: true,
@@ -27,7 +39,7 @@ export async function GET() {
           registeredAt: true,
         },
       },
-      _count: { select: { orders: true, visits: true } },
+      _count: { select: { orders: true, visits: true, devices: true } },
     },
   });
 
@@ -42,6 +54,8 @@ export async function GET() {
       visitCount: sp._count.visits,
       isTabletLocked: Boolean(sp.lockedDeviceId),
       lockedDevice: sp.lockedDevice,
+      username: sp.username,
+      deviceCount: sp._count.devices,
       createdAt: sp.createdAt,
     })),
   });
@@ -62,6 +76,13 @@ export async function POST(request: Request) {
 
   const salesperson = await prisma.salesperson.create({
     data: { name, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      isActive: true,
+      showStock: true,
+      filterToolEnabled: true,
+    },
   });
 
   return NextResponse.json({
@@ -76,6 +97,8 @@ export async function POST(request: Request) {
       visitCount: 0,
       isTabletLocked: false,
       lockedDevice: null,
+      username: null,
+      deviceCount: 0,
     },
   });
 }

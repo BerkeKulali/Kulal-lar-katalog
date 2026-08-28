@@ -19,6 +19,8 @@ type Plasiyer = {
     lastSeenAt: string;
     registeredAt: string;
   } | null;
+  username: string | null;
+  deviceCount: number;
 };
 
 type AccessRequest = {
@@ -45,6 +47,15 @@ export default function AdminPlasiyerlerPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [actionId, setActionId] = useState<string | null>(null);
+
+  const [credentialsFormId, setCredentialsFormId] = useState<string | null>(null);
+  const [credentialsUsername, setCredentialsUsername] = useState("");
+  const [credentialsPassword, setCredentialsPassword] = useState("");
+  const [credentialsResult, setCredentialsResult] = useState<{
+    id: string;
+    username: string;
+    password: string;
+  } | null>(null);
 
   const loadData = useCallback(async () => {
     const [salespeopleRes, requestsRes] = await Promise.all([
@@ -287,6 +298,75 @@ export default function AdminPlasiyerlerPage() {
     await loadData();
   }
 
+  function openCredentialsForm(sp: Plasiyer) {
+    setCredentialsFormId(sp.id);
+    setCredentialsUsername(sp.username ?? "");
+    setCredentialsPassword("");
+    setCredentialsResult(null);
+    setError(null);
+    setMessage(null);
+  }
+
+  function cancelCredentialsForm() {
+    setCredentialsFormId(null);
+    setCredentialsUsername("");
+    setCredentialsPassword("");
+  }
+
+  async function submitCredentials(e: FormEvent, sp: Plasiyer) {
+    e.preventDefault();
+    setActionId(sp.id);
+    setError(null);
+    setMessage(null);
+
+    const res = await fetch(`/api/admin/salespeople/${sp.id}/credentials`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: credentialsUsername, password: credentialsPassword }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    setActionId(null);
+
+    if (!res.ok) {
+      setError(data.error ?? "Kullanıcı adı/şifre atanamadı");
+      return;
+    }
+
+    setCredentialsResult({ id: sp.id, username: data.username, password: credentialsPassword });
+    setCredentialsFormId(null);
+    setCredentialsUsername("");
+    setCredentialsPassword("");
+    await loadData();
+  }
+
+  async function disableMultiDevice(sp: Plasiyer) {
+    const ok = window.confirm(
+      `"${sp.name}" için çoklu cihaz girişini kapatmak istediğinize emin misiniz? Kullanıcı adı/şifre silinir; mevcut cihazlar dokunulmadan kalır.`
+    );
+    if (!ok) return;
+
+    setActionId(sp.id);
+    setError(null);
+    setMessage(null);
+
+    const res = await fetch(`/api/admin/salespeople/${sp.id}/credentials`, {
+      method: "DELETE",
+    });
+
+    const data = await res.json().catch(() => ({}));
+    setActionId(null);
+
+    if (!res.ok) {
+      setError(data.error ?? "Kaldırılamadı");
+      return;
+    }
+
+    if (credentialsResult?.id === sp.id) setCredentialsResult(null);
+    setMessage(`"${sp.name}" için çoklu cihaz girişi kapatıldı`);
+    await loadData();
+  }
+
   function formatDate(value: string) {
     return new Intl.DateTimeFormat("tr-TR", {
       dateStyle: "short",
@@ -399,133 +479,224 @@ export default function AdminPlasiyerlerPage() {
         {salespeople.map((sp) => (
           <div
             key={sp.id}
-            className={`flex flex-col gap-3 border p-4 sm:flex-row sm:items-center sm:justify-between ${
+            className={`flex flex-col gap-3 border p-4 ${
               sp.isActive ? "border-zinc-800" : "border-zinc-900 opacity-60"
             }`}
           >
-            <div className="min-w-0 flex-1">
-              {editingId === sp.id ? (
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm"
-                  autoFocus
-                />
-              ) : (
-                <p className="font-medium">{sp.name}</p>
-              )}
-              <p className="mt-1 text-[11px] text-zinc-600">
-                {sp.orderCount} sipariş · {sp.visitCount} giriş
-                {sp.isTabletLocked ? " · tablet bağlı" : " · tablet yok"}
-                {sp.showStock ? " · stok açık" : " · stok kapalı"}
-                {sp.filterToolEnabled ? " · filtre açık" : " · filtre kapalı"}
-                {!sp.isActive && " · pasif"}
-              </p>
-              {sp.isTabletLocked && sp.lockedDevice && (
-                <p className="mt-1 text-[11px] text-zinc-500">
-                  Son görülme {formatDate(sp.lockedDevice.lastSeenAt)}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0 flex-1">
+                {editingId === sp.id ? (
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm"
+                    autoFocus
+                  />
+                ) : (
+                  <p className="font-medium">{sp.name}</p>
+                )}
+                <p className="mt-1 text-[11px] text-zinc-600">
+                  {sp.orderCount} sipariş · {sp.visitCount} giriş
+                  {sp.username
+                    ? ` · kullanıcı adı: ${sp.username} · ${sp.deviceCount} cihaz bağlı`
+                    : sp.isTabletLocked
+                      ? " · tablet bağlı"
+                      : " · tablet yok"}
+                  {sp.showStock ? " · stok açık" : " · stok kapalı"}
+                  {sp.filterToolEnabled ? " · filtre açık" : " · filtre kapalı"}
+                  {!sp.isActive && " · pasif"}
                 </p>
-              )}
+                {sp.isTabletLocked && sp.lockedDevice && (
+                  <p className="mt-1 text-[11px] text-zinc-500">
+                    Son görülme {formatDate(sp.lockedDevice.lastSeenAt)}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {editingId !== sp.id && (
+                  <label className="flex items-center gap-2 border border-zinc-800 px-3 py-1.5 text-xs">
+                    <span className="text-zinc-500">Stok</span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={sp.showStock}
+                      disabled={actionId === sp.id || !sp.isActive}
+                      onClick={() => toggleShowStock(sp)}
+                      className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
+                        sp.showStock ? "bg-emerald-600" : "bg-zinc-700"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                          sp.showStock ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </label>
+                )}
+                {editingId !== sp.id && (
+                  <label className="flex items-center gap-2 border border-zinc-800 px-3 py-1.5 text-xs">
+                    <span className="text-zinc-500">Ürün Filtre Aracı</span>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={sp.filterToolEnabled}
+                      disabled={actionId === sp.id || !sp.isActive}
+                      onClick={() => toggleFilterTool(sp)}
+                      className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
+                        sp.filterToolEnabled ? "bg-emerald-600" : "bg-zinc-700"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
+                          sp.filterToolEnabled ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </label>
+                )}
+                {editingId === sp.id ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => saveEdit(sp.id)}
+                      disabled={actionId === sp.id || editName.trim().length < 2}
+                      className="border border-zinc-600 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
+                    >
+                      Kaydet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      className="px-3 py-1.5 text-xs text-zinc-500 hover:text-white"
+                    >
+                      İptal
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {sp.isTabletLocked && !sp.username && (
+                      <button
+                        type="button"
+                        onClick={() => unlockTablet(sp)}
+                        disabled={actionId === sp.id}
+                        className="border border-amber-800 px-3 py-1.5 text-xs text-amber-300 hover:border-amber-500 disabled:opacity-40"
+                      >
+                        Tablet kilidini kaldır
+                      </button>
+                    )}
+                    {sp.username ? (
+                      <button
+                        type="button"
+                        onClick={() => disableMultiDevice(sp)}
+                        disabled={actionId === sp.id}
+                        className="border border-amber-800 px-3 py-1.5 text-xs text-amber-300 hover:border-amber-500 disabled:opacity-40"
+                      >
+                        Çoklu cihazı kapat
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openCredentialsForm(sp)}
+                        disabled={actionId === sp.id || credentialsFormId === sp.id}
+                        className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-40"
+                      >
+                        Çoklu cihaz için kullanıcı adı/şifre oluştur
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => startEdit(sp)}
+                      className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white"
+                    >
+                      Düzenle
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleActive(sp)}
+                      disabled={actionId === sp.id}
+                      className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
+                    >
+                      {sp.isActive ? "Pasif yap" : "Aktif yap"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => remove(sp)}
+                      disabled={actionId === sp.id}
+                      className="border border-red-900 px-3 py-1.5 text-xs text-red-400 hover:border-red-500 disabled:opacity-50"
+                    >
+                      Sil
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {editingId !== sp.id && (
-                <label className="flex items-center gap-2 border border-zinc-800 px-3 py-1.5 text-xs">
-                  <span className="text-zinc-500">Stok</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={sp.showStock}
-                    disabled={actionId === sp.id || !sp.isActive}
-                    onClick={() => toggleShowStock(sp)}
-                    className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
-                      sp.showStock ? "bg-emerald-600" : "bg-zinc-700"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
-                        sp.showStock ? "translate-x-4" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
+            {credentialsFormId === sp.id && (
+              <form
+                onSubmit={(e) => submitCredentials(e, sp)}
+                className="flex flex-col gap-2 border border-zinc-700 bg-zinc-950 p-3 sm:flex-row sm:items-end"
+              >
+                <label className="block flex-1 text-xs text-zinc-500">
+                  Kullanıcı adı
+                  <input
+                    type="text"
+                    value={credentialsUsername}
+                    onChange={(e) => setCredentialsUsername(e.target.value)}
+                    autoCapitalize="none"
+                    placeholder="ör. nihal.karci"
+                    className="mt-1 w-full border border-zinc-700 bg-black px-3 py-2 text-sm text-white"
+                  />
                 </label>
-              )}
-              {editingId !== sp.id && (
-                <label className="flex items-center gap-2 border border-zinc-800 px-3 py-1.5 text-xs">
-                  <span className="text-zinc-500">Ürün Filtre Aracı</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={sp.filterToolEnabled}
-                    disabled={actionId === sp.id || !sp.isActive}
-                    onClick={() => toggleFilterTool(sp)}
-                    className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
-                      sp.filterToolEnabled ? "bg-emerald-600" : "bg-zinc-700"
-                    }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${
-                        sp.filterToolEnabled ? "translate-x-4" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
+                <label className="block flex-1 text-xs text-zinc-500">
+                  Şifre
+                  <input
+                    type="text"
+                    value={credentialsPassword}
+                    onChange={(e) => setCredentialsPassword(e.target.value)}
+                    placeholder="en az 6 karakter"
+                    className="mt-1 w-full border border-zinc-700 bg-black px-3 py-2 text-sm text-white"
+                  />
                 </label>
-              )}
-              {editingId === sp.id ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => saveEdit(sp.id)}
-                    disabled={actionId === sp.id || editName.trim().length < 2}
-                    className="border border-zinc-600 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
-                  >
-                    Kaydet
-                  </button>
-                  <button
-                    type="button"
-                    onClick={cancelEdit}
-                    className="px-3 py-1.5 text-xs text-zinc-500 hover:text-white"
-                  >
-                    İptal
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => unlockTablet(sp)}
-                    disabled={actionId === sp.id || !sp.isTabletLocked}
-                    className="border border-amber-800 px-3 py-1.5 text-xs text-amber-300 hover:border-amber-500 disabled:opacity-40"
-                  >
-                    Tablet kilidini kaldır
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => startEdit(sp)}
-                    className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white"
-                  >
-                    Düzenle
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleActive(sp)}
-                    disabled={actionId === sp.id}
-                    className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
-                  >
-                    {sp.isActive ? "Pasif yap" : "Aktif yap"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => remove(sp)}
-                    disabled={actionId === sp.id}
-                    className="border border-red-900 px-3 py-1.5 text-xs text-red-400 hover:border-red-500 disabled:opacity-50"
-                  >
-                    Sil
-                  </button>
-                </>
-              )}
-            </div>
+                <button
+                  type="submit"
+                  disabled={
+                    actionId === sp.id ||
+                    credentialsUsername.trim().length < 3 ||
+                    credentialsPassword.length < 6
+                  }
+                  className="border border-zinc-600 px-3 py-2 text-xs font-semibold hover:border-white disabled:opacity-50"
+                >
+                  Kaydet
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelCredentialsForm}
+                  className="px-3 py-2 text-xs text-zinc-500 hover:text-white"
+                >
+                  İptal
+                </button>
+              </form>
+            )}
+
+            {credentialsResult?.id === sp.id && (
+              <div className="flex flex-col gap-2 border border-emerald-800 bg-emerald-950/30 p-3 text-xs text-emerald-200 sm:flex-row sm:items-center sm:justify-between">
+                <p>
+                  Kullanıcı adı: <span className="font-mono">{credentialsResult.username}</span>{" "}
+                  · Şifre: <span className="font-mono">{credentialsResult.password}</span>{" "}
+                  — bu bilgiyi plasiyere iletin, bir daha gösterilmeyecek.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setCredentialsResult(null)}
+                  className="shrink-0 border border-emerald-700 px-2 py-1 text-emerald-200 hover:border-emerald-400"
+                >
+                  Kapat
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>

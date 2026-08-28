@@ -12,6 +12,7 @@ type SalespersonOption = {
 type RequestStatus = "NONE" | "PENDING" | "APPROVED" | "REJECTED";
 type EntryMode = "dealer" | "salesperson" | "admin";
 type DealerAuthMode = "login" | "signup";
+type SalespersonAuthMode = "request" | "login";
 
 export function SetupEntryPanel({
   salespeople,
@@ -38,6 +39,11 @@ export function SetupEntryPanel({
   const [dealerSignupPassword, setDealerSignupPassword] = useState("");
   const [dealerMessage, setDealerMessage] = useState("");
   const [dealerError, setDealerError] = useState("");
+
+  const [salespersonAuthMode, setSalespersonAuthMode] =
+    useState<SalespersonAuthMode>("request");
+  const [salespersonUsername, setSalespersonUsername] = useState("");
+  const [salespersonPassword, setSalespersonPassword] = useState("");
 
   const selectedSalespersonName = useMemo(
     () => salespeople.find((sp) => sp.id === salespersonId)?.name ?? "",
@@ -173,6 +179,30 @@ export function SetupEntryPanel({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error ?? "Giriş tamamlanamadı");
+        return;
+      }
+      router.push("/");
+      router.refresh();
+    } catch {
+      setError("Sunucuya bağlanılamadı");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSalespersonLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/salesperson/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: salespersonUsername, password: salespersonPassword }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Giriş yapılamadı");
         return;
       }
       router.push("/");
@@ -355,6 +385,39 @@ export function SetupEntryPanel({
       )}
 
       {mode === "salesperson" && (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSalespersonAuthMode("request");
+              setError("");
+            }}
+            className={`border px-3 py-2 text-xs font-semibold ${
+              salespersonAuthMode === "request"
+                ? "border-white"
+                : "border-zinc-700 text-zinc-400"
+            }`}
+          >
+            İsimle giriş talebi
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSalespersonAuthMode("login");
+              setError("");
+            }}
+            className={`border px-3 py-2 text-xs font-semibold ${
+              salespersonAuthMode === "login"
+                ? "border-white"
+                : "border-zinc-700 text-zinc-400"
+            }`}
+          >
+            Kullanıcı adı ile giriş
+          </button>
+        </div>
+      )}
+
+      {mode === "salesperson" && salespersonAuthMode === "request" && (
         <form
           onSubmit={handleSalespersonRequest}
           className="space-y-3 border border-zinc-800 p-4"
@@ -402,6 +465,42 @@ export function SetupEntryPanel({
         </form>
       )}
 
+      {mode === "salesperson" && salespersonAuthMode === "login" && (
+        <form
+          onSubmit={handleSalespersonLogin}
+          className="space-y-3 border border-zinc-800 p-4"
+        >
+          <p className="text-xs text-zinc-400">
+            Admin tarafından size verilen kullanıcı adı ve şifreyle herhangi bir
+            cihazdan (tablet, telefon, ...) giriş yapabilirsiniz.
+          </p>
+          <input
+            type="text"
+            value={salespersonUsername}
+            onChange={(e) => setSalespersonUsername(e.target.value)}
+            placeholder="Kullanıcı adı"
+            autoCapitalize="none"
+            disabled={loading}
+            className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
+          />
+          <input
+            type="password"
+            value={salespersonPassword}
+            onChange={(e) => setSalespersonPassword(e.target.value)}
+            placeholder="Şifre"
+            disabled={loading}
+            className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
+          />
+          <button
+            type="submit"
+            disabled={loading || !salespersonUsername.trim() || !salespersonPassword}
+            className="w-full border border-white py-2 text-sm font-semibold disabled:opacity-40"
+          >
+            {loading ? "Giriş yapılıyor…" : "Giriş yap"}
+          </button>
+        </form>
+      )}
+
       {mode === "admin" && (
         <div className="space-y-3 border border-zinc-800 p-4">
           <p className="text-xs text-zinc-400">
@@ -416,7 +515,7 @@ export function SetupEntryPanel({
         </div>
       )}
 
-      {mode === "salesperson" && statusMessage && (
+      {mode === "salesperson" && salespersonAuthMode === "request" && statusMessage && (
         <p className="rounded border border-amber-900 bg-amber-950/30 px-3 py-2 text-xs text-amber-200">
           {statusMessage}
         </p>
