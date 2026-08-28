@@ -22,7 +22,7 @@ import {
 } from "@/lib/product-features";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/utils";
-import type { Quality, Surface } from "@/generated/prisma/client";
+import type { Surface } from "@/generated/prisma/client";
 import { Prisma } from "@/generated/prisma/client";
 
 type RouteContext = { params: Promise<{ id: string }> };

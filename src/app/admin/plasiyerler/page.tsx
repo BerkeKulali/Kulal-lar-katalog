@@ -58,20 +58,24 @@ export default function AdminPlasiyerlerPage() {
   } | null>(null);
 
   const loadData = useCallback(async () => {
-    const [salespeopleRes, requestsRes] = await Promise.all([
-      fetch("/api/admin/salespeople"),
-      fetch("/api/admin/access-requests"),
-    ]);
-    if (!salespeopleRes.ok || !requestsRes.ok) {
-      setError("Liste yüklenemedi");
-      return;
+    try {
+      const [salespeopleRes, requestsRes] = await Promise.all([
+        fetch("/api/admin/salespeople"),
+        fetch("/api/admin/access-requests"),
+      ]);
+      if (!salespeopleRes.ok || !requestsRes.ok) {
+        setError("Liste yüklenemedi");
+        return;
+      }
+      const [salespeopleData, requestsData] = await Promise.all([
+        salespeopleRes.json(),
+        requestsRes.json(),
+      ]);
+      setSalespeople(salespeopleData.salespeople ?? []);
+      setRequests(requestsData.requests ?? []);
+    } catch {
+      setError("Liste yüklenemedi (bağlantı hatası)");
     }
-    const [salespeopleData, requestsData] = await Promise.all([
-      salespeopleRes.json(),
-      requestsRes.json(),
-    ]);
-    setSalespeople(salespeopleData.salespeople ?? []);
-    setRequests(requestsData.requests ?? []);
   }, []);
 
   useEffect(() => {
@@ -192,6 +196,13 @@ export default function AdminPlasiyerlerPage() {
   }
 
   async function toggleActive(sp: Plasiyer) {
+    if (sp.isActive) {
+      const ok = window.confirm(
+        `"${sp.name}" pasif yapılsın mı? O anda tablette/telefonda oturum açıksa erişimi hemen kesilir.`
+      );
+      if (!ok) return;
+    }
+
     setActionId(sp.id);
     setError(null);
     setMessage(null);

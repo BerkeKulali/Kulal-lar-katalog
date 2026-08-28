@@ -49,15 +49,20 @@ export default function AdminClickStatsPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const res = await fetch(`/api/admin/stats/family-clicks?${query.toString()}`);
-    const data = await res.json().catch(() => ({}));
-    setLoading(false);
-    if (!res.ok) {
-      setError(data.error ?? "İstatistik yüklenemedi");
-      return;
+    try {
+      const res = await fetch(`/api/admin/stats/family-clicks?${query.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "İstatistik yüklenemedi");
+        return;
+      }
+      setItems(data.items ?? []);
+      setTotal(data.total ?? 0);
+    } catch {
+      setError("İstatistik yüklenemedi (bağlantı hatası)");
+    } finally {
+      setLoading(false);
     }
-    setItems(data.items ?? []);
-    setTotal(data.total ?? 0);
   }, [query]);
 
   useEffect(() => {

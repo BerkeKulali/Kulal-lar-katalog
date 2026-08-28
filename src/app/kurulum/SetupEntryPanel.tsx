@@ -239,6 +239,7 @@ export function SetupEntryPanel({
         <button
           type="button"
           onClick={() => setMode("dealer")}
+          aria-pressed={mode === "dealer"}
           className={`border px-3 py-2 text-xs font-semibold ${
             mode === "dealer" ? "border-white" : "border-zinc-700 text-zinc-400"
           }`}
@@ -248,6 +249,7 @@ export function SetupEntryPanel({
         <button
           type="button"
           onClick={() => setMode("salesperson")}
+          aria-pressed={mode === "salesperson"}
           className={`border px-3 py-2 text-xs font-semibold ${
             mode === "salesperson"
               ? "border-white"
@@ -259,6 +261,7 @@ export function SetupEntryPanel({
         <button
           type="button"
           onClick={() => setMode("admin")}
+          aria-pressed={mode === "admin"}
           className={`border px-3 py-2 text-xs font-semibold ${
             mode === "admin" ? "border-white" : "border-zinc-700 text-zinc-400"
           }`}
@@ -281,6 +284,7 @@ export function SetupEntryPanel({
             onChange={(e) => setDealerUsername(e.target.value)}
             placeholder="Kullanıcı adı"
             autoCapitalize="none"
+            autoComplete="username"
             disabled={loading}
             className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
           />
@@ -289,6 +293,7 @@ export function SetupEntryPanel({
             value={dealerPassword}
             onChange={(e) => setDealerPassword(e.target.value)}
             placeholder="Şifre"
+            autoComplete="current-password"
             disabled={loading}
             className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
           />
@@ -336,6 +341,7 @@ export function SetupEntryPanel({
             onChange={(e) => setDealerSignupUsername(e.target.value)}
             placeholder="Kullanıcı adı"
             autoCapitalize="none"
+            autoComplete="username"
             disabled={loading}
             className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
           />
@@ -344,6 +350,7 @@ export function SetupEntryPanel({
             value={dealerSignupPassword}
             onChange={(e) => setDealerSignupPassword(e.target.value)}
             placeholder="Şifre (en az 6 karakter)"
+            autoComplete="new-password"
             disabled={loading}
             className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
           />
@@ -392,6 +399,7 @@ export function SetupEntryPanel({
               setSalespersonAuthMode("request");
               setError("");
             }}
+            aria-pressed={salespersonAuthMode === "request"}
             className={`border px-3 py-2 text-xs font-semibold ${
               salespersonAuthMode === "request"
                 ? "border-white"
@@ -406,6 +414,7 @@ export function SetupEntryPanel({
               setSalespersonAuthMode("login");
               setError("");
             }}
+            aria-pressed={salespersonAuthMode === "login"}
             className={`border px-3 py-2 text-xs font-semibold ${
               salespersonAuthMode === "login"
                 ? "border-white"
@@ -480,6 +489,7 @@ export function SetupEntryPanel({
             onChange={(e) => setSalespersonUsername(e.target.value)}
             placeholder="Kullanıcı adı"
             autoCapitalize="none"
+            autoComplete="username"
             disabled={loading}
             className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
           />
@@ -488,6 +498,7 @@ export function SetupEntryPanel({
             value={salespersonPassword}
             onChange={(e) => setSalespersonPassword(e.target.value)}
             placeholder="Şifre"
+            autoComplete="current-password"
             disabled={loading}
             className="w-full border border-zinc-700 bg-black px-3 py-2 text-sm disabled:opacity-40"
           />

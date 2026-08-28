@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { LiveSearchResults } from "@/components/LiveSearchResults";
 import { StickySearchBar } from "@/components/SearchBar";
 import { SyncedProductList } from "@/components/SyncedProductList";
 import { familyMatchesQuery } from "@/lib/search";

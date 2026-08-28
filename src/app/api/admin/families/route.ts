@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
 import { invalidateCatalogCache } from "@/lib/cache-tags";
-import { normalizeSize } from "@/lib/constants";
 import {
-  countMatrixVariants,
   matrixFromUniform,
   matrixSizes,
   normalizeMatrix,
@@ -13,7 +11,6 @@ import {
 } from "@/lib/family-matrix";
 import { variantCode } from "@/lib/prices";
 import {
-  DEFAULT_PRODUCT_FEATURES,
   normalizeProductFeatures,
   type ProductFeatureFlags,
 } from "@/lib/product-features";

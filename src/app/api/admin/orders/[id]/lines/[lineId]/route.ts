@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminPermission } from "@/lib/admin-auth";
 import {
-  deductVariantStock,
   logOrderAction,
   orderBrandFilter,
 } from "@/lib/order-admin";

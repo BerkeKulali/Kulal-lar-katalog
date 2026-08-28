@@ -116,10 +116,16 @@ export default function AdminFamiliesPage() {
   const didInitBrand = useRef(false);
 
   const loadData = useCallback(async () => {
-    const [brandsRes, listRes] = await Promise.all([
-      fetch("/api/admin/brands"),
-      fetch("/api/admin/families"),
-    ]);
+    let brandsRes: Response, listRes: Response;
+    try {
+      [brandsRes, listRes] = await Promise.all([
+        fetch("/api/admin/brands"),
+        fetch("/api/admin/families"),
+      ]);
+    } catch {
+      setError("Bağlantı hatası: liste yüklenemedi");
+      return;
+    }
 
     if (brandsRes.ok) {
       const data = await brandsRes.json();

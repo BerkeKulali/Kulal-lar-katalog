@@ -408,7 +408,8 @@ export function OrderAdminDetail({ orderId }: { orderId: string }) {
                       <button
                         type="button"
                         disabled={actionLoading}
-                        onClick={() =>
+                        onClick={() => {
+                          if (!window.confirm("Bu satır için stok düşülsün mü?")) return;
                           runAction(
                             () =>
                               fetch(
@@ -416,8 +417,8 @@ export function OrderAdminDetail({ orderId }: { orderId: string }) {
                                 { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }
                               ),
                             "Stok düşüldü"
-                          )
-                        }
+                          );
+                        }}
                         className="text-zinc-400 hover:text-white"
                       >
                         Stok düş

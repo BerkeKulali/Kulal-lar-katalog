@@ -39,15 +39,21 @@ export default function AdminDealersPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/admin/dealers");
-    const data = await res.json().catch(() => ({}));
-    setLoading(false);
-    if (!res.ok) {
-      setError(data.error ?? "Bayi listesi yüklenemedi");
-      return;
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/dealers");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Bayi listesi yüklenemedi");
+        return;
+      }
+      setDealers(data.dealers ?? []);
+      setLegacyDevices(data.legacyDevices ?? []);
+    } catch {
+      setError("Bayi listesi yüklenemedi (bağlantı hatası)");
+    } finally {
+      setLoading(false);
     }
-    setDealers(data.dealers ?? []);
-    setLegacyDevices(data.legacyDevices ?? []);
   }, []);
 
   useEffect(() => {
@@ -268,13 +274,21 @@ export default function AdminDealersPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
+                  onClick={() => {
+                    if (
+                      item.isActive &&
+                      !window.confirm(
+                        `"${item.name}" hesabı devre dışı bırakılsın mı? Bu bayinin tüm cihazlardaki erişimi hemen kesilir.`
+                      )
+                    ) {
+                      return;
+                    }
                     patchItem(
                       item.id,
                       { isActive: !item.isActive },
                       `"${item.name}" hesabı ${!item.isActive ? "aktifleştirildi" : "devre dışı bırakıldı"}`
-                    )
-                  }
+                    );
+                  }}
                   disabled={actionId === item.id}
                   className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-50"
                 >

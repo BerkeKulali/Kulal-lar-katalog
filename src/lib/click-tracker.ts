@@ -59,34 +59,41 @@ export function flushClicks() {
 
   const payload = JSON.stringify({ items });
 
-  let sent = false;
   if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
     try {
-      sent = navigator.sendBeacon(
-        ENDPOINT,
-        new Blob([payload], { type: "application/json" })
-      );
+      if (
+        navigator.sendBeacon(ENDPOINT, new Blob([payload], { type: "application/json" }))
+      ) {
+        clearBuffer();
+        return;
+      }
     } catch {
-      sent = false;
+      // sendBeacon başarısız - aşağıdaki fetch'e düş
     }
   }
 
-  if (!sent) {
-    // sendBeacon yoksa/başarısızsa keepalive fetch ile dene
-    try {
-      void fetch(ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: payload,
-        keepalive: true,
+  // sendBeacon yoksa/başarısızsa keepalive fetch ile dene. Buffer YALNIZCA
+  // istek gerçekten başarılı olduğunda temizlenir - önceden fetch sonucu
+  // beklenmeden "gönderildi" varsayılıp buffer hemen temizleniyordu; bir ağ
+  // hatasında tıklama verisi sessizce kayboluyordu. Şimdi başarısız istekte
+  // buffer localStorage'da kalır, bir sonraki flush'ta (görünürlük değişimi/
+  // debounce timer) otomatik olarak tekrar denenir.
+  try {
+    fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      keepalive: true,
+    })
+      .then((res) => {
+        if (res.ok) clearBuffer();
+      })
+      .catch(() => {
+        // ağ hatası: buffer'da kalsın, bir sonraki flush'ta tekrar denenir
       });
-      sent = true;
-    } catch {
-      sent = false;
-    }
+  } catch {
+    // senkron hata (ör. keepalive gövde boyutu limiti): buffer'da kalsın
   }
-
-  if (sent) clearBuffer();
 }
 
 function scheduleFlush() {

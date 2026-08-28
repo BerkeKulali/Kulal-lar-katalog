@@ -106,11 +106,17 @@ export default function AdminUsersPage() {
   const [editPermissions, setEditPermissions] = useState<AdminPermission[]>([]);
 
   const loadData = useCallback(async () => {
-    const [meRes, usersRes, brandsRes] = await Promise.all([
-      fetch("/api/admin/me"),
-      fetch("/api/admin/users"),
-      fetch("/api/admin/brands"),
-    ]);
+    let meRes: Response, usersRes: Response, brandsRes: Response;
+    try {
+      [meRes, usersRes, brandsRes] = await Promise.all([
+        fetch("/api/admin/me"),
+        fetch("/api/admin/users"),
+        fetch("/api/admin/brands"),
+      ]);
+    } catch {
+      setError("Bağlantı hatası: sayfa yüklenemedi");
+      return;
+    }
 
     if (meRes.ok) {
       const me = await meRes.json();

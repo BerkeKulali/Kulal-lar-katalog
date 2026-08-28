@@ -102,10 +102,17 @@ export function ProductFilterView({
   }, [brandIds, materialType, quality, basis, minM2, maxM2, sizes, surfaces]);
 
   const loadPresets = useCallback(async () => {
-    const res = await fetch(`${apiBasePath}/presets`, { cache: "no-store" });
-    if (!res.ok) return;
-    const data = await res.json();
-    setPresets(data.presets ?? []);
+    try {
+      const res = await fetch(`${apiBasePath}/presets`, { cache: "no-store" });
+      if (!res.ok) {
+        setError("Kayıtlı segmentler yüklenemedi");
+        return;
+      }
+      const data = await res.json();
+      setPresets(data.presets ?? []);
+    } catch {
+      setError("Kayıtlı segmentler yüklenemedi (bağlantı hatası)");
+    }
   }, [apiBasePath]);
 
   useEffect(() => {
