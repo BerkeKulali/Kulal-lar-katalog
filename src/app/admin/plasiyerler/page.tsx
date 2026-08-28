@@ -483,7 +483,7 @@ export default function AdminPlasiyerlerPage() {
               sp.isActive ? "border-zinc-800" : "border-zinc-900 opacity-60"
             }`}
           >
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex flex-col gap-3">
               <div className="min-w-0 flex-1">
                 {editingId === sp.id ? (
                   <input
@@ -514,7 +514,7 @@ export default function AdminPlasiyerlerPage() {
                 )}
               </div>
 
-              <div className="flex flex-shrink-0 flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {editingId !== sp.id && (
                   <label className="flex items-center gap-2 border border-zinc-800 px-3 py-1.5 text-xs">
                     <span className="text-zinc-500">Stok</span>
