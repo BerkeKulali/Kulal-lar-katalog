@@ -97,6 +97,12 @@ function isDealerDevice(): boolean {
 }
 
 export async function downloadPendingImages() {
+  // Ek güvenlik: bu fonksiyon telefonlarda hiç çağrılmamalı (bkz.
+  // runCatalogSync'teki isLikelyPhone() kontrolü ve ImageUpdateBanner'ın
+  // telefonda "İndir" butonunu hiç göstermemesi) - ama ileride başka bir
+  // çağıran eklenirse (veya bu kontrol atlanırsa) burada da kesin olarak
+  // engelleniyor ("wifi olmasa da mobilde indirme asla olmasın").
+  if (isLikelyPhone()) return;
   if (downloadInFlight) return downloadInFlight;
 
   downloadInFlight = (async () => {

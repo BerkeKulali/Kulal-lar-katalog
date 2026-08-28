@@ -1,15 +1,39 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { isLikelyPhone } from "@/lib/offline-images";
 import { downloadPendingImages } from "@/lib/sync-client";
 import { useCatalogSyncStore } from "@/store/catalog-sync";
 
+/**
+ * Toplu görsel indirme durumunu/"İndir" seçeneğini gösteren banner.
+ * Telefonlarda (isLikelyPhone) hiç gösterilmiyor - ne otomatik indirme
+ * ilerlemesi ne de elle "İndir" butonu: kullanıcı isteği üzerine
+ * ("wifi olmasa da mobilde indirme asla olmasın") telefonda toplu görsel
+ * indirmeyle ilgili hiçbir seçenek sunulmuyor (bkz. downloadPendingImages
+ * içindeki eşdeğer koruma, src/lib/sync-client.ts). Tablet/masaüstü tarzı
+ * geniş ekranlarda (dükkandaki sabit kurulumlar) davranış değişmedi.
+ *
+ * `isPhone` sunucu tarafında bilinemediği (SSR'da window yok) için
+ * varsayılan olarak true başlıyor - yani ilk boyada (telefon olsun ya da
+ * olmasın) banner hiç gösterilmiyor, mount sonrası gerçek değer
+ * öğrenildiğinde (masaüstü/tabletse) görünür hale geliyor. Bu, telefonda
+ * bir anlığına bile "İndir" butonunun yanıp sönmesini engelliyor.
+ */
 export function ImageUpdateBanner() {
+  const [isPhone, setIsPhone] = useState(true);
+
+  useEffect(() => {
+    setIsPhone(isLikelyPhone());
+  }, []);
+
   const pendingImageCount = useCatalogSyncStore((s) => s.pendingImageCount);
   const isDownloadingImages = useCatalogSyncStore((s) => s.isDownloadingImages);
   const imageDownloadProgress = useCatalogSyncStore(
     (s) => s.imageDownloadProgress
   );
 
+  if (isPhone) return null;
   if (pendingImageCount === 0 && !isDownloadingImages) return null;
 
   async function handleDownload() {
