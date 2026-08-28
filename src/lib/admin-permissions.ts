@@ -64,6 +64,11 @@ export const ADMIN_NAV: {
     permission: "salespeople",
   },
   {
+    href: "/admin/girisler",
+    label: "Girişler (bugün kim kullandı)",
+    permission: "salespeople",
+  },
+  {
     href: "/admin/aileler",
     label: "Ürün aileleri (ekle / düzenle / sil)",
     permission: "families",
