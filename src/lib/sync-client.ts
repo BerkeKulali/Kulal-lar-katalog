@@ -1,6 +1,7 @@
 import {
   cacheImages,
   collectPendingImages,
+  isLikelyPhone,
   isWifiConnection,
 } from "@/lib/offline-images";
 import { SYNC_INTERVAL_MS, FULL_SYNC_MAX_AGE_MS } from "@/lib/sync-types";
@@ -73,8 +74,15 @@ export async function runCatalogSync() {
     const pending = useCatalogSyncStore.getState().pendingImageCount;
     // Bayiler (dealer) zaten dükkanda, sabit bir bilgisayardan/internetten
     // kullanıyor - offline erişim ihtiyaçları yok. Otomatik toplu görsel
-    // indirmeyi yalnızca saha plasiyerleri için yapıyoruz.
-    if (pending > 0 && isWifiConnection() && !isDealerDevice()) {
+    // indirmeyi yalnızca saha plasiyerleri için yapıyoruz. Telefonlarda
+    // (isLikelyPhone) WiFi'da olunsa BİLE otomatik indirme hiç
+    // tetiklenmiyor - WiFi tespiti (Network Information API) tarayıcıya/
+    // işletim sistemine göre güvenilmez olabiliyor, bu yüzden mobil veri
+    // faturası riskini hiç almıyoruz; telefonda kullanıcı isterse
+    // ImageUpdateBanner'daki "İndir" butonuyla elle indirebilir. Yalnızca
+    // tablet/masaüstü tarzı geniş ekranlarda ve WiFi kesin ise otomatik
+    // indirme tetiklenir.
+    if (pending > 0 && !isDealerDevice() && !isLikelyPhone() && isWifiConnection()) {
       void downloadPendingImages();
     }
   } catch (e) {

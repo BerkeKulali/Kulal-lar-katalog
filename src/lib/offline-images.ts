@@ -22,6 +22,14 @@ export const IMAGE_CACHE_NAME = "kulalilar-images-v1";
  * donuyor/sekme çöküyordu). Artık yalnızca `connection.type` AÇIKÇA
  * "wifi"/"ethernet" ise otomatik indirme başlar; bilinmiyorsa kullanıcı
  * ImageUpdateBanner'daki "İndir" butonuyla istediği an elle indirebilir.
+ *
+ * ÖNEMLİ: telefon ekranlarında bu fonksiyonun sonucu artık HİÇ
+ * kullanılmıyor — bkz. isLikelyPhone() ve sync-client.ts. WiFi tespiti
+ * (connection.type) tarayıcıya/işletim sistemine göre güvenilmez
+ * olabileceğinden, "telefon" cihazlarda otomatik indirme WiFi'da olsa
+ * BİLE tetiklenmiyor (kullanıcı isteği: "wifi olmasa da mobilde indirme
+ * asla olmasın" — yani WiFi durumundan bağımsız olarak). Bu fonksiyon
+ * yalnızca tablet/masaüstü tarzı geniş ekranlar için hâlâ geçerli.
  */
 export function isWifiConnection() {
   if (typeof navigator === "undefined") return false;
@@ -33,6 +41,22 @@ export function isWifiConnection() {
   if (!conn) return false;
   if (conn.saveData) return false;
   return conn.type === "wifi" || conn.type === "ethernet";
+}
+
+/**
+ * Ekranın kısa kenarı 768px'in altındaysa telefon sayılır (iPad mini gibi
+ * en küçük tabletlerin kısa kenarı 768px'dir — bkz. globals.css'teki
+ * "Tablet (768px – 1279px)" kırılma noktasıyla aynı eşik, döndürme
+ * (landscape/portrait) fark etmeksizin çalışsın diye min(genişlik,
+ * yükseklik) kullanılıyor). Toplu görsel indirmeyi telefonlarda WiFi
+ * durumundan bağımsız olarak tamamen kapatmak için kullanılıyor (bkz.
+ * sync-client.ts) — plasiyerin/bayinin mobil veri faturasını hiçbir
+ * WiFi-tespit hatasının riske atmaması için kasıtlı olarak muhafazakâr.
+ */
+export function isLikelyPhone() {
+  if (typeof window === "undefined") return false;
+  const shortEdge = Math.min(window.innerWidth, window.innerHeight);
+  return shortEdge > 0 && shortEdge < 768;
 }
 
 export type PendingImage = {
