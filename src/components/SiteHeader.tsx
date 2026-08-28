@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { DealerLogoutButton } from "@/components/DealerLogoutButton";
 import { KulalilarLogo } from "@/components/KulalilarLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { readDeviceFromCookies } from "@/store/device";
@@ -97,6 +98,7 @@ export function SiteHeader({ rightSlot }: { rightSlot?: React.ReactNode }) {
                   Admin panel
                 </Link>
               )}
+              {actorSession?.actorType === "dealer" && <DealerLogoutButton />}
               <ThemeToggle compact />
             </div>
           </details>
