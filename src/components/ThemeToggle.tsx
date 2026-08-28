@@ -59,7 +59,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
       onClick={toggleTheme}
       aria-label={theme === "dark" ? "Açık moda geç" : "Koyu moda geç"}
       title={theme === "dark" ? "Açık mod" : "Koyu mod"}
-      className="theme-icon-button flex h-9 w-9 items-center justify-center border transition hover:opacity-80"
+      className="theme-icon-button flex h-11 w-11 items-center justify-center border transition hover:opacity-80"
     >
       {theme === "dark" ? <SunIcon /> : <MoonIcon />}
     </button>

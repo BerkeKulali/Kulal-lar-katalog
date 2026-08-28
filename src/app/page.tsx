@@ -70,12 +70,12 @@ export default async function HomePage() {
       <AppShell className="pb-24">
         <SiteHeader />
         <HomeSearchSection searchIndex={searchIndex} initialShowStock={showStock}>
-        <section className="mt-6 px-5">
+        <section className="mt-6">
           <SyncStatusLine serverPriceDate={lastUpdate} />
         </section>
 
         {visibleAnnouncements.length > 0 && (
-          <section className="mt-6 px-5">
+          <section className="mt-6">
             {visibleAnnouncements.map((item) => (
               <div
                 key={item.id}
@@ -92,7 +92,7 @@ export default async function HomePage() {
 
         {campaigns.length > 0 && (
           <section className="mt-6">
-            <div className="mb-4 flex items-center justify-between px-5">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-xs font-semibold tracking-[0.3em] text-zinc-500">
                 KAMPANYALAR
               </h2>
@@ -103,7 +103,7 @@ export default async function HomePage() {
                 Tümünü gör
               </Link>
             </div>
-            <div className="flex gap-3 overflow-x-auto px-5 pb-1">
+            <div className="flex gap-3 overflow-x-auto pb-1">
               {campaigns.map((c) => (
                 <Link
                   key={c.id}
@@ -134,7 +134,7 @@ export default async function HomePage() {
           </section>
         )}
 
-        <section className="mt-8 px-5">
+        <section className="mt-8">
           <h2 className="mb-4 text-center text-xs font-semibold tracking-[0.3em] text-zinc-500">
             MARKALAR
           </h2>
@@ -150,7 +150,7 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="mt-10 px-5">
+        <section className="mt-10">
           <h2 className="mb-4 text-center text-xs font-semibold tracking-[0.3em] text-zinc-500">
             HIZLI ÖLÇÜ
           </h2>
@@ -170,7 +170,7 @@ export default async function HomePage() {
           </p>
         </section>
 
-        <section className="mt-10 px-5">
+        <section className="mt-10">
           <h2 className="mb-4 text-center text-xs font-semibold tracking-[0.3em] text-zinc-500">
             TİPE GÖRE
           </h2>
@@ -190,7 +190,7 @@ export default async function HomePage() {
           </p>
         </section>
 
-        <section className="mt-10 px-5">
+        <section className="mt-10">
           <h2 className="mb-4 text-center text-xs font-semibold tracking-[0.3em] text-zinc-500">
             RENGE GÖRE
           </h2>

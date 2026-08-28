@@ -23,7 +23,7 @@ export function HomeSearchSection({
       <StickySearchBar value={query} onChange={setQuery} />
       {isSearching ? (
         <>
-          <div className="mt-3 flex justify-end px-5">
+          <div className="mt-3 flex justify-end">
             <DisplayPrefsToggle initialShowStock={initialShowStock} />
           </div>
           <LiveSearchResults

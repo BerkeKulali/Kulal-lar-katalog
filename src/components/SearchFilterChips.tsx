@@ -39,7 +39,7 @@ export function SearchFilterChips({
   onBrandSlug: (id: string | null) => void;
 }) {
   return (
-    <div className="mt-3 space-y-3 px-5">
+    <div className="mt-3 space-y-3">
       <div>
         <p className="mb-1.5 text-[10px] font-semibold tracking-[0.2em] text-zinc-500">
           TİP

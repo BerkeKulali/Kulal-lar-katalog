@@ -8,16 +8,31 @@ import type { SyncFamilyRow, SyncVariantRow } from "@/lib/sync-types";
  */
 export const IMAGE_CACHE_NAME = "kulalilar-images-v1";
 
+/**
+ * Toplu görsel indirmenin (bkz. sync-client.ts) otomatik tetiklenmesi için
+ * "gerçekten WiFi'da olduğumuzdan emin miyiz" sorusuna cevap verir —
+ * emin DEĞİLSEK indirmeyiz (fail-closed). Eskiden connection bilgisi hiç
+ * yoksa (ör. iOS Safari, Network Information API'yi HİÇ desteklemiyor)
+ * veya effectiveType "4g"/"3g" ise WiFi VARSAYILIYORDU; bu da telefonlarda
+ * (özellikle iPhone'da, ki plasiyerlerin/bayilerin önemli bir kısmı iPhone
+ * kullanıyor) siteye her girişte arka planda sessizce yüzlerce/binlerce
+ * görselin mobil veri üzerinden indirilmeye başlamasına yol açıyordu —
+ * "telefondan görünüm verimsiz" şikayetinin asıl kaynağı muhtemelen buydu
+ * (canlı testte doğrulandı: 1031 görsellik bir indirme sırasında sayfa
+ * donuyor/sekme çöküyordu). Artık yalnızca `connection.type` AÇIKÇA
+ * "wifi"/"ethernet" ise otomatik indirme başlar; bilinmiyorsa kullanıcı
+ * ImageUpdateBanner'daki "İndir" butonuyla istediği an elle indirebilir.
+ */
 export function isWifiConnection() {
   if (typeof navigator === "undefined") return false;
   const conn = (
     navigator as Navigator & {
-      connection?: { effectiveType?: string; type?: string };
+      connection?: { effectiveType?: string; type?: string; saveData?: boolean };
     }
   ).connection;
-  if (!conn) return true;
-  if (conn.type === "wifi" || conn.type === "ethernet") return true;
-  return conn.effectiveType === "4g" || conn.effectiveType === "3g";
+  if (!conn) return false;
+  if (conn.saveData) return false;
+  return conn.type === "wifi" || conn.type === "ethernet";
 }
 
 export type PendingImage = {

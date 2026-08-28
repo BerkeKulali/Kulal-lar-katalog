@@ -27,7 +27,7 @@ export function LiveSearchResults({
   size = null,
   brandSlug = null,
   fallbackItems = [],
-  className = "mt-8 catalog-grid-2 grid grid-cols-2 gap-6 px-5",
+  className = "mt-8 catalog-grid-2 grid grid-cols-2 gap-6",
   showBrand = false,
 }: {
   query: string;

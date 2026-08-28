@@ -77,7 +77,7 @@ export function SiteHeader({ rightSlot }: { rightSlot?: React.ReactNode }) {
       <div className="absolute right-0 top-2 z-[60] flex items-center gap-3 sm:top-2">
         <nav className="flex items-center gap-3">
           <details className="relative z-[60]">
-            <summary className="theme-icon-button flex h-9 w-9 cursor-pointer list-none items-center justify-center border text-xs [&::-webkit-details-marker]:hidden">
+            <summary className="theme-icon-button flex h-11 w-11 cursor-pointer list-none items-center justify-center border text-xs [&::-webkit-details-marker]:hidden">
               ≡
             </summary>
             <div className="theme-dropdown absolute right-0 z-[100] mt-2 min-w-[200px] border py-2 shadow-xl">

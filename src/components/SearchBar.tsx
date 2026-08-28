@@ -12,7 +12,7 @@ export function SearchBar({
   className?: string;
 }) {
   return (
-    <div className={`catalog-search-wrap px-5 ${className}`}>
+    <div className={`catalog-search-wrap ${className}`}>
       <input
         type="search"
         value={value}

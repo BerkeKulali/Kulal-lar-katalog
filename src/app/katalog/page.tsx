@@ -13,7 +13,7 @@ export default async function CatalogIndexPage() {
     <DeviceGate>
       <AppShell className="pb-24">
         <SiteHeader />
-        <section className="mt-8 px-5">
+        <section className="mt-8">
           <h1 className="mb-6 text-center text-sm font-semibold tracking-[0.3em]">
             KATALOG — MARKA SEÇİN
           </h1>

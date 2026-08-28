@@ -69,7 +69,7 @@ export function SearchPageView({
       />
       {active ? (
         <>
-          <div className="mt-3 flex justify-end px-5">
+          <div className="mt-3 flex justify-end">
             <DisplayPrefsToggle initialShowStock={initialShowStock} />
           </div>
           <LiveSearchResults
@@ -83,7 +83,7 @@ export function SearchPageView({
           />
         </>
       ) : (
-        <p className="mt-8 px-5 text-sm text-zinc-500">
+        <p className="mt-8 text-sm text-zinc-500">
           Yazmaya başlayın ya da yukarıdan tip/renk/ebat/marka seçin —
           sonuçlar anında filtrelenir.
         </p>

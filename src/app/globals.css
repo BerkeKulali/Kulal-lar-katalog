@@ -146,8 +146,8 @@ html {
 }
 
 .theme-chip--sm {
-  padding: 0.3rem 0.65rem;
-  font-size: 0.6875rem;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.75rem;
 }
 
 /* ── Katalog izleme sayfalarındaki "Fiyatlı / Stoklu göster" aç-kapa ── */
@@ -205,6 +205,7 @@ html {
   z-index: 45;
   padding-top: max(0.25rem, env(safe-area-inset-top, 0px));
   padding-bottom: 0.35rem;
+  background: var(--app-main-bg);
 }
 
 .catalog-size-header {
@@ -937,11 +938,12 @@ button.catalog-picker-chip:not(.catalog-picker-chip--disabled):hover {
 .product-detail-option {
   display: inline-flex;
   min-width: 4rem;
+  min-height: 2.75rem;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--product-detail-option-border);
   border-radius: 0.5rem;
-  padding: 0.5625rem 1rem;
+  padding: 0.75rem 1.1rem;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.08em;
