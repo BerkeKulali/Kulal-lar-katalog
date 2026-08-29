@@ -599,14 +599,24 @@ export default function AdminPlasiyerlerPage() {
                       </button>
                     )}
                     {sp.username ? (
-                      <button
-                        type="button"
-                        onClick={() => disableMultiDevice(sp)}
-                        disabled={actionId === sp.id}
-                        className="border border-amber-800 px-3 py-1.5 text-xs text-amber-300 hover:border-amber-500 disabled:opacity-40"
-                      >
-                        Çoklu cihazı kapat
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => openCredentialsForm(sp)}
+                          disabled={actionId === sp.id || credentialsFormId === sp.id}
+                          className="border border-zinc-700 px-3 py-1.5 text-xs hover:border-white disabled:opacity-40"
+                        >
+                          Şifreyi sıfırla
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => disableMultiDevice(sp)}
+                          disabled={actionId === sp.id}
+                          className="border border-amber-800 px-3 py-1.5 text-xs text-amber-300 hover:border-amber-500 disabled:opacity-40"
+                        >
+                          Çoklu cihazı kapat
+                        </button>
+                      </>
                     ) : (
                       <button
                         type="button"
