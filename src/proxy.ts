@@ -57,7 +57,7 @@ export default async function proxy(request: NextRequest) {
   // kaldırıldı; middleware'de DB sorgusu yapmamak için kontrol sayfa
   // seviyesinde kalıyor.
 
-  const adminBlock = enforceAdminAccess(request);
+  const adminBlock = await enforceAdminAccess(request);
   if (adminBlock) return adminBlock;
 
   if (pathname.startsWith("/admin")) {

@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Prisma tarafından üretilen istemci (kaynak kontrolünde değil).
     "src/generated/**",
+    // Oturum içi geçici/scratch dizini (git kilidi, eski build çıktıları vb.) -
+    // proje kaynak kodu değil, taranmamalı.
+    "_to_delete/**",
   ]),
   {
     rules: {

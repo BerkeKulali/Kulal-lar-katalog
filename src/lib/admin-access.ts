@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import {
@@ -5,6 +6,18 @@ import {
   verifyAdminSessionValue,
 } from "@/lib/admin-session";
 import { DEVICE_TOKEN_COOKIE } from "@/lib/device-cookie";
+import { checkRateLimitShared, clientIp } from "@/lib/rate-limit";
+
+/**
+ * ADMIN_ACCESS_KEY karşılaştırmalarını sabit sürede yapar (timing-attack
+ * sızıntısını önlemek için) - cron/db-backup ve netsis-ingest ile aynı desen.
+ */
+function safeEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
+}
 
 export const ADMIN_GATE_COOKIE = "kulalilar-admin-gate";
 const ADMIN_GATE_MAX_AGE = 60 * 60 * 24 * 365;
@@ -41,11 +54,15 @@ function gateCookieOptions() {
 export function hasAdminGate(request: NextRequest) {
   const key = process.env.ADMIN_ACCESS_KEY?.trim();
   if (!key) return true;
-  return request.cookies.get(ADMIN_GATE_COOKIE)?.value === key;
+  const cookieValue = request.cookies.get(ADMIN_GATE_COOKIE)?.value;
+  if (!cookieValue) return false;
+  return safeEqual(cookieValue, key);
 }
 
 /** Tablet ve gizli anahtar kontrolü — engellenecekse yanıt döner. */
-export function enforceAdminAccess(request: NextRequest): NextResponse | null {
+export async function enforceAdminAccess(
+  request: NextRequest
+): Promise<NextResponse | null> {
   const { pathname } = request.nextUrl;
 
   if (!isAdminPath(pathname)) return null;
@@ -88,11 +105,19 @@ export function enforceAdminAccess(request: NextRequest): NextResponse | null {
   if (isMePath && hasAdminSession(request)) return null;
 
   const urlKey = request.nextUrl.searchParams.get("key");
-  if (pathname === "/admin/login" && urlKey === accessKey) {
-    const clean = new URL("/admin/login", request.url);
-    const res = NextResponse.redirect(clean);
-    res.cookies.set(ADMIN_GATE_COOKIE, accessKey, gateCookieOptions());
-    return res;
+  if (pathname === "/admin/login" && urlKey) {
+    // ?key= tahminlerini sınırla (öncesinde rate limit yoktu ve karşılaştırma
+    // sabit-süreli değildi - otomatik/kaba kuvvet denemesine açıktı).
+    const rl = await checkRateLimitShared(`admin-gate:${clientIp(request)}`, {
+      max: 8,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (rl.allowed && safeEqual(urlKey, accessKey)) {
+      const clean = new URL("/admin/login", request.url);
+      const res = NextResponse.redirect(clean);
+      res.cookies.set(ADMIN_GATE_COOKIE, accessKey, gateCookieOptions());
+      return res;
+    }
   }
 
   if (pathname.startsWith("/api/")) {
