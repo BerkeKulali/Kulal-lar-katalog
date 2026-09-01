@@ -2,11 +2,9 @@ import {
   cacheImages,
   collectPendingImages,
   isLikelyPhone,
-  isWifiConnection,
 } from "@/lib/offline-images";
 import { SYNC_INTERVAL_MS, FULL_SYNC_MAX_AGE_MS } from "@/lib/sync-types";
 import { useCatalogSyncStore } from "@/store/catalog-sync";
-import { readDeviceFromCookies } from "@/store/device";
 
 let downloadInFlight: Promise<void> | null = null;
 
@@ -71,20 +69,16 @@ export async function runCatalogSync() {
       }
     }
 
-    const pending = useCatalogSyncStore.getState().pendingImageCount;
-    // Bayiler (dealer) zaten dükkanda, sabit bir bilgisayardan/internetten
-    // kullanıyor - offline erişim ihtiyaçları yok. Otomatik toplu görsel
-    // indirmeyi yalnızca saha plasiyerleri için yapıyoruz. Telefonlarda
-    // (isLikelyPhone) WiFi'da olunsa BİLE otomatik indirme hiç
-    // tetiklenmiyor - WiFi tespiti (Network Information API) tarayıcıya/
-    // işletim sistemine göre güvenilmez olabiliyor, bu yüzden mobil veri
-    // faturası riskini hiç almıyoruz; telefonda kullanıcı isterse
-    // ImageUpdateBanner'daki "İndir" butonuyla elle indirebilir. Yalnızca
-    // tablet/masaüstü tarzı geniş ekranlarda ve WiFi kesin ise otomatik
-    // indirme tetiklenir.
-    if (pending > 0 && !isDealerDevice() && !isLikelyPhone() && isWifiConnection()) {
-      void downloadPendingImages();
-    }
+    // Otomatik toplu görsel indirme KASITLI OLARAK KAPALI (bkz. git geçmişi).
+    // Önceki mantık yalnızca "bayi cihazı değil mi" diye bakıyordu - bu,
+    // hiç giriş yapılmamış anonim ziyaretçileri (ör. /kurulum ekranını
+    // açan herkesi, botları, link-önizleme tarayıcılarını) de "plasiyer"
+    // sanıp arka planda sessizce TÜM kataloğun görsellerini Cloudinary'den
+    // indirmesine yol açıyordu (tek bir kısa ziyaret binlerce görsel
+    // isteğine / Cloudinary kullanım sıçramasına neden olabiliyordu).
+    // Offline önbellekleme özelliği hâlâ mevcut ama artık yalnızca
+    // ImageUpdateBanner'daki "İndir" butonuyla, kullanıcının kendi
+    // isteğiyle (downloadPendingImages() doğrudan çağrılarak) tetikleniyor.
   } catch (e) {
     store.setError(e instanceof Error ? e.message : "Senkron hatası");
   } finally {
@@ -92,9 +86,6 @@ export async function runCatalogSync() {
   }
 }
 
-function isDealerDevice(): boolean {
-  return readDeviceFromCookies()?.actorType === "dealer";
-}
 
 export async function downloadPendingImages() {
   // Ek güvenlik: bu fonksiyon telefonlarda hiç çağrılmamalı (bkz.
