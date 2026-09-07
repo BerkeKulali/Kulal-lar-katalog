@@ -69,7 +69,6 @@ export async function enforceAdminAccess(
 
   const isLoginPath =
     pathname === "/admin/login" || pathname === "/api/admin/login";
-  const isMePath = pathname === "/api/admin/me";
   const adminLoggedIn = hasAdminSession(request);
 
   // Tablet kurulumu varsa yalnızca giriş yapmamış ziyaretçiyi engelle.
@@ -84,6 +83,19 @@ export async function enforceAdminAccess(
     login.searchParams.set("denied", "tablet");
     return NextResponse.redirect(login);
   }
+
+  // Gerçek (imzalı, süresi doğrulanmış) admin oturumu varsa ayrı gizli
+  // anahtar kapısını (ADMIN_ACCESS_KEY) tekrar sormaya gerek yok - bu kapı
+  // yalnızca GİRİŞ SAYFASINI bot/tahmin denemelerinden gizlemek için var,
+  // asıl yetkilendirme zaten oturum çerezinde. Bu kontrol eskiden yalnızca
+  // /api/admin/me için vardı; kapı çerezi (1 yıl) ile oturum çerezi (12
+  // saat / "beni hatırla" ile 30 gün) farklı ömürlere sahip olduğundan,
+  // kapı çerezi herhangi bir sebeple (farklı cihaz/tarayıcı, temizlenmiş
+  // çerezler vb.) yoksa - oturum hâlâ geçerli olsa bile - kullanıcı hiçbir
+  // açıklama görmeden en alttaki "/" yönlendirmesine düşüyordu. Bu, "admin
+  // olarak girişliyken 'Admin panel'e tıklayınca anasayfaya atıyor"
+  // şikayetinin asıl sebebiydi.
+  if (adminLoggedIn) return null;
 
   const accessKey = process.env.ADMIN_ACCESS_KEY?.trim();
 
@@ -101,8 +113,6 @@ export async function enforceAdminAccess(
   }
 
   if (hasAdminGate(request)) return null;
-
-  if (isMePath && hasAdminSession(request)) return null;
 
   const urlKey = request.nextUrl.searchParams.get("key");
   if (pathname === "/admin/login" && urlKey) {
@@ -124,14 +134,16 @@ export async function enforceAdminAccess(
     return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
   }
 
-  if (pathname === "/admin/login") {
-    if (request.nextUrl.searchParams.get("needKey") === "1") {
-      return null;
-    }
-    const login = new URL("/admin/login", request.url);
-    login.searchParams.set("needKey", "1");
-    return NextResponse.redirect(login);
+  if (pathname === "/admin/login" && request.nextUrl.searchParams.get("needKey") === "1") {
+    return null;
   }
 
-  return NextResponse.redirect(new URL("/", request.url));
+  // Diğer tüm /admin* sayfaları için (yalnızca /admin/login için değil):
+  // eskiden buraya düşünce sessizce "/" ye atılırdı - kullanıcı hiçbir
+  // açıklama görmeden anasayfaya düşüyordu. Artık giriş ekranına
+  // yönlendiriliyor, orada ya "gizli anahtar gerekli" mesajını ya da
+  // (kapı zaten açıksa) giriş formunu görüyor.
+  const login = new URL("/admin/login", request.url);
+  login.searchParams.set("needKey", "1");
+  return NextResponse.redirect(login);
 }
