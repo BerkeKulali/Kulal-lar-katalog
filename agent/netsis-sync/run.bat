@@ -22,5 +22,21 @@ REM calisir.
 set "NODE_EXE=node"
 if exist "%ProgramFiles%\nodejs\node.exe" set "NODE_EXE=%ProgramFiles%\nodejs\node.exe"
 if exist "%ProgramFiles(x86)%\nodejs\node.exe" set "NODE_EXE=%ProgramFiles(x86)%\nodejs\node.exe"
+
+REM --- Adim 1: Excel'i yenile (Netsis'ten canli veri ceker) ---
+REM ONEMLI: "cscript" ACIKCA kullaniliyor, "wscript" DEGIL. .vbs dosyalarina
+REM cift tiklandiginda Windows'un varsayilani wscript.exe'dir ve o modda
+REM script icindeki her log satiri "Tamam" bekleyen bir ACILIR PENCERE
+REM olarak cikip TUM senkronu SONSUZA DEK durdurur - gunlerce ayni (donmus)
+REM verinin gonderilmesinin asil sebebi buydu. cscript.exe altinda log,
+REM ekrana hicbir pencere cikarmadan konsola/refresh-excel.log dosyasina
+REM yazilir. Bu satiri asla "wscript" ile veya .vbs dosyasina dogrudan
+REM cift tiklayarak calistirmayin.
+cscript.exe //nologo "%~dp0refresh-excel.vbs"
+if errorlevel 1 (
+  echo [run.bat] refresh-excel.vbs basarisiz oldu, yine de mevcut dosya gonderilmeye calisilacak.
+)
+
+REM --- Adim 2: taze kaydedilen dosyayi sunucuya gonder ---
 "%NODE_EXE%" "%~dp0sync.mjs"
 exit /b %ERRORLEVEL%

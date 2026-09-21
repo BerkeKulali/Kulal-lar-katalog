@@ -66,14 +66,50 @@ kurulabilir (aşağıda).
 5. Kaydet. İstersen **Şimdi Çalıştır** ile test et; "Son Çalışma Sonucu" `0x0`
    ise başarılı.
 
+## Bilinen sorun (21.09.2026'da düzeltildi): "Windows Script Host" açılır penceresi
+
+Eğer `refresh-excel.vbs` **çift tıklanarak** ya da `wscript.exe` ile
+çalıştırılırsa (Windows'ta bir `.vbs` dosyasının VARSAYILAN çalıştırıcısı
+`wscript.exe`'dir), script içindeki her log satırı ekrana "Tamam" bekleyen bir
+**açılır pencere** olarak çıkar ve script — dolayısıyla tüm otomatik
+senkron — o pencere kapatılana kadar **sonsuza dek durur**. Netsis'ten hiç
+taze veri çekilmeden aynı (donmuş) dosya defalarca tekrar gönderilir; hiçbir
+hata da görünmez çünkü script'in kendisi sadece "beklemede" kalır.
+
+**Düzeltme:** `run.bat` artık `refresh-excel.vbs`'i açıkça `cscript.exe` ile
+çalıştırıyor (`wscript` değil), ve script'in `Log()` fonksiyonu `wscript.exe`
+altında çalıştığını tespit ederse ASLA `WScript.Echo` çağırmıyor — bunun
+yerine aynı klasördeki `refresh-excel.log` dosyasına yazıyor. Yani artık
+script yanlışlıkla çift tıklanarak çalıştırılsa bile ekrana hiçbir pencere
+çıkmaz, takılıp kalmaz.
+
+**Ofis bilgisayarında bu düzeltmeyi uygularken:**
+
+1. `run.bat` ve `refresh-excel.vbs` dosyalarını bu klasördeki (repodaki)
+   güncel haliyle değiştirin (kendi `excelPath`/token değerlerinizi tekrar
+   girmeyi unutmayın — bunlar dosyaya özel, repodaki placeholder'ları
+   ezmeyin).
+2. Açık kalmış olabilecek `WScript.exe` / "Tamam" bekleyen pencereleri ve
+   arka planda takılı kalmış `EXCEL.EXE` süreçlerini Görev Yöneticisi'nden
+   kapatın (Excel'i normal şekilde kapatamıyorsanız "Görevi sonlandır").
+3. Görev Zamanlayıcı'daki görevin **"Program/script"** alanının doğrudan
+   `run.bat`'a işaret ettiğinden emin olun (asla `refresh-excel.vbs`'e
+   doğrudan değil) — böylece her zaman `cscript` üzerinden, güvenli şekilde
+   çalışır.
+4. Test için elle çalıştırmak isterseniz her zaman komut istemcisinden:
+   `cscript //nologo refresh-excel.vbs` (asla çift tıklamayın).
+
 ## İzleme
 
 - Katalog admin panelinde **Netsis senkron geçmişi** ekranı her çalıştırmayı
   gösterir: eşleşen/güncellenen/eşleşmeyen/kilitli-atlanan, hata durumu.
-- Ajan çıktısı (başarı/eşleşmeyen kodlar, Excel yenileme durumu) Task Scheduler
-  geçmişinde ve konsolda görünür. Bir log dosyasına yazmak istersen `run.bat`
-  sonundaki `node "%~dp0sync.mjs"` satırını şöyle değiştir:
-  `node "%~dp0sync.mjs" >> "%~dp0sync.log" 2>&1`
+- `refresh-excel.vbs`'in kendi günlüğü artık her zaman aynı klasördeki
+  `refresh-excel.log` dosyasına yazılır (Excel'in gerçekten yenilenip
+  yenilenmediğini, örnek STOK_KODU/BAKIYE değerleriyle birlikte gösterir).
+- Ajan çıktısı (başarı/eşleşmeyen kodlar) Task Scheduler geçmişinde ve
+  konsolda görünür. `sync.mjs` çıktısını da ayrı bir log dosyasına yazmak
+  istersen `run.bat` sonundaki `node "%~dp0sync.mjs"` satırını şöyle
+  değiştir: `node "%~dp0sync.mjs" >> "%~dp0sync.log" 2>&1`
 
 ## Manuel kilit ile ilişki
 

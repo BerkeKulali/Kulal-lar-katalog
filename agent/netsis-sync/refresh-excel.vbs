@@ -31,8 +31,41 @@ excelPath = "C:\Users\berke.kulali\Desktop\KATALOG STOK\STOK SAB" & TIB & "T BAK
 ' (varsa) kisa sure bekleyip kaydediyoruz.
 maxWaitSeconds = 120   ' guvenlik payi - elle acildiginda ~10 sn suruyor
 
+' calistirma yontemine gore Log() ciktisi:
+'  - cscript.exe (onerilen: Gorev Zamanlayici / komut satiri) -> konsola
+'    yazar, HICBIR SEYI ENGELLEMEZ.
+'  - wscript.exe (bir .vbs dosyasina CIFT TIKLANDIGINDA Windows'un
+'    VARSAYILAN calistiricisi budur) -> WScript.Echo KESINLIKLE
+'    KULLANILMAZ. Bu modda HER Echo satiri, "Tamam" tiklanana kadar
+'    bekleyen bir ACILIR PENCERE (MsgBox) olarak cikar - ve script (dolayisiyla
+'    TUM otomatik senkron) o pencere kapatilana kadar SONSUZA DEK durur.
+'    Gunlerce/haftalarca ayni (donmus) verinin gonderilmesinin asil sebebi
+'    buydu: Gorev Zamanlayici scripti tetikliyor, ilk log satirinda kimsenin
+'    tiklamadigi bir "Tamam" penceresi beliriyor, Netsis'ten hic taze veri
+'    cekilmeden script takili kaliyordu. Bu yuzden Log() artik wscript.exe
+'    altinda ASLA WScript.Echo cagirmiyor; bunun yerine ayni klasordeki
+'    refresh-excel.log dosyasina yazar - ekrana hicbir sey cikmaz.
+isWscriptHost = (LCase(Right(WScript.FullName, Len("wscript.exe"))) = "wscript.exe")
+
 Sub Log(msg)
-  WScript.Echo "[excel-refresh " & Now & "] " & msg
+  Dim line
+  line = "[excel-refresh " & Now & "] " & msg
+  If isWscriptHost Then
+    LogToFile line
+  Else
+    WScript.Echo line
+  End If
+End Sub
+
+Sub LogToFile(line)
+  Dim fso, ts, logPath
+  On Error Resume Next
+  Set fso = CreateObject("Scripting.FileSystemObject")
+  logPath = fso.GetParentFolderName(WScript.ScriptFullName) & "\refresh-excel.log"
+  Set ts = fso.OpenTextFile(logPath, 8, True) ' 8 = ForAppending, True = yoksa olustur
+  ts.WriteLine line
+  ts.Close
+  Err.Clear
 End Sub
 
 ' Verilen basligin (ornek: "STOK_KODU") gectigi ilk hucreyi arar,
