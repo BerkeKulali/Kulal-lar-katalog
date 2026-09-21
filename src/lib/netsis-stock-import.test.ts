@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  balancesContentHash,
   parseNetsisBalanceRows,
   parseNetsisCodesInput,
   parseStockQuantity,
@@ -172,5 +173,38 @@ describe("parseNetsisBalanceRows", () => {
     assert.equal(errors.length, 0);
     assert.equal(balances.get("AN011"), 84);
     assert.equal(balances.get("AN016"), 0);
+  });
+});
+
+describe("balancesContentHash", () => {
+  it("aynı bakiyeler için (Map sırası fark etse de) aynı hash üretir", () => {
+    const a = new Map([
+      ["GRS1", 10],
+      ["GRS2", 20],
+    ]);
+    const b = new Map([
+      ["GRS2", 20],
+      ["GRS1", 10],
+    ]);
+    assert.equal(balancesContentHash(a), balancesContentHash(b));
+  });
+
+  it("bir bakiye değiştiğinde farklı hash üretir", () => {
+    const a = new Map([["GRS1", 10]]);
+    const b = new Map([["GRS1", 11]]);
+    assert.notEqual(balancesContentHash(a), balancesContentHash(b));
+  });
+
+  it("bir kod eklendiğinde/çıkarıldığında farklı hash üretir", () => {
+    const a = new Map([["GRS1", 10]]);
+    const b = new Map([
+      ["GRS1", 10],
+      ["GRS2", 0],
+    ]);
+    assert.notEqual(balancesContentHash(a), balancesContentHash(b));
+  });
+
+  it("boş Map için sabit bir hash döner", () => {
+    assert.equal(balancesContentHash(new Map()), balancesContentHash(new Map()));
   });
 });

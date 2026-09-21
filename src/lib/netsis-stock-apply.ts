@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { reportError } from "@/lib/report-error";
 import { chunk } from "@/lib/utils";
 import {
+  balancesContentHash,
   groupBalancesByVariant,
   parseNetsisBalanceRows,
 } from "@/lib/netsis-stock-import";
@@ -28,6 +29,13 @@ export type ApplyNetsisStockResult = {
   unmatchedCodes: string[];
   errors: string[];
   dryRun: boolean;
+  /** Ayrıştırılmış bakiyelerin içerik hash'i (bkz. balancesContentHash). */
+  balancesHash: string;
+  /**
+   * true → gelen veri, `previousHash` ile aynı (donmuş/bayat besleme) olduğu
+   * için yazım tamamen atlandı; mevcut stok verisi DOKUNULMADAN korundu.
+   */
+  skippedStale: boolean;
 };
 
 export type ApplyNetsisStockOptions = {
@@ -37,6 +45,14 @@ export type ApplyNetsisStockOptions = {
   dryRun?: boolean;
   /** true (varsayılan) → manuel kilitli varyantları atla. */
   respectLock?: boolean;
+  /**
+   * Önceki başarılı senkronun bakiye hash'i. Verilirse ve yeni dosyanın
+   * hash'iyle AYNIYSA (donmuş/bayat besleme), yazım tamamen atlanır -
+   * mevcut (muhtemelen elle düzeltilmiş) stok verisi korunur. Yalnızca
+   * otomatik ajan ucu geçirir; manuel admin yüklemesi hiç geçirmez (bir
+   * insan bilinçli olarak yüklediğinde her zaman uygulanmalı).
+   */
+  previousHash?: string | null;
 };
 
 /**
@@ -52,7 +68,12 @@ export async function applyNetsisStock(
   buffer: ArrayBuffer,
   options: ApplyNetsisStockOptions = {}
 ): Promise<ApplyNetsisStockResult> {
-  const { brandId = null, dryRun = false, respectLock = true } = options;
+  const {
+    brandId = null,
+    dryRun = false,
+    respectLock = true,
+    previousHash = null,
+  } = options;
 
   const workbook = XLSX.read(buffer, { type: "array" });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -64,6 +85,7 @@ export async function applyNetsisStock(
   });
 
   const { balances, errors: parseErrors } = parseNetsisBalanceRows(rows);
+  const balancesHash = balancesContentHash(balances);
 
   const result: ApplyNetsisStockResult = {
     variantsUpdated: 0,
@@ -75,9 +97,22 @@ export async function applyNetsisStock(
     unmatchedCodes: [],
     errors: [...parseErrors],
     dryRun,
+    balancesHash,
+    skippedStale: false,
   };
 
   if (balances.size === 0) return result;
+
+  // Donmuş/bayat besleme koruması: gelen veri önceki başarılı senkronla
+  // BİREBİR AYNIYSA (ör. on-prem ajan aynı dosyayı tekrar tekrar
+  // gönderiyorsa), yazım tamamen atlanır. Bu, gerçek bir stok değişikliği
+  // olmadığından değil - aksine hiçbir değişiklik OLMADIĞINDAN emin
+  // olduğumuz için güvenlidir; asıl risk, bayat verinin ELLE düzeltilmiş
+  // güncel stok verisinin üzerine tekrar tekrar yazmasıdır.
+  if (previousHash && previousHash === balancesHash) {
+    result.skippedStale = true;
+    return result;
+  }
 
   const codes = [...balances.keys()];
 
@@ -245,6 +280,8 @@ export async function recordNetsisSync(params: {
           unmatched.length > 0
             ? JSON.stringify(unmatched.slice(0, 50))
             : null,
+        fileHash: result?.balancesHash ?? null,
+        skippedStale: result?.skippedStale ?? false,
       },
     });
   } catch (err) {

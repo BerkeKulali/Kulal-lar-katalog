@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { invalidateCatalogCache } from "@/lib/cache-tags";
+import { prisma } from "@/lib/prisma";
 import { reportError } from "@/lib/report-error";
 import { checkRateLimitShared } from "@/lib/rate-limit";
 import { applyNetsisStock, recordNetsisSync } from "@/lib/netsis-stock-apply";
@@ -79,10 +80,33 @@ export async function POST(request: Request) {
   const buffer = await file.arrayBuffer();
 
   try {
-    const result = await applyNetsisStock(buffer, { brandId: null, dryRun });
+    // Donmuş/bayat ajan beslemesi koruması: son başarılı, GERÇEKTEN
+    // uygulanmış (dryRun olmayan) agent senkronunun bakiye hash'ini al.
+    // Yeni dosya aynı hash'e sahipse applyNetsisStock yazımı atlar - bkz.
+    // ApplyNetsisStockOptions.previousHash.
+    const lastAppliedSync = await prisma.netsisSyncLog.findFirst({
+      where: { source: "agent", ok: true, dryRun: false },
+      orderBy: { createdAt: "desc" },
+      select: { fileHash: true },
+    });
+
+    const result = await applyNetsisStock(buffer, {
+      brandId: null,
+      dryRun,
+      previousHash: lastAppliedSync?.fileHash ?? null,
+    });
 
     if (!dryRun && result.variantsUpdated > 0) {
       invalidateCatalogCache();
+    }
+
+    if (result.skippedStale) {
+      reportError(
+        new Error(
+          "Netsis ajanı önceki senkronla birebir aynı (donmuş) veriyi tekrar gönderdi - yazım atlandı"
+        ),
+        { where: "netsis-ingest-stale", fileName: file.name }
+      );
     }
 
     await recordNetsisSync({

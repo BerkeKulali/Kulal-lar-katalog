@@ -1,5 +1,7 @@
 /** Netsis / Excel stok satırı ayrıştırma */
 
+import { createHash } from "node:crypto";
+
 const CODE_KEYS = [
   "ürün kodu",
   "urun kodu",
@@ -260,6 +262,22 @@ export function groupBalancesByVariant(
   }
 
   return { byVariant, unmatchedCodes, matchedCodes };
+}
+
+/**
+ * Ayrıştırılmış bakiyelerin (kod → miktar) içerik hash'i. Dosyanın HAM
+ * BAYTLARI değil, ayrıştırılmış VERİ hash'lenir - kodlar sıralanıp
+ * "KOD:MİKTAR" biçiminde birleştirilir. Böylece Excel dosyasının içine
+ * gömülü değişen meta veriler (ör. kayıt zaman damgası) veri aynı kalsa
+ * bile hash'i değiştirmez; donmuş/bayat bir Netsis dökümü güvenilir
+ * şekilde tespit edilebilir (bkz. applyNetsisStock'taki previousHash).
+ */
+export function balancesContentHash(balances: Map<string, number>): string {
+  const entries = [...balances.entries()].sort(([a], [b]) =>
+    a < b ? -1 : a > b ? 1 : 0
+  );
+  const canonical = entries.map(([code, qty]) => `${code}:${qty}`).join("|");
+  return createHash("sha256").update(canonical).digest("hex");
 }
 
 export function aggregateStockRows(rows: NetsisStockRow[]) {

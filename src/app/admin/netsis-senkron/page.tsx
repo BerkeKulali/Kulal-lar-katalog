@@ -18,6 +18,8 @@ type SyncItem = {
   ok: boolean;
   message: string | null;
   unmatchedSample: string[];
+  fileHash: string | null;
+  skippedStale: boolean;
   createdAt: string;
 };
 
@@ -79,6 +81,10 @@ export default function NetsisSyncPage() {
           Netsis kodu
         </a>{" "}
         atayın. Kilitli (manuel sabitlenen) varyantlar otomasyonca atlanır.
+        Ajan, önceki senkronla birebir aynı (donmuş) veri gönderirse yazım
+        otomatik atlanır ve aşağıda{" "}
+        <span className="text-amber-500">Donmuş veri, atlandı</span> olarak
+        işaretlenir.
       </p>
 
       {error && <p className="mb-3 text-sm text-red-500">{error}</p>}
@@ -113,12 +119,19 @@ export default function NetsisSyncPage() {
                   )}
                 </td>
                 <td className="p-3">
-                  {item.ok ? (
-                    <span className="text-green-600">Başarılı</span>
-                  ) : (
+                  {!item.ok ? (
                     <span className="text-red-500" title={item.message ?? ""}>
                       Hata
                     </span>
+                  ) : item.skippedStale ? (
+                    <span
+                      className="text-amber-500"
+                      title="Gelen veri önceki senkronla birebir aynıydı; mevcut stok verisi korunarak yazım atlandı."
+                    >
+                      Donmuş veri, atlandı
+                    </span>
+                  ) : (
+                    <span className="text-green-600">Başarılı</span>
                   )}
                 </td>
                 <td className="p-3">

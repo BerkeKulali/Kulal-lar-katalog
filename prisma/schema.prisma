@@ -429,6 +429,10 @@ model NetsisSyncLog {
   message         String?
   /** Eşleşmeyen kodların bir kısmı (JSON dizi, kısaltılmış). */
   unmatchedSample String?
+  /** Ayrıştırılmış bakiyelerin içerik hash'i (SHA256) - donmuş/bayat dosya tespiti için. */
+  fileHash        String?
+  /** Önceki başarılı "agent" senkronuyla aynı bakiyeler geldiği için atlandı mı? */
+  skippedStale    Boolean  @default(false)
   createdAt       DateTime @default(now())
 
   @@index([createdAt])

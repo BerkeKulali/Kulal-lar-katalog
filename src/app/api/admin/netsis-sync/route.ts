@@ -26,6 +26,8 @@ export async function GET() {
       ok: true,
       message: true,
       unmatchedSample: true,
+      fileHash: true,
+      skippedStale: true,
       createdAt: true,
     },
   });
