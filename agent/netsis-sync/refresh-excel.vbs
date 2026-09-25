@@ -6,10 +6,11 @@
 '
 '    cscript //nologo refresh-excel.vbs
 '
-'  Not: dosyayi elle actiginizda yenileme ~10 saniyede bitiyor - demek ki
-'  baglantilarda "dosya acilirken yenile" zaten acik. Bu yuzden script
-'  ayrica RefreshAll cagirmiyor, sadece acip kisa bir bekleme payi
-'  biraktiktan sonra kaydediyor.
+
+'  Not: RefreshAll + CalculateUntilAsyncQueriesDone ile yenilenir (bkz.
+'  asagidaki "ONEMLI DEGISIKLIK (25.09.2026, 3. deneme)" yorumu) - tek tek
+'  baglanti.Refresh() ile senkron (BackgroundQuery=False) zorlamak COM
+'  otomasyonunda hata 1004 ("Bilinmeyen calisma hatasi") ile patliyordu.
 '
 '  Not 2: dosya yolundaki Turkce buyuk "I" (I noktali) karakteri, dosya
 '  aktarimi sirasinda bozulmaya karsi ChrW(304) ile kod noktasindan
@@ -22,14 +23,6 @@ TIB = ChrW(304) ' Turkce buyuk nokta olu I (U+0130) - Unicode kod noktasi icin C
 
 ' <<< BURAYI KENDI EXCEL DOSYANIZIN TAM YOLUYLA DEGISTIRIN >>>
 excelPath = "C:\Users\berke.kulali\Desktop\KATALOG STOK\STOK SAB" & TIB & "T BAK" & TIB & "YE.xlsx"
-
-' Elle actiginizda yenileme ~10 saniyede bitiyor - demek ki baglantilarda
-' "Dosya acilirken yenile" (refresh on open) zaten acik, dosya kendiliginden
-' yenileniyor. Bu yuzden ayrica RefreshAll/CalculateUntilAsyncQueriesDone
-' COM cagirmiyoruz - bu ekstra cagrilar bu baglanti turunde takilmaya
-' sebep oluyor gibi gorunuyor. Sadece acip, otomatik yenilemenin bitmesini
-' (varsa) kisa sure bekleyip kaydediyoruz.
-maxWaitSeconds = 120   ' guvenlik payi - elle acildiginda ~10 sn suruyor
 
 ' calistirma yontemine gore Log() ciktisi:
 '  - cscript.exe (onerilen: Gorev Zamanlayici / komut satiri) -> konsola
@@ -98,10 +91,25 @@ If Err.Number <> 0 Then
 End If
 Err.Clear
 
-excelApp.Visible = False
+' ONEMLI DEGISIKLIK (25.09.2026, 2. deneme): Visible = False iken
+' baglanti yenileme (Refresh) "Bilinmeyen calisma hatasi" ile patliyordu -
+' elle cift tiklayinca calisirken, AYNI baglanti COM otomasyonuyla
+' gorunmez modda (Visible=False) hem eski (pasif bekleme) hem yeni
+' (senkron Refresh) yontemde basarisiz oluyordu. Bu, Excel'in bu tur
+' harici veri baglantilarini yenilerken gercek bir pencere/mesaj pompasi
+' beklediginin isareti - Excel'in disaridan (VBScript/COM) otomasyonunda
+' bilinen bir kisitlama. Cozum: Excel'i GORUNUR ac (Visible = True) ama
+' hemen kucult + ekran disina tasi - kullanici hicbir sey gormez (veya en
+' fazla cok kisa bir yanip sonme), ama Excel'in ic mekanizmasi artik
+' gercek bir pencereye sahip oluyor.
+excelApp.Visible = True
 excelApp.DisplayAlerts = False
 excelApp.AskToUpdateLinks = False
 excelApp.EnableEvents = True
+excelApp.WindowState = -4140 ' xlMinimized
+excelApp.Left = -32000
+excelApp.Top = -32000
+Err.Clear
 
 Set wb = excelApp.Workbooks.Open(excelPath, 0, False, , , , , , , True)
 If Err.Number <> 0 Or wb Is Nothing Then
@@ -123,45 +131,35 @@ For Each conn In wb.Connections
 Next
 Log "Toplam " & connCount & " baglanti bulundu."
 
-' NOT: burada bilerek RefreshAll / CalculateUntilAsyncQueriesDone COM
-' cagirmiyoruz - dosya acilirken baglantilar zaten kendiliginden
-' yenileniyor (elle actiginizda gozlemlediginiz ~10 saniyelik yenileme
-' budur). Asagidaki dongu sadece bu otomatik yenilemenin muhtemelen
-' cok kisa surecek son kismini bekliyor, guvenlik payi olarak.
-
-' Otomatik yenileme henuz baslamamis olabilir diye kucuk bir baslangic
-' bekleme payi - dongu "zaten bitmis" sanip hemen kaydetmesin diye.
-WScript.Sleep 3000
-
-startTime = Timer
-pollCount = 0
-Do
-  stillRefreshing = False
-  For Each conn In wb.Connections
-    On Error Resume Next
-    If Not (conn.OLEDBConnection Is Nothing) Then
-      If conn.OLEDBConnection.Refreshing Then stillRefreshing = True
-    End If
-    If Not (conn.ODBCConnection Is Nothing) Then
-      If conn.ODBCConnection.Refreshing Then stillRefreshing = True
-    End If
-    Err.Clear
-  Next
-  If Not stillRefreshing Then Exit Do
-  pollCount = pollCount + 1
-  ' Her ~20 saniyede bir "hala calisiyorum, takilmadim" mesaji - sabirsizlikla
-  ' Ctrl+C ile erken durdurmayi onlemek icin.
-  If pollCount Mod 10 = 0 Then
-    Log "...hala yenileniyor (" & Int(Timer - startTime) & " sn gecti, lutfen bekleyin, kesmeyin)"
-  End If
-  WScript.Sleep 2000
-Loop While (Timer - startTime) < maxWaitSeconds
-
-If stillRefreshing Then
-  Log "UYARI: " & maxWaitSeconds & " saniye sonra hala yenileniyor gorunuyor (bu baglanti turunde bu bayrak guvenilir olmayabilir), yine de kaydetmeyi deneyecegim."
-Else
-  Log "Yenileme tamamlandi, kaydediliyor."
+' ONEMLI DEGISIKLIK (25.09.2026, 3. deneme): Tek tek baglanti.Refresh()
+' cagirip BackgroundQuery=False zorlamak COM otomasyonunda hata 1004
+' ("Bilinmeyen calisma hatasi") veriyordu - Visible=True/False fark
+' etmiyordu. Bunun yerine Excel'in ASENKRON sorgular icin ozel olarak
+' sundugu otomasyon yontemi kullaniliyor: wb.RefreshAll (butun
+' baglantilari, kendi varsayilan/asenkron modunda, yani BackgroundQuery
+' ELLE False YAPILMADAN baslatir), ardindan
+' Application.CalculateUntilAsyncQueriesDone (Excel'in TUM asenkron
+' sorgular/baglanti yenilemeleri bitene kadar bloke eden, otomasyon
+' senaryolari icin ozel olarak eklenmis resmi metodu - guvenilmez
+' ".Refreshing bayragini yoklama" yonteminin yerini almasi icin var).
+Err.Clear
+Log "RefreshAll baslatiliyor..."
+wb.RefreshAll
+If Err.Number <> 0 Then
+  Log "UYARI: RefreshAll baslatilirken hata (" & Err.Number & "): " & Err.Description
+  Err.Clear
 End If
+
+Log "Asenkron sorgularin bitmesi bekleniyor (CalculateUntilAsyncQueriesDone)..."
+excelApp.CalculateUntilAsyncQueriesDone
+If Err.Number <> 0 Then
+  Log "UYARI: CalculateUntilAsyncQueriesDone hata (" & Err.Number & "): " & Err.Description
+  Err.Clear
+Else
+  Log "Asenkron sorgular tamamlandi."
+End If
+
+Log "Tum baglanti yenilemeleri tamamlandi, kaydediliyor."
 
 ' Kaydetmeden hemen once dosyadaki birkac gercek deger yazdiriliyor - bu
 ' yenilemenin GERCEKTEN olup olmadigini gozle gormek icin. Bu satirlardaki
