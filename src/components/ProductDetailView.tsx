@@ -291,6 +291,18 @@ export function ProductDetailView({
         selected.stockLines.reduce((sum, line) => sum + line.quantityM2, 0)
       : 0;
 
+  // DUZELTME (26.09.2026): "Stok guncellendi" etiketi ONCE her zaman
+  // `selected.stockUpdatedAt` (bu sayfanin kendi SSR/statik anindaki zaman
+  // damgasi) gosteriyordu - rakam (`totalStock`) senkron magazasindaki DAHA
+  // TAZE veriden geldiginde bile (syncIsFresh=true). Sonuc: gosterilen SAYI
+  // guncel ama yanindaki TARIH eski kalabiliyordu (kullanicinin bizzat
+  // gozlemledigi "sadece tarih yanlis" durumu). Artik tarih de ayni
+  // tazelik mantigini takip ediyor: rakam senkrondan geliyorsa tarih de
+  // senkrondan gelir, aksi halde ikisi de bu sayfanin kendi verisinden gelir.
+  const displayStockUpdatedAt = syncIsFresh
+    ? syncedVariant!.stockUpdatedAt
+    : (selected?.stockUpdatedAt ?? null);
+
   const hasPalletCap = Boolean(selected?.palletM2 && selected.palletM2 > 0);
   const palletVisual = selected
     ? palletVisualState(quantity, selected.palletM2)
@@ -507,9 +519,9 @@ export function ProductDetailView({
               </div>
             </div>
 
-            {canShowStock && formatStockUpdated(selected.stockUpdatedAt) && (
+            {canShowStock && formatStockUpdated(displayStockUpdatedAt) && (
               <p className="product-detail-stock-updated">
-                Stok güncellendi: {formatStockUpdated(selected.stockUpdatedAt)}
+                Stok güncellendi: {formatStockUpdated(displayStockUpdatedAt)}
               </p>
             )}
           </div>

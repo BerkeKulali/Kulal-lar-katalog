@@ -186,9 +186,23 @@ export async function applyNetsisStock(
   // createMany (2 ifade), N varyant için N tek tek transaction yerine. Bu,
   // yüzlerce ürünlük bir Netsis dosyasını dakikalar yerine saniyeler içinde
   // yazar. ProductVariant.updatedAt artık AYRICA dokunulmuyor: delta senkron
-  // (sync-server.ts) zaten `stockLines.updatedAt` alanına bakıyor, StockLine
-  // satırı oluşturulunca bu otomatik güncelleniyor — ayrı bir dokunuş gereksizdi.
+  // (sync-server.ts) zaten `stockLines.updatedAt` alanına bakıyor.
   //
+  // ONEMLI DUZELTME (26.09.2026): `updatedAt` alani su an ACIKCA veriliyor
+  // (`now`). Once buna guvenmiyorduk (@updatedAt insert sirasinda otomatik
+  // dolar sanilmisti), ama gercek veride kanit bulundu: Netsis'ten GERCEKTEN
+  // degisen bir bakiye dogru sekilde quantityM2'ye yaziliyordu (miktar
+  // dogruydu) ama StockLine.updatedAt HIC ilerlemiyordu (musteri sitesindeki
+  // "Stok guncellendi" tarihi haftalarca donuk kaldi, halbuki rakam
+  // degismisti). Migration SQL'de "updatedAt" kolonunun DB seviyesinde bir
+  // DEFAULT'u YOK (sadece createdAt'te var) - yani bu deger SADECE Prisma
+  // sorgu motoru tarafindan acikca yazilmali; createMany (ve muhtemelen bu
+  // adapter/surumde create de) bunu guvenilir sekilde yapmiyordu. Cozum:
+  // artik bu fonksiyonun BASINDA sabitlenen tek bir `now` degeri, HER
+  // yazilan satira ACIKCA veriliyor - boylece ayni calistirmadaki tum
+  // satirlar tutarli, doğru bir zaman damgasi alir.
+  const now = new Date();
+
   // Bir chunk'ın toplu yazımı BAŞARISIZ olursa (ör. tek bir satırdaki bir
   // veri sorunu), o chunk tek tek (varyant başına, önceki "kanıtlanmış" desen)
   // tekrar denenir — böylece hangi varyantın başarısız olduğu hâlâ tam olarak
@@ -203,6 +217,7 @@ export async function applyNetsisStock(
               variantId: w.variantId,
               label: NETSIS_STOCK_LABEL,
               quantityM2: w.quantityM2,
+              updatedAt: now,
             },
           });
         });
@@ -232,6 +247,7 @@ export async function applyNetsisStock(
             variantId: w.variantId,
             label: NETSIS_STOCK_LABEL,
             quantityM2: w.quantityM2,
+            updatedAt: now,
           })),
         });
       });
