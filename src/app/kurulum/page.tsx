@@ -1,14 +1,23 @@
+import { Suspense } from "react";
 import { AppShell } from "@/components/AppShell";
 import { SiteHeader } from "@/components/SiteHeader";
 import { prisma } from "@/lib/prisma";
 import { SetupEntryPanel } from "@/app/kurulum/SetupEntryPanel";
 
-export default async function SetupPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
-  const { error } = await searchParams;
+// DUZELTME (26.09.2026): Bu sayfa, cihaz kilidi olmayan HER ziyaretcinin
+// (bot, link-onizleme tarayicisi, cihazi silinen/kurulmamis her gercek
+// tablet - bkz. proxy.ts) yonlendirildigi yer oldugu icin trafigi
+// katalog sayfalarindan bile fazla (Vercel Observability'de 12 saatte
+// ~780 istek, tum route'lar arasinda EN YUKSEK Active CPU tuketen route).
+// Once `searchParams` okundugu (hata mesaji icin) ve bu App Router'da bir
+// sayfayi otomatik olarak "dynamic" yapip HER istekte sifirdan render
+// ettirdigi icin hic onbelleklenmiyordu. Icerik (plasiyer listesi haric)
+// pratikte hicbir ziyaretci icin degismiyor - `error` query param'i artik
+// SetupEntryPanel icinde CLIENT tarafinda (useSearchParams) okunuyor, boylece
+// bu sunucu bileseni artik searchParams'a hic dokunmuyor ve ISR'lanabiliyor.
+export const revalidate = 300;
+
+export default async function SetupPage() {
   // username dolu plasiyerler artık kullanıcı adı/şifreyle (çoklu cihaz)
   // giriş yapıyor - isim listesi yalnızca eski isim+onay+tek-cihaz akışını
   // kullanan plasiyerleri gösterir (bkz. SetupEntryPanel salesperson "login" modu).
@@ -42,14 +51,15 @@ export default async function SetupPage({
           localhost ile tablet IP farklı sayılır.
         </p>
       </div>
-      <SetupEntryPanel
-        salespeople={salespeople.map((sp) => ({
-          id: sp.id,
-          name: sp.name,
-          isLocked: Boolean(sp.lockedDeviceId),
-        }))}
-        initialError={error}
-      />
+      <Suspense fallback={null}>
+        <SetupEntryPanel
+          salespeople={salespeople.map((sp) => ({
+            id: sp.id,
+            name: sp.name,
+            isLocked: Boolean(sp.lockedDeviceId),
+          }))}
+        />
+      </Suspense>
     </AppShell>
   );
 }

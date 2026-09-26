@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type SalespersonOption = {
   id: string;
@@ -16,19 +16,22 @@ type SalespersonAuthMode = "request" | "login";
 
 export function SetupEntryPanel({
   salespeople,
-  initialError,
 }: {
   salespeople: SalespersonOption[];
-  initialError?: string;
 }) {
   const router = useRouter();
+  // DUZELTME (26.09.2026): hata mesaji artik URL'den (?error=...) sunucu
+  // degil CLIENT tarafinda okunuyor - bkz. page.tsx'teki not (bu sayfanin
+  // ISR'lanabilmesi icin sunucu bileseninin searchParams'a dokunmamasi
+  // gerekiyordu).
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<EntryMode>("dealer");
   const [salespersonId, setSalespersonId] = useState(
     salespeople.find((sp) => !sp.isLocked)?.id ?? ""
   );
   const [status, setStatus] = useState<RequestStatus>("NONE");
   const [statusMessage, setStatusMessage] = useState("");
-  const [error, setError] = useState(initialError ?? "");
+  const [error, setError] = useState(searchParams.get("error") ?? "");
   const [loading, setLoading] = useState(false);
 
   const [dealerAuthMode, setDealerAuthMode] = useState<DealerAuthMode>("login");
