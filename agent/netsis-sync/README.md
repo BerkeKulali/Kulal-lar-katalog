@@ -22,11 +22,20 @@ eklenen Netsis kodları" bölümüne bakın).
 
 ## Nasıl çalışıyor
 
-`run.bat` iki adımı sırayla yapar:
+`run.bat` üç adımı sırayla yapar:
 
-1. `refresh-excel.vbs` — Excel'i görünmez şekilde açar (bu, dosyanın Netsis'ten
-   veri çekmesini tetikler), verinin gelmesini bekler, dosyayı kaydedip kapatır.
-2. `sync.mjs` — o taze kaydedilmiş dosyayı sunucuya gönderir.
+1. `launch-excel.vbs` — Excel dosyasını **çift tıklanmış gibi** açar (COM
+   otomasyonuyla DEĞİL, Windows'un kendi dosya ilişkilendirmesi üzerinden) —
+   bu, dosyanın Netsis'ten veri çekmesini elle açıldığındaki gibi güvenilir
+   şekilde tetikler, sonra hemen döner (bekli hemen değil).
+2. Sabit bir bekleme (30 saniye) — dosyanın kendiliğinden yenilenmesi için.
+3. `save-and-close-excel.vbs` — az önce açılan Excel'e COM ile **bağlanır**
+   (yeni bir örnek açmaz, yenilemeyi tetiklemez), sadece dosyayı kaydedip
+   kapatır.
+4. `sync.mjs` — o taze kaydedilmiş dosyayı sunucuya gönderir.
+
+(Bkz. aşağıdaki "Bilinen sorun (26.09.2026)" bölümü — neden Excel'in artık
+COM ile değil, çift tıklama gibi açıldığı orada açıklanıyor.)
 
 İnsan hiç dokunmadan, Windows Task Scheduler ile otomatik çalışacak şekilde
 kurulabilir (aşağıda).
@@ -36,7 +45,8 @@ kurulabilir (aşağıda).
 1. **Node.js LTS** kurulu olmalı (https://nodejs.org). Doğrula:
    `node --version` (v18+).
 2. **Microsoft Excel**, bu ajanın çalışacağı bilgisayarda kurulu olmalı
-   (`refresh-excel.vbs` Excel'i COM ile açıyor) ve Excel dosyasının bulunduğu
+   (`save-and-close-excel.vbs` çalışan Excel'e COM ile bağlanıyor) ve Excel
+   dosyasının bulunduğu
    klasör Excel'in **Güvenilen Konumlar**'ına eklenmiş olmalı (Dosya →
    Seçenekler → Güven Merkezi → Güven Merkezi Ayarları → Güvenilen Konumlar →
    Yeni Konum Ekle) — aksi halde Excel, programla açıldığında "Dış Veri
@@ -98,6 +108,34 @@ script yanlışlıkla çift tıklanarak çalıştırılsa bile ekrana hiçbir pe
    çalışır.
 4. Test için elle çalıştırmak isterseniz her zaman komut istemcisinden:
    `cscript //nologo refresh-excel.vbs` (asla çift tıklamayın).
+
+## Bilinen sorun (26.09.2026'da düzeltildi): COM otomasyonuyla açılan Excel dış veri bağlantısını güvenilir yenilemiyor
+
+`refresh-excel.vbs` (eski yöntem), Excel'i `CreateObject("Excel.Application")`
+ile COM otomasyonuyla açıyordu. Bu şekilde açıldığında dış veri bağlantıları
+(`TM_STSABIT`/`TM_STSABIT5`) **güvenilir şekilde yenilenmiyordu** —
+`RefreshAll`, `Application.CalculateUntilAsyncQueriesDone`, `Visible=True/False`
+denendi, hiçbiri düzeltmedi. Netsis'te gerçekten değişen bir bakiye (elle bir
+sipariş girilip test edildi) bile script'in kaydettiği dosyaya hiç yansımadı —
+script hatasız tamamlanıyordu ama içeriği saatlerce hiç değişmiyordu. Oysa
+AYNI dosya kullanıcı tarafından elle (çift tıklanarak) açıldığında yenileme
+HER ZAMAN ~10 saniyede tamamlanıyordu. Sebep muhtemelen Excel'in "otomasyon
+modunda" çalıştığını algılayıp bu tür dış veri yenilemesini farklı (ve bu
+bağlantı türü için güvenilmez) ele alması.
+
+**Düzeltme:** Artık Excel COM ile açılmıyor. `launch-excel.vbs`, dosyayı
+Windows'un kendi dosya ilişkilendirmesi üzerinden (`WshShell.Run` ile, tıpkı
+Gezgin'de çift tıklamış gibi) açıyor — bu, gerçek "otomasyon modu" hiç devreye
+girmediği için yenilemenin elle açıldığındaki gibi güvenilir çalışmasını
+sağlıyor. Ardından `save-and-close-excel.vbs`, YENİ bir Excel örneği AÇMADAN,
+COM ile zaten çalışmakta olan o Excel'e **bağlanıp** (`GetObject`) sadece
+kaydet+kapat işlemini yapıyor — yenilemeyi bu script asla tetiklemiyor, sadece
+zaten tamamlanmış olanı diske yazıyor.
+
+**Güvenlik notu:** Ofis bilgisayarı paylaşımlı olabileceğinden,
+`save-and-close-excel.vbs` hedef dosyayı TAM YOLUYLA eşleştirir; eşleşme
+yoksa veya belirsizse hiçbir workbook'a dokunmaz, ve işlem sonunda başka açık
+dosyalar varsa Excel'in kendisini zorla kapatmaz.
 
 ## İzleme
 

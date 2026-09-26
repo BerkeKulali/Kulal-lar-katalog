@@ -23,18 +23,39 @@ set "NODE_EXE=node"
 if exist "%ProgramFiles%\nodejs\node.exe" set "NODE_EXE=%ProgramFiles%\nodejs\node.exe"
 if exist "%ProgramFiles(x86)%\nodejs\node.exe" set "NODE_EXE=%ProgramFiles(x86)%\nodejs\node.exe"
 
-REM --- Adim 1: Excel'i yenile (Netsis'ten canli veri ceker) ---
-REM ONEMLI: "cscript" ACIKCA kullaniliyor, "wscript" DEGIL. .vbs dosyalarina
-REM cift tiklandiginda Windows'un varsayilani wscript.exe'dir ve o modda
-REM script icindeki her log satiri "Tamam" bekleyen bir ACILIR PENCERE
-REM olarak cikip TUM senkronu SONSUZA DEK durdurur - gunlerce ayni (donmus)
-REM verinin gonderilmesinin asil sebebi buydu. cscript.exe altinda log,
-REM ekrana hicbir pencere cikarmadan konsola/refresh-excel.log dosyasina
-REM yazilir. Bu satiri asla "wscript" ile veya .vbs dosyasina dogrudan
-REM cift tiklayarak calistirmayin.
-cscript.exe //nologo "%~dp0refresh-excel.vbs"
+REM --- Adim 1: Excel'i CIFT TIKLAMA GIBI ac, dogal yenilemesini bekle, kaydedip kapat ---
+REM ONEMLI DEGISIKLIK (26.09.2026): Daha once Excel, CreateObject(
+REM "Excel.Application") ile COM otomasyonuyla aciliyordu (refresh-excel.vbs).
+REM Bu sekilde acildiginda dis veri baglantisi (TM_STSABIT/TM_STSABIT5)
+REM GUVENILIR YENILENMIYORDU - RefreshAll, CalculateUntilAsyncQueriesDone,
+REM Visible=True/False, hicbiri fark etmedi; Netsis'te gercekten degisen
+REM bir bakiye bile script'in kaydettigi dosyaya yansimiyordu. Oysa AYNI
+REM dosya elle (cift tiklanarak) acildiginda yenileme HER ZAMAN calisiyor.
+REM Cozum: artik Excel'i COM ile degil, GERCEKTEN cift tiklanmis gibi
+REM Windows dosya iliskilendirmesi uzerinden aciyoruz (launch-excel.vbs),
+REM dogal yenilemenin tamamlanmasini bekliyoruz, sonra AYRI bir script
+REM (save-and-close-excel.vbs) sadece KAYDET+KAPAT icin COM ile o CALISAN
+REM Excel'e BAGLANIYOR (yeni ornek ACMIYOR, yenilemeyi TETIKLEMIYOR).
+REM
+REM Not: "cscript" (launch/save-close script'leri icin) ACIKCA kullaniliyor,
+REM "wscript" DEGIL - .vbs dosyalarina cift tiklandiginda Windows'un
+REM varsayilani wscript.exe'dir ve o modda script icindeki her log satiri
+REM "Tamam" bekleyen bir ACILIR PENCERE olarak cikip TUM senkronu SONSUZA
+REM DEK durdurur - gunlerce ayni (donmus) verinin gonderilmesinin asil
+REM sebebi buydu. cscript.exe altinda log, ekrana hicbir pencere
+REM cikarmadan refresh-excel.log dosyasina yazilir.
+cscript.exe //nologo "%~dp0launch-excel.vbs"
 if errorlevel 1 (
-  echo [run.bat] refresh-excel.vbs basarisiz oldu, yine de mevcut dosya gonderilmeye calisilacak.
+  echo [run.bat] launch-excel.vbs basarisiz oldu, yine de devam ediliyor.
+)
+
+REM Dogal yenilemenin tamamlanmasi icin bekleme - elle acildiginda ~10
+REM saniyede bitiyor, guvenlik payi olarak 30 saniye bekleniyor.
+timeout /t 30 /nobreak >nul
+
+cscript.exe //nologo "%~dp0save-and-close-excel.vbs"
+if errorlevel 1 (
+  echo [run.bat] save-and-close-excel.vbs basarisiz oldu, yine de mevcut dosya gonderilmeye calisilacak.
 )
 
 REM --- Adim 2: taze kaydedilen dosyayi sunucuya gonder ---
