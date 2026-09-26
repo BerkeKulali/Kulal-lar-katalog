@@ -44,6 +44,16 @@ REM "Tamam" bekleyen bir ACILIR PENCERE olarak cikip TUM senkronu SONSUZA
 REM DEK durdurur - gunlerce ayni (donmus) verinin gonderilmesinin asil
 REM sebebi buydu. cscript.exe altinda log, ekrana hicbir pencere
 REM cikarmadan refresh-excel.log dosyasina yazilir.
+REM ON-TEMIZLIK (26.09.2026): Dosya onceki calistirmadan (ornegin script
+REM ortasinda kesintiye ugradiysa) ya da elle acilip kapatilmadan takili
+REM kaldiysa, Excel yeniden acmaya calisildiginda "zaten acik, yeniden
+REM acilsin mi?" diye SORAN, kimse tiklamazsa SONSUZA DEK bekleyen bir
+REM ACILIR PENCERE cikarir - tipki eski WScript.Echo sorunu gibi yeni bir
+REM donma riski. Bu yuzden acmadan ONCE, dosya (eski/takili bir oturumdan)
+REM zaten aciksa once TEMIZ sekilde kaydedip kapatiyoruz. Dosya acik
+REM degilse bu adim zararsizca "acik degil" deyip gecer.
+cscript.exe //nologo "%~dp0save-and-close-excel.vbs" >nul 2>&1
+
 cscript.exe //nologo "%~dp0launch-excel.vbs"
 if errorlevel 1 (
   echo [run.bat] launch-excel.vbs basarisiz oldu, yine de devam ediliyor.
