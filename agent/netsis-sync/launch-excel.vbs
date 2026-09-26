@@ -16,13 +16,21 @@
 '  farkli (ve bu baglanti turu icin guvenilmez) ele almasi.
 '
 '  Cozum: Excel'i COM ile ACMIYORUZ, "gercekten" cift tiklanmis gibi
-'  Windows Shell uzerinden baslatiyoruz (WshShell.Run bir .xlsx yoluyla
-'  cagrildiginda, Gezgin'de cift tiklamayla ayni sekilde dosya
-'  iliskilendirmesini kullanir). Bu script HEMEN doner, yenilemeyi
+'  Windows Shell uzerinden baslatiyoruz. Bu script HEMEN doner, yenilemeyi
 '  BEKLEMEZ - run.bat'taki "timeout" adimi dogal yenilemenin
 '  tamamlanmasi icin bekler, ardindan save-and-close-excel.vbs KAYDET+
 '  KAPAT islemini COM ile (ama YENI bir ornek ACMADAN, sadece calisan
 '  Excel'e BAGLANARAK) yapar.
+'
+'  DUZELTME (26.09.2026, 2. deneme): Ilk denemede "WScript.Shell".Run
+'  kullanilmisti, ama bu metod dosya yolundaki Turkce "I" (U+0130)
+'  karakterini duzgun tasimiyor - log dosyasinda bozuk bir karaktere
+'  donusmus halde goruldu, yani Windows'a GERCEKTE OLMAYAN bir
+'  dosya adi gonderiliyordu; Excel de bu yuzden BOS aciliyordu (hata
+'  vermeden - dosya bulunamayinca sessizce yeni/bos calisma kitabi
+'  acmasi Excel'in kendi varsayilan davranisi). Bunun yerine Unicode
+'  dosya yollarini guvenilir tasiyan "Shell.Application".ShellExecute
+'  kullaniliyor.
 '
 '  Kullanim (run.bat tarafindan otomatik cagrilir):
 '    cscript //nologo launch-excel.vbs
@@ -46,15 +54,15 @@ End Sub
 
 On Error Resume Next
 
-Set shell = CreateObject("WScript.Shell")
+Set shellApp = CreateObject("Shell.Application")
 If Err.Number <> 0 Then
-  Log "WScript.Shell olusturulamadi: " & Err.Description
+  Log "Shell.Application olusturulamadi: " & Err.Description
   WScript.Quit 1
 End If
 Err.Clear
 
 Log "Aciliyor (cift tiklama gibi, COM otomasyonu OLMADAN): " & excelPath
-shell.Run """" & excelPath & """", 1, False
+shellApp.ShellExecute excelPath, "", "", "open", 1
 If Err.Number <> 0 Then
   Log "Acma hatasi: " & Err.Description
   WScript.Quit 1
