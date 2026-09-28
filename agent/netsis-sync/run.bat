@@ -23,6 +23,32 @@ set "NODE_EXE=node"
 if exist "%ProgramFiles%\nodejs\node.exe" set "NODE_EXE=%ProgramFiles%\nodejs\node.exe"
 if exist "%ProgramFiles(x86)%\nodejs\node.exe" set "NODE_EXE=%ProgramFiles(x86)%\nodejs\node.exe"
 
+REM --- KILIT DOSYASI (28.09.2026 eklendi) ---
+REM refresh-excel.log incelemesinde su goruldu: cok yakin araliklarla
+REM (bazen ~20-30 saniyede bir) birden fazla run.bat calistirmasi UST USTE
+REM binmis - ornegin biri elle test ederken ayni anda zamanlanmis gorev de
+REM ateslenmis, ya da iki calistirma birbirini kovalamis. Sonuc: bir
+REM calistirmanin save-and-close-excel.vbs'i, BASKA bir calistirmanin
+REM henuz kaydetmedigi/kapatmadigi Excel'i araya girip kapatiyor - bu da
+REM "Nesne gerekli" (workbook COM referansi calisirken gecersiz oldu) ve
+REM "Calisan bir Excel ornegi bulunamadi" (Excel baska bir calistirma
+REM tarafindan zaten kapatilmis) hatalarina yol aciyordu. Cozum: ayni anda
+REM sadece TEK bir run.bat calissin - digerleri, onceki bitene kadar
+REM (veya kilit dosyasi 10 dakikadan eskiyse - onceki calistirma cokmus/
+REM takilmis demektir - kilidi gormezden gelip devam ederek) beklemeden
+REM sessizce atlanir.
+set "LOCKFILE=%~dp0run.lock"
+set "STALE_MINUTES=10"
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$f = $env:LOCKFILE; if (Test-Path -LiteralPath $f) { $age = (Get-Date) - (Get-Item -LiteralPath $f).LastWriteTime; if ($age.TotalMinutes -lt [double]$env:STALE_MINUTES) { exit 1 } } ; exit 0"
+if errorlevel 1 (
+  echo [run.bat] Onceki calistirma hala suruyor gibi gorunuyor ^(kilit dosyasi taze^) - bu calistirma atlaniyor.
+  exit /b 0
+)
+
+echo %date% %time% > "%LOCKFILE%"
+
 REM --- Adim 1: Excel'i CIFT TIKLAMA GIBI ac, dogal yenilemesini bekle, kaydedip kapat ---
 REM ONEMLI DEGISIKLIK (26.09.2026): Daha once Excel, CreateObject(
 REM "Excel.Application") ile COM otomasyonuyla aciliyordu (refresh-excel.vbs).
@@ -70,4 +96,10 @@ if errorlevel 1 (
 
 REM --- Adim 2: taze kaydedilen dosyayi sunucuya gonder ---
 "%NODE_EXE%" "%~dp0sync.mjs"
-exit /b %ERRORLEVEL%
+set "SYNC_EXITCODE=%ERRORLEVEL%"
+
+REM Kilidi HER durumda (basarili/basarisiz) kaldir ki bir sonraki
+REM calistirma (elle ya da zamanlanmis) takilmasin.
+del "%LOCKFILE%" >nul 2>&1
+
+exit /b %SYNC_EXITCODE%

@@ -35,7 +35,17 @@ End Sub
 
 On Error Resume Next
 
-Set excelApp = GetObject(, "Excel.Application")
+' DUZELTME (28.09.2026): Excel bazen 30 saniyelik bekleme bittiginde henuz
+' COM tarafindan gorunur olmuyor (yavas acilma, sistem yukluyken vs.) - bu
+' durumda GetObject hemen basarisiz oluyordu. Simdi 5'er saniye arayla
+' birkac kez daha deneniyor, HEMEN pes etmek yerine.
+Dim getObjectAttempt
+For getObjectAttempt = 1 To 4
+  Err.Clear
+  Set excelApp = GetObject(, "Excel.Application")
+  If Err.Number = 0 Then Exit For
+  If getObjectAttempt < 4 Then WScript.Sleep 5000
+Next
 If Err.Number <> 0 Then
   Log "Calisan bir Excel ornegi bulunamadi (" & Err.Description & ") - launch-excel.vbs basarisiz olmus olabilir."
   WScript.Quit 1
